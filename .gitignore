@@ -1,0 +1,28 @@
+# Lucas Web / BETLEM
+bin/
+obj/
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal
+.vs/
+.vscode/
+*.exe
+*.dll
+*.pdb
+*.so
+*.dylib
+node_modules/
+publish/
+*.log
+# Opcional: no versionar datos locales
+# manageros.db
+# appsettings.Development.json
+# Token de Cloudflare Tunnel (no subir a repositorio)
+scripts/cloudflare-token.txt
+# Variables de entorno (PIN, CORS, etc.)
+LucasWeb.Api/.env
+.env
+# Google Cloud Service Account (no subir credenciales)
+manager-os-484801-069d6254dfb1.json

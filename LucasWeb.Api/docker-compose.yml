@@ -1,0 +1,19 @@
+# Despliegue con persistencia de la BD.
+# Uso: desde la carpeta LucasWeb.Api:
+#   1. Copiar .env.example a .env y definir LUCAS_DEFAULT_PIN=tu_pin
+#   2. docker-compose up -d
+
+version: '3.8'
+services:
+  lucas-api:
+    build: .
+    ports:
+      - "5261:5261"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Lucas__DefaultPin=${LUCAS_DEFAULT_PIN:-}
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/manageros.db;Cache=Shared
+    volumes:
+      - lucas-data:/app/data
+volumes:
+  lucas-data:

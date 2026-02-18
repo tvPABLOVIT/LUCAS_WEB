@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lucas Web — Manager OS</title>
+  <link rel="icon" href="logo.png" type="image/png" />
+  <link rel="apple-touch-icon" href="logo.png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1a237e" />
+  <link rel="stylesheet" href="css/styles.css?v=12" />
+</head>
+<body>
+  <div id="app">
+    <div id="screen-login" class="screen hidden">
+      <header class="login-header">
+        <img src="logo_completo.png" alt="Lucas" class="logo" onerror="this.style.display='none'" />
+        <p>Introduce tu PIN para acceder</p>
+      </header>
+      <form id="form-login" class="login-form">
+        <input type="password" id="input-pin" placeholder="PIN" maxlength="8" inputmode="numeric" autocomplete="off" />
+        <button type="submit" id="btn-login">Entrar</button>
+        <p id="login-error" class="error hidden"></p>
+      </form>
+    </div>
+
+    <div id="screen-dashboard" class="screen hidden">
+      <header class="dashboard-header">
+        <img src="logo_completo.png" alt="Lucas Web" class="header-logo" />
+        <nav class="nav-tabs">
+          <a href="#dashboard" class="tab" data-route="dashboard">Dashboard</a>
+          <a href="#estimaciones" class="tab" data-route="estimaciones">Estimaciones</a>
+          <a href="#preguntas" class="tab" data-route="preguntas">Feedback diario</a>
+          <a href="#configuracion" class="tab" data-route="configuracion">Configuración</a>
+          <a href="#registro" class="tab" data-route="registro">Registro de ejecución</a>
+        </nav>
+        <div id="header-extra" class="header-extra"></div>
+        <div class="header-actions">
+          <span id="user-role" class="user-role"></span>
+          <button type="button" id="btn-logout">Cerrar sesión</button>
+        </div>
+      </header>
+      <main id="dashboard-content" class="dashboard-content">
+      </main>
+    </div>
+  </div>
+
+  <script src="js/config.js?v=1"></script>
+  <script src="js/auth.js?v=1"></script>
+  <script src="js/views/login.js?v=2"></script>
+  <script src="js/views/registro.js?v=2"></script>
+  <script src="js/views/dashboard.js?v=10"></script>
+  <script src="js/views/estimaciones.js?v=8"></script>
+  <script src="js/views/configuracion.js?v=6"></script>
+  <script src="js/scoring.js?v=1"></script>
+  <script src="js/views/preguntas.js?v=8"></script>
+  <script src="js/views/limite-comodo.js?v=2"></script>
+  <script src="js/app.js?v=3"></script>
+</body>
+</html>
