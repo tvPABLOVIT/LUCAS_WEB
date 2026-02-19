@@ -25,7 +25,7 @@ COPY --from=build /app/publish .
 # Exclude cache and test files
 COPY LucasCuadranteParser/ /LucasCuadranteParser/
 RUN rm -rf /LucasCuadranteParser/.pytest_cache /LucasCuadranteParser/__pycache__ /LucasCuadranteParser/*/__pycache__ 2>/dev/null || true
-RUN pip3 install --no-cache-dir -r /LucasCuadranteParser/requirements.txt
+RUN pip3 install --break-system-packages --no-cache-dir -r /LucasCuadranteParser/requirements.txt
 
 RUN mkdir -p /app/data
 
