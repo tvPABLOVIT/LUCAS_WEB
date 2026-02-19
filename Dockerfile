@@ -20,15 +20,15 @@ RUN apt-get update \
 COPY --from=build /app/publish .
 
 # Include the parser project inside the image
-COPY LucasCuadranteParser/ /app/LucasCuadranteParser/
-RUN pip install --no-cache-dir -r /app/LucasCuadranteParser/requirements.txt
+COPY LucasCuadranteParser/ /LucasCuadranteParser/
+RUN pip install --no-cache-dir -r /LucasCuadranteParser/requirements.txt
 
 RUN mkdir -p /app/data
 
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:5261
 ENV CuadranteParser__PythonPath=python3
-ENV CuadranteParser__ParserProjectPath=/app/LucasCuadranteParser
+ENV CuadranteParser__ParserProjectPath=/LucasCuadranteParser
 
 EXPOSE 5261
 ENTRYPOINT ["dotnet", "LucasWeb.Api.dll"]
