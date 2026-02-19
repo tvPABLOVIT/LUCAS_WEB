@@ -75,45 +75,121 @@ def segment_by_days(full_text: str) -> tuple[List[DayBlock], dict]:
     i = 0
     while i < len(lines):
         line = lines[i]
-        # Intentar match estricto primero
+        # Patrón básico: día + número (sin mes en la misma línea)
+        day_num_pattern = re.compile(
+            r"^(Lunes|Martes|Mi[ée]?rcoles|Mircoles|Mi.?rcoles|Jueves|Viernes|S[áa]?bado|Sabado|Sbado|S.?bado|Domingo)\s+(\d{1,2})\s*$",
+            re.IGNORECASE,
+        )
+        # Intentar match estricto primero (día + número + mes en misma línea)
         m = DAY_HEADER.match(line.strip())
         if not m:
             # Fallback: buscar patrón más flexible para días que pueden tener encoding raro
-            # Buscar línea que empiece con nombre de día seguido de número
             day_pattern_flexible = re.compile(
                 r"^(Lunes|Martes|Mi[ée]?rcoles|Mircoles|Mi.?rcoles|Jueves|Viernes|S[áa]?bado|Sabado|Sbado|S.?bado|Domingo)\s*[:\-]?\s*(\d{1,2})\s+(\w+)",
                 re.IGNORECASE,
             )
             m = day_pattern_flexible.search(line.strip())
+        # Si no hay match pero la línea es "Día número" (sin mes), buscar el mes en las siguientes líneas
+        if not m:
+            m = day_num_pattern.match(line.strip())
+            if m:
+                # El mes puede estar en la línea siguiente o después de la cabecera de horas
+                day_name = _normalize_day_name(m.group(1))
+                day_num = int(m.group(2))
+                month_name = None
+                # Buscar mes en las siguientes 3 líneas (saltando cabeceras de horas)
+                for j in range(i + 1, min(i + 4, len(lines))):
+                    next_line = lines[j].strip().lower()
+                    # Si la línea siguiente es solo números/horas, saltarla
+                    if re.match(r"^[\d\sh]+$", next_line) or "total" in next_line or "firma" in next_line:
+                        continue
+                    # Buscar nombre de mes en español
+                    month_candidates = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                                       "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+                    for month in month_candidates:
+                        if month in next_line:
+                            month_name = month
+                            break
+                    if month_name:
+                        break
+                if month_name:
+                    # Acumular líneas hasta el siguiente día o fin
+                    chunk = [line]
+                    j = i + 1
+                    while j < len(lines):
+                        next_line = lines[j]
+                        next_stripped = next_line.strip()
+                        # Detectar siguiente día (con o sin mes)
+                        if (DAY_HEADER.match(next_stripped) or 
+                            day_pattern_flexible.search(next_stripped) or
+                            day_num_pattern.match(next_stripped)):
+                            break
+                        chunk.append(next_line)
+                        j += 1
+                    raw = "\n".join(chunk)
+                    day_blocks.append(
+                        DayBlock(
+                            day_name=day_name,
+                            day_num=day_num,
+                            month_name=month_name,
+                            raw_text=raw,
+                            start_line=i + 1,
+                        )
+                    )
+                    i = j
+                    continue
         if m:
             day_name = _normalize_day_name(m.group(1))
             try:
                 day_num = int(m.group(2))
-                month_name = m.group(3)
+                month_name = m.group(3) if len(m.groups()) >= 3 else None
+                if not month_name:
+                    # Buscar mes en línea siguiente
+                    for j in range(i + 1, min(i + 4, len(lines))):
+                        next_line = lines[j].strip().lower()
+                        if re.match(r"^[\d\sh]+$", next_line):
+                            continue
+                        month_candidates = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+                        for month in month_candidates:
+                            if month in next_line:
+                                month_name = month
+                                break
+                        if month_name:
+                            break
             except (ValueError, IndexError):
                 i += 1
                 continue
-            # Acumular líneas hasta el siguiente día o fin
-            chunk = [line]
-            j = i + 1
-            while j < len(lines):
-                next_line = lines[j]
-                next_stripped = next_line.strip()
-                if DAY_HEADER.match(next_stripped) or day_pattern_flexible.search(next_stripped):
-                    break
-                chunk.append(next_line)
-                j += 1
-            raw = "\n".join(chunk)
-            day_blocks.append(
-                DayBlock(
-                    day_name=day_name,
-                    day_num=day_num,
-                    month_name=month_name,
-                    raw_text=raw,
-                    start_line=i + 1,
+            if month_name:
+                # Acumular líneas hasta el siguiente día o fin
+                chunk = [line]
+                j = i + 1
+                while j < len(lines):
+                    next_line = lines[j]
+                    next_stripped = next_line.strip()
+                    day_pattern_flexible = re.compile(
+                        r"^(Lunes|Martes|Mi[ée]?rcoles|Mircoles|Mi.?rcoles|Jueves|Viernes|S[áa]?bado|Sabado|Sbado|S.?bado|Domingo)\s*[:\-]?\s*(\d{1,2})",
+                        re.IGNORECASE,
+                    )
+                    if (DAY_HEADER.match(next_stripped) or 
+                        day_pattern_flexible.search(next_stripped) or
+                        day_num_pattern.match(next_stripped)):
+                        break
+                    chunk.append(next_line)
+                    j += 1
+                raw = "\n".join(chunk)
+                day_blocks.append(
+                    DayBlock(
+                        day_name=day_name,
+                        day_num=day_num,
+                        month_name=month_name,
+                        raw_text=raw,
+                        start_line=i + 1,
+                    )
                 )
-            )
-            i = j
+                i = j
+            else:
+                i += 1
         else:
             i += 1
 
