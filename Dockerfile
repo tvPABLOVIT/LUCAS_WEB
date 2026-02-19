@@ -20,7 +20,9 @@ RUN apt-get update \
 COPY --from=build /app/publish .
 
 # Include the parser project inside the image
+# Exclude cache and test files
 COPY LucasCuadranteParser/ /LucasCuadranteParser/
+RUN rm -rf /LucasCuadranteParser/.pytest_cache /LucasCuadranteParser/__pycache__ /LucasCuadranteParser/*/__pycache__ 2>/dev/null || true
 RUN pip install --no-cache-dir -r /LucasCuadranteParser/requirements.txt
 
 RUN mkdir -p /app/data

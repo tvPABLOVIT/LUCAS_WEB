@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+bin/
+obj/
+publish/
+*.dll
+*.pdb
+*.exe
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+*.env
+
+# Documentation (no necesario en runtime)
+documentacion/
+*.md
+README.md
+
+# Scripts (no necesario en runtime)
+scripts/
+
+# Test files
+*.pdf
+*.xlsx
+*.xls
+estimaciones/
+
+# Credentials
+*credentials*.json
+*service-account*.json
+manager-os-*.json
