@@ -213,7 +213,10 @@ def extract_entities_from_day_blocks(
                 continue
             total_h = _parse_total_hours(second)
             if re.search(r"\d{1,2}h\d{2}", second):
-                name = f"{first} {re.sub(r'\s*\d{1,2}h\d{2}\s*$', '', second, flags=re.I).strip()}".strip()
+                # Python 3.11 no permite backslashes dentro de la expresión de un f-string;
+                # limpiamos la segunda línea primero y luego construimos el nombre.
+                clean_second = re.sub(r"\s*\d{1,2}h\d{2}\s*$", "", second, flags=re.I).strip()
+                name = f"{first} {clean_second}".strip()
                 if name and not name.startswith("Total empleados") and "Sin asignar" not in name and len(name) < 80:
                     employees.append(ParsedEmployee(name=name, total_hours=total_h))
                     employee_line_names.append((i, name))
