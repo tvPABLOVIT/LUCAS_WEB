@@ -14,8 +14,10 @@ WORKDIR /app
 
 # PDF parser dependencies (Python)
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 python3-pip python-is-python3 \
-  && rm -rf /var/lib/apt/lists/*
+  && apt-get install -y --no-install-recommends python3 python3-pip python3-full python-is-python3 \
+  && rm -rf /var/lib/apt/lists/* \
+  && python3 --version \
+  && pip3 --version
 
 COPY --from=build /app/publish .
 
@@ -23,7 +25,7 @@ COPY --from=build /app/publish .
 # Exclude cache and test files
 COPY LucasCuadranteParser/ /LucasCuadranteParser/
 RUN rm -rf /LucasCuadranteParser/.pytest_cache /LucasCuadranteParser/__pycache__ /LucasCuadranteParser/*/__pycache__ 2>/dev/null || true
-RUN pip install --no-cache-dir -r /LucasCuadranteParser/requirements.txt
+RUN pip3 install --no-cache-dir -r /LucasCuadranteParser/requirements.txt
 
 RUN mkdir -p /app/data
 
