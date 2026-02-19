@@ -104,6 +104,22 @@ El Dockerfile de Lucas está en **`LucasWeb.Api/`**, no en la raíz del reposito
 
 ---
 
+### Nota importante (PDF online): Dockerfile en raíz recomendado
+
+Para que **Cargar PDF** funcione en Railway, la API necesita ejecutar el parser **Python** (`LucasCuadranteParser`).  
+En producción (Railway) lo más fiable es construir la imagen con un **Dockerfile en la raíz del repo** que incluya:
+
+- Python + pip
+- la carpeta `LucasCuadranteParser` dentro de la imagen
+- instalación de dependencias (`pip install -r requirements.txt`)
+
+En este repositorio ya existe un `Dockerfile` en la **raíz** preparado para eso. Recomendación para Railway:
+
+- **Root Directory**: `/` (raíz del repo)
+- Usar el **Dockerfile** detectado en la raíz (Railway debería mostrar “Using detected Dockerfile!” en los logs).
+
+Si tu servicio estaba usando `Root Directory = LucasWeb.Api` para construir, cámbialo a la raíz para que el contenedor tenga también `LucasCuadranteParser`.
+
 ### Paso 2.5 — Resumen de lo que acabas de hacer
 
 - Creaste un **proyecto** en Railway.
@@ -143,11 +159,40 @@ Sin volumen, los datos en `/app/data` se pierden al reiniciar o redeployar.
 
 ## Paso 6: Dominio público y HTTPS
 
+### Opción A — Dominio generado por Railway
+
 1. En el servicio → **Settings** → **Networking** (o pestaña **"Generate domain"**).
 2. Pulsa **"Generate domain"**. Railway asignará una URL tipo `tu-servicio-xxxx.up.railway.app`.
 3. HTTPS suele estar gestionado automáticamente por Railway para ese dominio.
 
-Para un **dominio propio**, en la misma sección añade un **Custom domain** y configura el registro DNS que indique Railway.
+### Opción B — Dominio propio con Cloudflare
+
+Si ya tienes un dominio gestionado en **Cloudflare**, puedes apuntarlo a Railway así:
+
+**1. En Railway**
+
+- Servicio **LUCAS_WEB** → **Settings** → **Networking** (o **Domains**).
+- Añade un **Custom domain** y escribe el nombre que quieras usar (ej. `app.tudominio.com` o `lucas.tudominio.com`).
+- Railway te mostrará un **valor CNAME** al que debe apuntar tu DNS (ej. algo como `lucas-web-production-xxxx.up.railway.app`). Cópialo.
+
+**2. En Cloudflare**
+
+- Entra en el **Dashboard** de Cloudflare → tu dominio → **DNS** → **Records**.
+- Añade un registro:
+  - **Type:** CNAME
+  - **Name:** el subdominio (ej. `app` para `app.tudominio.com`, o `lucas` para `lucas.tudominio.com`). Para el dominio raíz (`tudominio.com`) usa `@` (Cloudflare permite CNAME en raíz con “CNAME flattening”).
+  - **Target:** el valor que te dio Railway (ej. `lucas-web-production-xxxx.up.railway.app`). Sin `https://`, solo el nombre del host.
+  - **Proxy status:** puedes dejarlo en “Proxied” (nube naranja) o “DNS only” (gris). Con “Proxied”, en SSL/TLS usa **Full** o **Full (strict)** para que HTTPS funcione bien.
+- Guarda el registro.
+
+**3. Esperar y comprobar**
+
+- La propagación DNS puede tardar unos minutos (o hasta horas). Railway detectará el dominio y generará el certificado HTTPS automáticamente.
+- Si Railway sigue “Validating” mucho rato, revisa que el CNAME en Cloudflare esté bien y que no haya otro registro (A, AAAA, CNAME) que lo contradiga en el mismo nombre.
+
+**4. CORS (si hace falta)**
+
+- Si accedes a la API desde ese dominio (o desde otro subdominio), en **Variables** del servicio añade **`Lucas__AllowedOrigins`** con las URLs permitidas, por ejemplo: `https://app.tudominio.com,https://tudominio.com`.
 
 ---
 
