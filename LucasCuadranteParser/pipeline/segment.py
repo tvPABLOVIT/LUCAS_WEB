@@ -7,8 +7,9 @@ from typing import List
 
 # Patrón: "Lunes 9 febrero", "Martes 10 febrero", etc. (día nombre + número + mes)
 # Mi.?rcoles / S.?bado: PDF puede dar Miércoles (é) o Mircoles (FFFD); Sábado (á) o Sabado/Sbado
+# Mejorado: más variaciones para Miércoles (Miercoles, Mircoles, Miércoles, Mi?rcoles, etc.)
 DAY_HEADER = re.compile(
-    r"^(Lunes|Martes|Mi.?rcoles|Jueves|Viernes|S.?bado|Domingo)\s+(\d{1,2})\s+(\w+)\s+",
+    r"^(Lunes|Martes|Mi[ée]?rcoles|Mircoles|Mi.?rcoles|Jueves|Viernes|S[áa]?bado|Sabado|Sbado|S.?bado|Domingo)\s+(\d{1,2})\s+(\w+)\s*",
     re.IGNORECASE,
 )
 
@@ -16,11 +17,13 @@ DAY_HEADER = re.compile(
 def _normalize_day_name(day_name: str) -> str:
     """Unifica nombre del día (Mircoles/Miercoles -> Miércoles, Sbado/Sabado/Sábado -> Sábado)."""
     d = day_name.strip().lower()
-    if d in ("miercoles", "mircoles", "miércoles") or (d.startswith("mi") and "rcoles" in d):
+    # Más variaciones para Miércoles: puede venir como "Miercoles", "Mircoles", "Miércoles", "Mi?rcoles", etc.
+    if (d.startswith("mi") and ("rcoles" in d or "rcol" in d)) or d in ("miercoles", "mircoles", "miércoles", "mi?rcoles"):
         return "Miércoles"
-    if d in ("sabado", "sbado", "sábado") or (d.startswith("s") and "bado" in d):
+    if (d.startswith("s") and "bado" in d) or d in ("sabado", "sbado", "sábado"):
         return "Sábado"
-    return day_name.strip()
+    # Capitalizar primera letra para consistencia
+    return day_name.strip().capitalize()
 
 # Rango de semana en cabecera: "del 09/02/2026 al 15/02/2026" o "del 09/02/2026 al 15/02/2026"
 WEEK_RANGE = re.compile(
@@ -72,18 +75,31 @@ def segment_by_days(full_text: str) -> tuple[List[DayBlock], dict]:
     i = 0
     while i < len(lines):
         line = lines[i]
+        # Intentar match estricto primero
         m = DAY_HEADER.match(line.strip())
+        if not m:
+            # Fallback: buscar patrón más flexible para días que pueden tener encoding raro
+            # Buscar línea que empiece con nombre de día seguido de número
+            day_pattern_flexible = re.compile(
+                r"^(Lunes|Martes|Mi[ée]?rcoles|Mircoles|Mi.?rcoles|Jueves|Viernes|S[áa]?bado|Sabado|Sbado|S.?bado|Domingo)\s*[:\-]?\s*(\d{1,2})\s+(\w+)",
+                re.IGNORECASE,
+            )
+            m = day_pattern_flexible.search(line.strip())
         if m:
             day_name = _normalize_day_name(m.group(1))
-            day_num = int(m.group(2))
-            month_name = m.group(3)
+            try:
+                day_num = int(m.group(2))
+                month_name = m.group(3)
+            except (ValueError, IndexError):
+                i += 1
+                continue
             # Acumular líneas hasta el siguiente día o fin
             chunk = [line]
             j = i + 1
             while j < len(lines):
                 next_line = lines[j]
                 next_stripped = next_line.strip()
-                if DAY_HEADER.match(next_stripped):
+                if DAY_HEADER.match(next_stripped) or day_pattern_flexible.search(next_stripped):
                     break
                 chunk.append(next_line)
                 j += 1

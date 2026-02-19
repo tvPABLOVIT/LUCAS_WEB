@@ -6,6 +6,7 @@ Ventanas: Mediodía 10:00–16:00, Tarde 16:01–20:00, Noche 20:00–01:00 (dí
 Si una persona trabaja al menos 1h30 en un turno, cuenta como 1 en ese turno (sala o cocina).
 """
 
+import re
 from dataclasses import dataclass
 from typing import List, Dict
 
@@ -24,9 +25,19 @@ class ShiftAggregate:
 
 def _role_to_area(role: str) -> str | None:
     """Devuelve 'sala', 'cocina' o None si no se reconoce."""
+    if not role:
+        return None
     r = role.lower().strip()
+    # Normalizar: quitar espacios extra, guiones, etc.
+    r_normalized = re.sub(r'\s+', ' ', r).strip()
+    # Buscar coincidencia exacta primero, luego parcial
     for key, area in config.ROLE_TO_AREA.items():
-        if key in r or r in key:
+        key_normalized = key.lower().strip()
+        # Coincidencia exacta o parcial más flexible
+        if key_normalized == r_normalized or key_normalized in r_normalized or r_normalized in key_normalized:
+            return area
+        # También buscar sin espacios ni guiones
+        if key_normalized.replace(' ', '').replace('-', '') in r_normalized.replace(' ', '').replace('-', ''):
             return area
     return None
 
@@ -95,18 +106,32 @@ def apply_shift_rules(day_entities: DayEntities) -> List[ShiftAggregate]:
             if ps.is_rest_or_absence or getattr(ps, "is_other_establishment", False):
                 continue
             h = _hours_in_shift_window(ps, shift_name)
-            if h >= config.MIN_HOURS_IN_SHIFT:
-                area = _role_to_area(ps.role)
-                if area == "sala":
-                    staff_floor += 1
-                elif area == "cocina":
-                    staff_kitchen += 1
             hours_worked += h
+            # Contar personal: si tiene ≥ MIN_HOURS_IN_SHIFT cuenta como 1, pero también
+            # si tiene > 0 horas (aunque sean menos) y el rol se reconoce, contar como 0.5
+            # para no perder personal en turnos cortos
+            if h > 0:
+                area = _role_to_area(ps.role)
+                if h >= config.MIN_HOURS_IN_SHIFT:
+                    # Turno completo: cuenta como 1
+                    if area == "sala":
+                        staff_floor += 1
+                    elif area == "cocina":
+                        staff_kitchen += 1
+                elif h >= 0.5 and area:  # Turno corto pero reconocible: cuenta como 0.5
+                    # Redondeamos al final, así que 0.5 se suma y luego se redondea a 1 si hay suficientes
+                    if area == "sala":
+                        staff_floor += 0.5
+                    elif area == "cocina":
+                        staff_kitchen += 0.5
+        # Redondear personal: si hay 0.5 o más, redondear hacia arriba
+        staff_floor_final = int(round(staff_floor))
+        staff_kitchen_final = int(round(staff_kitchen))
         result.append(
             ShiftAggregate(
                 shift_name=shift_name,
-                staff_floor=staff_floor,
-                staff_kitchen=staff_kitchen,
+                staff_floor=staff_floor_final,
+                staff_kitchen=staff_kitchen_final,
                 hours_worked=round(hours_worked, 2),
             )
         )
