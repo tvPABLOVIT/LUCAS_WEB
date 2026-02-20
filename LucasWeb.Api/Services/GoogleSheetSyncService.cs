@@ -228,17 +228,82 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         return turno.Trim();
     }
 
-    /// <summary>Descripción breve del clima del día si fue lluvioso o extremo (frío/calor).</summary>
+    /// <summary>Descripción del clima del día: temperatura, estado (soleado/nublado/lluvioso/etc.) y, si aplica, condiciones extremas.</summary>
     private static string? GetWeatherDescription(ExecutionDay day)
     {
-        var code = day.WeatherCode;
-        var temp = day.WeatherTemp;
-        var lluvioso = code.HasValue && IsRainCode(code.Value);
-        var extremo = temp.HasValue && (temp.Value < 5 || temp.Value > 30);
-        if (lluvioso && extremo) return "Día lluvioso y con clima extremo.";
-        if (lluvioso) return "Día lluvioso.";
-        if (extremo) return "Día con clima extremo.";
-        return null;
+        var tempDisplay = GetWeatherTempDisplay(day);
+        var stateLabel = GetWeatherStateLabel(day.WeatherCode);
+        var extremeReasons = GetExtremeWeatherReasons(day);
+
+        // Sin ningún dato de clima → no escribir nada
+        if (!tempDisplay.HasValue && string.IsNullOrEmpty(stateLabel)) return null;
+
+        var parts = new List<string>();
+
+        // Siempre temperatura y estado cuando haya al menos uno
+        if (tempDisplay.HasValue && !string.IsNullOrEmpty(stateLabel))
+            parts.Add($"{tempDisplay.Value:F0} °C {stateLabel}");
+        else if (tempDisplay.HasValue)
+            parts.Add($"{tempDisplay.Value:F0} °C");
+        else if (!string.IsNullOrEmpty(stateLabel))
+            parts.Add(stateLabel);
+
+        if (extremeReasons.Count > 0)
+            parts.Add("Clima extremo: " + string.Join(", ", extremeReasons) + ".");
+
+        return parts.Count > 0 ? string.Join(" ", parts) : null;
+    }
+
+    private static decimal? GetWeatherTempDisplay(ExecutionDay day)
+    {
+        if (day.WeatherTemp.HasValue) return day.WeatherTemp.Value;
+        if (day.WeatherTempMax.HasValue && day.WeatherTempMin.HasValue)
+            return (day.WeatherTempMax.Value + day.WeatherTempMin.Value) / 2;
+        return day.WeatherTempMax ?? day.WeatherTempMin;
+    }
+
+    /// <summary>Etiqueta en español del estado del tiempo según código WMO (Open-Meteo).</summary>
+    private static string GetWeatherStateLabel(int? code)
+    {
+        if (!code.HasValue) return "";
+        return code.Value switch
+        {
+            0 => "soleado",
+            1 => "mayormente despejado",
+            2 => "parcialmente nublado",
+            3 => "nublado",
+            45 or 48 => "niebla",
+            51 or 53 or 55 => "llovizna",
+            56 or 57 => "llovizna helada",
+            61 or 63 or 65 => "lluvioso",
+            66 or 67 => "lluvia helada",
+            71 or 73 or 75 or 77 => "nieve",
+            80 or 81 => "chubascos",
+            82 => "chubascos intensos",
+            85 or 86 => "nieve en chubascos",
+            95 => "tormenta",
+            96 or 99 => "tormenta con granizo",
+            _ => "variable"
+        };
+    }
+
+    /// <summary>Motivos por los que el día se considera clima extremo: frío/calor, viento fuerte, tormenta, lluvia intensa.</summary>
+    private static List<string> GetExtremeWeatherReasons(ExecutionDay day)
+    {
+        var reasons = new List<string>();
+        var temp = GetWeatherTempDisplay(day);
+        if (temp.HasValue)
+        {
+            if (temp.Value < 5) reasons.Add("mucho frío");
+            else if (temp.Value > 30) reasons.Add("ola de calor");
+        }
+        if (day.WeatherWindMaxKmh.HasValue && day.WeatherWindMaxKmh.Value >= 40)
+            reasons.Add("fuertes vientos");
+        if (day.WeatherCode.HasValue && (day.WeatherCode.Value == 95 || day.WeatherCode.Value == 96 || day.WeatherCode.Value == 99))
+            reasons.Add("tormenta");
+        if (day.WeatherPrecipMm.HasValue && day.WeatherPrecipMm.Value >= 15)
+            reasons.Add("lluvia intensa");
+        return reasons;
     }
 
     private static bool IsRainCode(int code) => code is >= 51 and <= 67 or >= 71 and <= 77 or >= 80 and <= 82 or 95 or 96;
