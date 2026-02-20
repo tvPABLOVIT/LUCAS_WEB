@@ -279,10 +279,16 @@
             }
             if (staffParts.length === 0 && d.staffTotal != null) staffParts.push(String(d.staffTotal));
             var staff = staffParts.length ? staffParts.join('<br/>') : '—';
-            var trendParts = [d.trendLabel || '—'];
-            if (d.avgRevenueHistoric != null && d.avgRevenueHistoric !== '') trendParts.push('vs media ' + Number(d.avgRevenueHistoric).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €');
+            // Orden: 1) vs media (con hoy %), 2) tendencia 12 sem., 3) vs sem. ant.
+            var trendParts = [];
+            if (d.avgRevenueHistoric != null && d.avgRevenueHistoric !== '') {
+              var mediaStr = 'vs media ' + Number(d.avgRevenueHistoric).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €';
+              if (d.pctVsAvgHistoric != null) mediaStr += ' (hoy ' + (d.pctVsAvgHistoric >= 0 ? '+' : '') + d.pctVsAvgHistoric + '%)';
+              trendParts.push(mediaStr);
+            }
+            if (d.trendLabel) trendParts.push(d.trendLabel);
             if (d.trendVsPrevWeek) trendParts.push(d.trendVsPrevWeek);
-            var trend = trendParts.join('<br>');
+            var trend = trendParts.length ? trendParts.join('<br>') : '—';
             var dateStr = d.date || '';
             var evs = eventsByDate[dateStr] || [];
             if (evs.length > 0) {
@@ -298,7 +304,8 @@
             return [dayName, dateShort, clima, rev, hours, prod, staff, trend, acciones];
           });
           var personalTitle = 'Sala y cocina por turno (Mediodía-Tarde-Noche). Con PDF: se muestran las horas del cuadrante por turno (reales). Sin PDF (dato manual): Horas calc. = (Sala+Cocina) × h/turno (Config.).';
-          var thead = '<thead><tr><th>Día</th><th>Fecha</th><th>Clima</th><th>Facturación</th><th>Horas</th><th>Productividad (€/h)</th><th title="' + personalTitle + '">Personal</th><th>Tendencia</th><th>Acciones</th></tr></thead>';
+          var tendenciaTitle = 'vs media: media de facturación de ese día de la semana en las últimas 12 semanas. (hoy ±%): este día respecto a esa media. Tendencia ↑/↓: evolución del día de la semana en el tiempo (mitad reciente vs antigua de 12 sem.). vs sem. ant.: mismo día de la semana anterior.';
+          var thead = '<thead><tr><th>Día</th><th>Fecha</th><th>Clima</th><th>Facturación</th><th>Horas</th><th>Productividad (€/h)</th><th title="' + personalTitle + '">Personal</th><th title="' + tendenciaTitle + '">Tendencia</th><th>Acciones</th></tr></thead>';
           var tbody = '<tbody>' + rows.map(function (row) { return '<tr>' + row.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>';
           daysWrap.innerHTML = '<table class="dashboard-table">' + thead + tbody + '</table>';
 
@@ -317,9 +324,13 @@
                 staffLine = 'Sala ' + d.staffSummarySala + ' | Cocina ' + d.staffSummaryCocina;
               else if (d.staffTotal != null) staffLine = 'Total: ' + d.staffTotal;
               var trendParts = [];
+              if (d.avgRevenueHistoric != null && d.avgRevenueHistoric !== '') {
+                var mediaStr = 'vs media ' + Number(d.avgRevenueHistoric).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €';
+                if (d.pctVsAvgHistoric != null) mediaStr += ' (hoy ' + (d.pctVsAvgHistoric >= 0 ? '+' : '') + d.pctVsAvgHistoric + '%)';
+                trendParts.push(mediaStr);
+              }
               if (d.trendLabel) trendParts.push(d.trendLabel);
               if (d.trendVsPrevWeek) trendParts.push(d.trendVsPrevWeek);
-              if (d.avgRevenueHistoric != null && d.avgRevenueHistoric !== '') trendParts.push('vs media ' + Number(d.avgRevenueHistoric).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €');
               var trendLine = trendParts.length ? trendParts.join(' · ') : '—';
               var climaLine = weatherText(d);
               var hrefRegistro = '#registro?date=' + encodeURIComponent(d.date || '');

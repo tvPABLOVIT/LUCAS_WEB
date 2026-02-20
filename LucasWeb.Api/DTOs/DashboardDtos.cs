@@ -50,9 +50,15 @@ public class DashboardDayItemDto
     [JsonPropertyName("effectiveProductivity")]
     public decimal? EffectiveProductivity { get; set; }
 
+    /// <summary>Media de facturación de ese día de la semana en las últimas 12 semanas (antes de la semana seleccionada).</summary>
     [JsonPropertyName("avgRevenueHistoric")]
     public decimal? AvgRevenueHistoric { get; set; }
 
+    /// <summary>Porcentaje de este día respecto a la media histórica del día de la semana: (Revenue - avg) / avg * 100. Null si no hay media.</summary>
+    [JsonPropertyName("pctVsAvgHistoric")]
+    public int? PctVsAvgHistoric { get; set; }
+
+    /// <summary>Tendencia del día de la semana en el tiempo: comparando mitad reciente vs mitad antigua de las últimas 12 semanas (ej. "↑ Al alza (+17%)").</summary>
     [JsonPropertyName("trendLabel")]
     public string? TrendLabel { get; set; }
 

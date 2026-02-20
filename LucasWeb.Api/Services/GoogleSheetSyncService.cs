@@ -21,11 +21,13 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
     private static readonly Regex SpreadsheetIdRegex = new(@"/d/([a-zA-Z0-9_-]+)(?:/|$)", RegexOptions.Compiled);
     private static readonly CultureInfo EsEs = CultureInfo.GetCultureInfo("es-ES");
     private readonly AppDbContext _db;
+    private readonly IWeatherService _weather;
     private readonly ILogger<GoogleSheetSyncService> _logger;
 
-    public GoogleSheetSyncService(AppDbContext db, ILogger<GoogleSheetSyncService> logger)
+    public GoogleSheetSyncService(AppDbContext db, IWeatherService weather, ILogger<GoogleSheetSyncService> logger)
     {
         _db = db;
+        _weather = weather;
         _logger = logger;
     }
 
@@ -53,6 +55,9 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         var dateList = dates.ToList();
         if (dateList.Count == 0) return;
 
+        // Rellenar clima faltante antes de escribir al Sheet (días importados por Excel suelen no tener clima).
+        await EnsureWeatherForDatesAsync(dateList, cancellationToken);
+
         var (service, spreadsheetId) = await GetServiceAndSheetIdAsync(cancellationToken);
         if (service == null || string.IsNullOrEmpty(spreadsheetId)) return;
 
@@ -74,6 +79,60 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
             {
                 // Continuar con el siguiente día
             }
+        }
+    }
+
+    /// <summary>Rellena clima faltante para los días indicados (p. ej. tras importar Excel) para que la columna Clima del Sheet tenga datos.</summary>
+    private async Task EnsureWeatherForDatesAsync(IReadOnlyList<DateTime> dateList, CancellationToken cancellationToken)
+    {
+        if (dateList.Count == 0) return;
+
+        var pending = await _db.ExecutionDays
+            .Where(e => dateList.Contains(e.Date) && !e.IsFeedbackOnly)
+            .Where(e => !(e.WeatherCode.HasValue && e.WeatherTempMax.HasValue && e.WeatherTempMin.HasValue && e.WeatherPrecipMm.HasValue && e.WeatherWindMaxKmh.HasValue))
+            .ToListAsync(cancellationToken);
+        if (pending.Count == 0) return;
+
+        decimal? lat = null;
+        decimal? lon = null;
+        var inv = CultureInfo.InvariantCulture;
+        var latS = await _db.Settings.AsNoTracking().Where(s => s.Key == "LatRestaurante").Select(s => s.Value).FirstOrDefaultAsync(cancellationToken);
+        var lonS = await _db.Settings.AsNoTracking().Where(s => s.Key == "LonRestaurante").Select(s => s.Value).FirstOrDefaultAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(latS) && decimal.TryParse(latS.Replace(",", "."), System.Globalization.NumberStyles.Any, inv, out var la)) lat = la;
+        if (!string.IsNullOrWhiteSpace(lonS) && decimal.TryParse(lonS.Replace(",", "."), System.Globalization.NumberStyles.Any, inv, out var lo)) lon = lo;
+        if (!lat.HasValue || !lon.HasValue) return;
+
+        var minDate = dateList.Min(d => d.Date);
+        var maxDate = dateList.Max(d => d.Date);
+        const int chunkSize = 31;
+        for (var chunkStart = minDate; chunkStart <= maxDate; chunkStart = chunkStart.AddDays(chunkSize))
+        {
+            var chunkEnd = chunkStart.AddDays(chunkSize - 1);
+            if (chunkEnd > maxDate) chunkEnd = maxDate;
+
+            var weatherList = await _weather.GetWeatherForRangeAsync(chunkStart, chunkEnd, lat, lon);
+            if (weatherList.Count == 0) continue;
+
+            var byDate = weatherList
+                .Where(w => w.Date != DateTime.MinValue)
+                .ToDictionary(w => w.Date.Date, w => w);
+
+            var any = false;
+            foreach (var d in pending)
+            {
+                if (d.Date.Date < chunkStart || d.Date.Date > chunkEnd) continue;
+                if (!byDate.TryGetValue(d.Date.Date, out var w)) continue;
+
+                if (!d.WeatherCode.HasValue) { d.WeatherCode = w.WeatherCode; any = true; }
+                if (!d.WeatherTempMax.HasValue && w.TempMax.HasValue) { d.WeatherTempMax = w.TempMax.Value; any = true; }
+                if (!d.WeatherTempMin.HasValue && w.TempMin.HasValue) { d.WeatherTempMin = w.TempMin.Value; any = true; }
+                if (!d.WeatherPrecipMm.HasValue && w.PrecipitationSumMm.HasValue) { d.WeatherPrecipMm = w.PrecipitationSumMm.Value; any = true; }
+                if (!d.WeatherWindMaxKmh.HasValue && w.WindSpeedMaxKmh.HasValue) { d.WeatherWindMaxKmh = w.WindSpeedMaxKmh.Value; any = true; }
+                var tempRep = w.TempMax ?? w.TempMin;
+                if (!d.WeatherTemp.HasValue && tempRep.HasValue) { d.WeatherTemp = tempRep.Value; any = true; }
+            }
+
+            if (any) await _db.SaveChangesAsync(cancellationToken);
         }
     }
 

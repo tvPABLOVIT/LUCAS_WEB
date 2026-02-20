@@ -118,8 +118,9 @@ public class DashboardController : ControllerBase
             .GroupBy(e => e.Date.DayOfWeek)
             .ToDictionary(g => g.Key, g => g.Average(x => x.TotalRevenue));
 
-        // Tendencia real por día de la semana: ¿los lunes (martes, etc.) vienen facturando más, menos o igual en el tiempo?
-        // Comparar mitad reciente vs mitad antigua de las ocurrencias de ese día en las últimas 12 semanas.
+        // Tendencia por día de la semana: evolución en el tiempo (no "hoy vs media").
+        // Se comparan la mitad reciente vs la mitad antigua de ese día en las últimas 12 semanas:
+        // si los martes recientes facturan de media más que los martes de hace 6+ semanas → "Al alza (+X%)".
         var trendByDayOfWeek = new Dictionary<DayOfWeek, string?>();
         foreach (var dow in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday })
         {
@@ -212,6 +213,10 @@ public class DashboardController : ControllerBase
                 : (plannedDayTotal > 0 ? (decimal?)plannedDayTotal
                 : (plannedHoursFromShifts > 0 ? (decimal?)plannedHoursFromShifts : calculatedStaffHours));
             var effectiveProductivity = (effectiveHours.HasValue && effectiveHours > 0 && d.TotalRevenue > 0) ? d.TotalRevenue / effectiveHours.Value : (decimal?)null;
+            int? pctVsAvg = null;
+            if (dayAvg.HasValue && dayAvg.Value > 0)
+                pctVsAvg = (int)Math.Round((d.TotalRevenue - dayAvg.Value) / dayAvg.Value * 100);
+
             return new DashboardDayItemDto
             {
                 Date = d.Date.ToString("yyyy-MM-dd"),
@@ -228,6 +233,7 @@ public class DashboardController : ControllerBase
                 EffectiveHours = effectiveHours,
                 EffectiveProductivity = effectiveProductivity,
                 AvgRevenueHistoric = dayAvg,
+                PctVsAvgHistoric = pctVsAvg,
                 TrendLabel = trendLabel,
                 TrendVsPrevWeek = trendVsPrevWeek,
                 WeatherCode = d.WeatherCode,
