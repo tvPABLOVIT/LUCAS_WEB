@@ -95,52 +95,88 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         }
         var spreadsheetId = match.Groups[1].Value;
 
-        // Si la ruta de credenciales está vacía, buscar: google-credentials.json o manager-os-484801-069d6254dfb1.json en BaseDirectory o en directorios padre (raíz del proyecto)
-        string pathToUse;
-        if (string.IsNullOrWhiteSpace(credentialsPath))
-        {
-            var baseDir = AppContext.BaseDirectory;
-            var fileName = "manager-os-484801-069d6254dfb1.json";
-            var altFileName = "google-credentials.json";
-            var candidates = new List<string>
-            {
-                Path.Combine(baseDir, altFileName),
-                Path.Combine(baseDir, fileName)
-            };
-            var dir = new DirectoryInfo(baseDir);
-            for (var i = 0; i < 4 && dir?.Parent != null; i++)
-            {
-                dir = dir.Parent;
-                if (dir != null)
-                {
-                    candidates.Add(Path.Combine(dir.FullName, fileName));
-                    candidates.Add(Path.Combine(dir.FullName, altFileName));
-                }
-            }
-            pathToUse = candidates.FirstOrDefault(File.Exists) ?? candidates[0];
-        }
-        else
-        {
-            pathToUse = Path.IsPathRooted(credentialsPath)
-                ? credentialsPath.Trim()
-                : Path.Combine(AppContext.BaseDirectory, credentialsPath.TrimStart('/', '\\'));
-        }
-        if (!File.Exists(pathToUse))
-        {
-            _logger.LogWarning("Google Sheet sync omitida: archivo de credenciales no encontrado. En Configuración → Integraciones ponga la ruta a manager-os-484801-069d6254dfb1.json (ej. ruta completa) o coloque ese archivo en la raíz del proyecto o en: {BaseDir}", AppContext.BaseDirectory);
-            return (null, null);
-        }
-
-        GoogleCredential credential;
+        // 1) Intentar cargar credenciales desde variable de entorno (modo recomendado en hosting como Railway)
+        //    - Si en Configuración → Integraciones se pone "env:NOMBRE_VARIABLE" en GoogleCredentialsPath,
+        //      se leerá esa variable de entorno.
+        //    - Si no hay nada configurado pero existe GOOGLE_CREDENTIALS_JSON, se usará esa.
+        GoogleCredential? credential = null;
         try
         {
-            using var stream = new FileStream(pathToUse, FileMode.Open, FileAccess.Read, FileShare.Read);
-            credential = GoogleCredential.FromStream(stream).CreateScoped(SheetsService.Scope.Spreadsheets);
+            string? credentialsJson = null;
+
+            // Opción A: GoogleCredentialsPath = "env:NOMBRE"
+            if (!string.IsNullOrWhiteSpace(credentialsPath) && credentialsPath.Trim().StartsWith("env:", StringComparison.OrdinalIgnoreCase))
+            {
+                var envName = credentialsPath.Trim()[4..].Trim();
+                if (!string.IsNullOrWhiteSpace(envName))
+                    credentialsJson = Environment.GetEnvironmentVariable(envName);
+            }
+
+            // Opción B: variable por defecto GOOGLE_CREDENTIALS_JSON
+            if (string.IsNullOrWhiteSpace(credentialsJson))
+                credentialsJson = Environment.GetEnvironmentVariable("GOOGLE_CREDENTIALS_JSON");
+
+            if (!string.IsNullOrWhiteSpace(credentialsJson))
+            {
+                credential = GoogleCredential.FromJson(credentialsJson).CreateScoped(SheetsService.Scope.Spreadsheets);
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Google Sheet sync omitida: error al cargar credenciales desde {Path}.", pathToUse);
-            return (null, null);
+            _logger.LogWarning(ex, "Google Sheet sync omitida: error al cargar credenciales desde variable de entorno (env:...).");
+            credential = null;
+        }
+
+        // 2) Fallback: archivo en disco (modo antiguo para entorno local/PC)
+        if (credential == null)
+        {
+            // Si la ruta de credenciales está vacía, buscar: google-credentials.json o manager-os-484801-069d6254dfb1.json
+            // en BaseDirectory o en directorios padre (raíz del proyecto)
+            string pathToUse;
+            if (string.IsNullOrWhiteSpace(credentialsPath))
+            {
+                var baseDir = AppContext.BaseDirectory;
+                var fileName = "manager-os-484801-069d6254dfb1.json";
+                var altFileName = "google-credentials.json";
+                var candidates = new List<string>
+                {
+                    Path.Combine(baseDir, altFileName),
+                    Path.Combine(baseDir, fileName)
+                };
+                var dir = new DirectoryInfo(baseDir);
+                for (var i = 0; i < 4 && dir?.Parent != null; i++)
+                {
+                    dir = dir.Parent;
+                    if (dir != null)
+                    {
+                        candidates.Add(Path.Combine(dir.FullName, fileName));
+                        candidates.Add(Path.Combine(dir.FullName, altFileName));
+                    }
+                }
+                pathToUse = candidates.FirstOrDefault(File.Exists) ?? candidates[0];
+            }
+            else
+            {
+                pathToUse = Path.IsPathRooted(credentialsPath)
+                    ? credentialsPath.Trim()
+                    : Path.Combine(AppContext.BaseDirectory, credentialsPath.TrimStart('/', '\\'));
+            }
+            if (!File.Exists(pathToUse))
+            {
+                _logger.LogWarning("Google Sheet sync omitida: credenciales no encontradas. Configure GoogleCredentialsPath como 'env:GOOGLE_CREDENTIALS_JSON' (y defina esa variable en el hosting) o coloque manager-os-484801-069d6254dfb1.json/google-credentials.json junto a la API. BaseDir: {BaseDir}", AppContext.BaseDirectory);
+                return (null, null);
+            }
+
+            try
+            {
+                using var stream = new FileStream(pathToUse, FileMode.Open, FileAccess.Read, FileShare.Read);
+                credential = GoogleCredential.FromStream(stream).CreateScoped(SheetsService.Scope.Spreadsheets);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Google Sheet sync omitida: error al cargar credenciales desde {Path}.", pathToUse);
+                return (null, null);
+            }
         }
 
         var service = new SheetsService(new BaseClientService.Initializer
