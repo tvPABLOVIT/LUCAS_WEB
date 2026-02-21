@@ -283,7 +283,7 @@
             var trendParts = [];
             if (d.avgRevenueHistoric != null && d.avgRevenueHistoric !== '') {
               var mediaStr = 'vs media ' + Number(d.avgRevenueHistoric).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €';
-              if (d.pctVsAvgHistoric != null) mediaStr += ' (hoy ' + (d.pctVsAvgHistoric >= 0 ? '+' : '') + d.pctVsAvgHistoric + '%)';
+              if (d.pctVsAvgHistoric != null && typeof d.pctVsAvgHistoric === 'number') mediaStr += ' (hoy ' + (d.pctVsAvgHistoric >= 0 ? '+' : '') + d.pctVsAvgHistoric + '%)';
               trendParts.push(mediaStr);
             }
             if (d.trendLabel) trendParts.push(d.trendLabel);
@@ -326,7 +326,7 @@
               var trendParts = [];
               if (d.avgRevenueHistoric != null && d.avgRevenueHistoric !== '') {
                 var mediaStr = 'vs media ' + Number(d.avgRevenueHistoric).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €';
-                if (d.pctVsAvgHistoric != null) mediaStr += ' (hoy ' + (d.pctVsAvgHistoric >= 0 ? '+' : '') + d.pctVsAvgHistoric + '%)';
+                if (d.pctVsAvgHistoric != null && typeof d.pctVsAvgHistoric === 'number') mediaStr += ' (hoy ' + (d.pctVsAvgHistoric >= 0 ? '+' : '') + d.pctVsAvgHistoric + '%)';
                 trendParts.push(mediaStr);
               }
               if (d.trendLabel) trendParts.push(d.trendLabel);

@@ -56,7 +56,15 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         if (dateList.Count == 0) return;
 
         // Rellenar clima faltante antes de escribir al Sheet (días importados por Excel suelen no tener clima).
-        await EnsureWeatherForDatesAsync(dateList, cancellationToken);
+        // Si falla (timeout Open-Meteo, red, etc.) seguimos con la escritura al Sheet sin clima.
+        try
+        {
+            await EnsureWeatherForDatesAsync(dateList, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Relleno de clima antes de exportar al Sheet falló; se exporta sin clima para los días sin datos.");
+        }
 
         var (service, spreadsheetId) = await GetServiceAndSheetIdAsync(cancellationToken);
         if (service == null || string.IsNullOrEmpty(spreadsheetId)) return;
@@ -110,7 +118,17 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
             var chunkEnd = chunkStart.AddDays(chunkSize - 1);
             if (chunkEnd > maxDate) chunkEnd = maxDate;
 
-            var weatherList = await _weather.GetWeatherForRangeAsync(chunkStart, chunkEnd, lat, lon);
+            IReadOnlyList<WeatherDayInfo> weatherList;
+            try
+            {
+                weatherList = await _weather.GetWeatherForRangeAsync(chunkStart, chunkEnd, lat, lon);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Clima para {Start}..{End} no disponible.", chunkStart.ToString("yyyy-MM-dd"), chunkEnd.ToString("yyyy-MM-dd"));
+                continue;
+            }
+
             if (weatherList.Count == 0) continue;
 
             var byDate = weatherList
