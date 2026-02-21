@@ -72,22 +72,26 @@ var app = builder.Build();
 
 app.UseMiddleware<ApiExceptionMiddleware>();
 
-using (var scope = app.Services.CreateScope())
+// DataSeeder en segundo plano: la app enlaza y responde /health de inmediato.
+// Si el seeder se bloquea (BD en volumen lento/bloqueada), la app sigue operativa.
+_ = Task.Run(async () =>
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var options = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<LucasOptions>>().Value;
-    var loggerFactory = scope.ServiceProvider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>();
-    var logger = loggerFactory?.CreateLogger("LucasWeb.Api.Data.DataSeeder");
+    await Task.Delay(500);
     try
     {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var options = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<LucasOptions>>().Value;
+        var loggerFactory = scope.ServiceProvider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger("LucasWeb.Api.Data.DataSeeder");
         await DataSeeder.SeedAsync(db, options, logger);
     }
     catch (Exception ex)
     {
-        var appLogger = loggerFactory?.CreateLogger("Startup");
-        appLogger?.LogError(ex, "Error en DataSeeder al arrancar; la app continúa.");
+        var loggerFactory = app.Services.GetService<Microsoft.Extensions.Logging.ILoggerFactory>();
+        loggerFactory?.CreateLogger("DataSeeder").LogError(ex, "DataSeeder en segundo plano falló.");
     }
-}
+});
 
 app.UseCors();
 app.UseMiddleware<BearerAuthMiddleware>();
@@ -125,4 +129,5 @@ else
     });
 }
 
+app.Logger.LogInformation("Escuchando en http://0.0.0.0:{Port} (PORT={PortEnv})", port, Environment.GetEnvironmentVariable("PORT") ?? "(no definido)");
 app.Run();
