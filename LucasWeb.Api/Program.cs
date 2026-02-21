@@ -20,7 +20,7 @@ var builder = contentRoot != null
 // Railway inyecta PORT (ej. 8080). Si no existe, usar 8080 para compatibilidad con Railway.
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-Console.WriteLine("[Lucas] Puerto: {Port}", port);
+Console.WriteLine("[Lucas] Puerto: " + port);
 
 if (OperatingSystem.IsWindows())
     builder.Host.UseWindowsService();
