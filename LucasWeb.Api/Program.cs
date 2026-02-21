@@ -5,6 +5,9 @@ using LucasWeb.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting.WindowsServices;
 
+// Log inmediato para ver en Railway que el proceso arrancó
+Console.WriteLine("[Lucas] Iniciando...");
+
 // Como servicio de Windows el directorio de trabajo es System32; usar la carpeta del ejecutable.
 var contentRoot = WindowsServiceHelpers.IsWindowsService() && AppContext.BaseDirectory is { } baseDir
     ? baseDir
@@ -14,10 +17,10 @@ var builder = contentRoot != null
     ? WebApplication.CreateBuilder(new WebApplicationOptions { ContentRootPath = contentRoot })
     : WebApplication.CreateBuilder(args);
 
-// Escuchar en todas las interfaces (0.0.0.0) para que el túnel pueda conectar por localhost o por IP de la máquina.
-// En Railway se inyecta PORT; en local usamos 5261 por defecto.
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5261";
+// Railway inyecta PORT (ej. 8080). Si no existe, usar 8080 para compatibilidad con Railway.
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+Console.WriteLine("[Lucas] Puerto: {Port}", port);
 
 if (OperatingSystem.IsWindows())
     builder.Host.UseWindowsService();
@@ -130,4 +133,14 @@ else
 }
 
 app.Logger.LogInformation("Escuchando en http://0.0.0.0:{Port} (PORT={PortEnv})", port, Environment.GetEnvironmentVariable("PORT") ?? "(no definido)");
-app.Run();
+Console.WriteLine("[Lucas] A punto de escuchar en 0.0.0.0:" + port);
+
+try
+{
+    await app.RunAsync();
+}
+catch (Exception ex)
+{
+    Console.WriteLine("[Lucas] Error al ejecutar: " + ex);
+    throw;
+}
