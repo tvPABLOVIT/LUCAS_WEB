@@ -1,3 +1,4 @@
+using System.Data;
 using LucasWeb.Api.Models;
 using LucasWeb.Api.Services;
 using Microsoft.EntityFrameworkCore;
@@ -153,44 +154,56 @@ public static class DataSeeder
         await db.SaveChangesAsync();
     }
 
+    /// <summary>Comprueba si una columna existe en una tabla (SQLite pragma_table_info). Evita ALTER que falle y que EF registre "Failed executing DbCommand".</summary>
+    private static async Task<bool> ColumnExistsAsync(AppDbContext db, string tableName, string columnName)
+    {
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != ConnectionState.Open) await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT 1 FROM pragma_table_info('{tableName.Replace("'", "''")}') WHERE name='{columnName.Replace("'", "''")}' LIMIT 1";
+        var o = await cmd.ExecuteScalarAsync();
+        return o != null;
+    }
+
+    /// <summary>tableName, columnName y columnDef son siempre constantes del código (nunca entrada de usuario).</summary>
+#pragma warning disable EF1002
+    private static async Task AddColumnIfNotExistsAsync(AppDbContext db, string tableName, string columnName, string columnDef)
+    {
+        if (await ColumnExistsAsync(db, tableName, columnName)) return;
+        await db.Database.ExecuteSqlRawAsync($"ALTER TABLE \"{tableName}\" ADD COLUMN \"{columnName}\" {columnDef};");
+    }
+#pragma warning restore EF1002
+
     private static async Task EnsurePlannedHoursColumnAsync(AppDbContext db)
     {
-        try
-        {
-            await db.Database.ExecuteSqlRawAsync(
-                "ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"PlannedHours\" REAL NULL;");
-        }
-        catch
-        {
-            // Columna ya existe
-        }
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "PlannedHours", "REAL NULL");
     }
 
     private static async Task EnsureStaffComfortColumnsAsync(AppDbContext db)
     {
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"RevenuePerWaiterSala\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"DifficultyScore\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"ComfortLevel\" TEXT NULL;"); } catch { }
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "RevenuePerWaiterSala", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "DifficultyScore", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "ComfortLevel", "TEXT NULL");
     }
 
     private static async Task EnsureFeedbackQ5ColumnAsync(AppDbContext db)
     {
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"FeedbackQ5\" TEXT NULL;"); } catch { }
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "FeedbackQ5", "TEXT NULL");
     }
 
     private static async Task EnsureKitchenComfortColumnsAsync(AppDbContext db)
     {
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"RevenuePerWaiterCocina\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"DifficultyScoreKitchen\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"ComfortLevelKitchen\" TEXT NULL;"); } catch { }
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "RevenuePerWaiterCocina", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "DifficultyScoreKitchen", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "ComfortLevelKitchen", "TEXT NULL");
     }
 
     private static async Task EnsureShiftWeatherColumnsAsync(AppDbContext db)
     {
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"WeatherCode\" INTEGER NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"WeatherTempAvg\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"WeatherPrecipMm\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ShiftFeedbacks\" ADD COLUMN \"WeatherWindMaxKmh\" REAL NULL;"); } catch { }
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "WeatherCode", "INTEGER NULL");
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "WeatherTempAvg", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "WeatherPrecipMm", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ShiftFeedbacks", "WeatherWindMaxKmh", "REAL NULL");
     }
 
     /// <summary>
@@ -198,32 +211,24 @@ public static class DataSeeder
     /// </summary>
     private static async Task EnsureExecutionDayFeedbackOnlyColumnAsync(AppDbContext db)
     {
-        try
-        {
-            // SQLite: bool como INTEGER 0/1
-            await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ExecutionDays\" ADD COLUMN \"IsFeedbackOnly\" INTEGER NOT NULL DEFAULT 0;");
-        }
-        catch
-        {
-            // Columna ya existe
-        }
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "IsFeedbackOnly", "INTEGER NOT NULL DEFAULT 0");
     }
 
     private static async Task EnsureExecutionDayWeatherColumnsAsync(AppDbContext db)
     {
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ExecutionDays\" ADD COLUMN \"WeatherCode\" INTEGER NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ExecutionDays\" ADD COLUMN \"WeatherTemp\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ExecutionDays\" ADD COLUMN \"WeatherTempMax\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ExecutionDays\" ADD COLUMN \"WeatherTempMin\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ExecutionDays\" ADD COLUMN \"WeatherPrecipMm\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ExecutionDays\" ADD COLUMN \"WeatherWindMaxKmh\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ExecutionDays\" ADD COLUMN \"IsHoliday\" INTEGER NOT NULL DEFAULT 0;"); } catch { }
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "WeatherCode", "INTEGER NULL");
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "WeatherTemp", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "WeatherTempMax", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "WeatherTempMin", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "WeatherPrecipMm", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "WeatherWindMaxKmh", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "IsHoliday", "INTEGER NOT NULL DEFAULT 0");
     }
 
     /// <summary>Horas totales del día según cuadrante PDF (suma columna Total por empleado).</summary>
     private static async Task EnsurePlannedHoursTotalColumnAsync(AppDbContext db)
     {
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"ExecutionDays\" ADD COLUMN \"PlannedHoursTotal\" REAL NULL;"); } catch { }
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "PlannedHoursTotal", "REAL NULL");
     }
 
     /// <summary>Rellena RevenuePerWaiterSala, DifficultyScore y ComfortLevel en turnos que aún los tienen NULL.</summary>
@@ -315,8 +320,8 @@ public static class DataSeeder
 
     private static async Task EnsureWeeklyPredictionColumnsAsync(AppDbContext db)
     {
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"WeeklyPredictions\" ADD COLUMN \"ActualRevenue\" REAL NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"WeeklyPredictions\" ADD COLUMN \"CompletedAt\" TEXT NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE \"WeeklyPredictions\" ADD COLUMN \"StaffAccuracyJson\" TEXT NULL;"); } catch { }
+        await AddColumnIfNotExistsAsync(db, "WeeklyPredictions", "ActualRevenue", "REAL NULL");
+        await AddColumnIfNotExistsAsync(db, "WeeklyPredictions", "CompletedAt", "TEXT NULL");
+        await AddColumnIfNotExistsAsync(db, "WeeklyPredictions", "StaffAccuracyJson", "TEXT NULL");
     }
 }
