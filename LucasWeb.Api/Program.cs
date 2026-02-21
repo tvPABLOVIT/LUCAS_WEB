@@ -78,16 +78,31 @@ using (var scope = app.Services.CreateScope())
     var options = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<LucasOptions>>().Value;
     var loggerFactory = scope.ServiceProvider.GetService<Microsoft.Extensions.Logging.ILoggerFactory>();
     var logger = loggerFactory?.CreateLogger("LucasWeb.Api.Data.DataSeeder");
-    await DataSeeder.SeedAsync(db, options, logger);
+    try
+    {
+        await DataSeeder.SeedAsync(db, options, logger);
+    }
+    catch (Exception ex)
+    {
+        var appLogger = loggerFactory?.CreateLogger("Startup");
+        appLogger?.LogError(ex, "Error en DataSeeder al arrancar; la app continúa.");
+    }
 }
 
 app.UseCors();
 app.UseMiddleware<BearerAuthMiddleware>();
 app.UseAuthorization();
+
+// Health check sin autenticación para Railway y comprobar que la app responde
+app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+
 app.MapControllers();
 
 var wwwroot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
-if (Directory.Exists(wwwroot))
+var wwwrootExists = Directory.Exists(wwwroot);
+app.Logger.LogInformation("wwwroot existe: {Exists}, ruta: {Path}", wwwrootExists, wwwroot);
+
+if (wwwrootExists)
 {
     app.Use(async (context, next) =>
     {
@@ -100,6 +115,14 @@ if (Directory.Exists(wwwroot))
     app.UseDefaultFiles();
     app.UseStaticFiles();
     app.MapFallbackToFile("index.html");
+}
+else
+{
+    app.MapFallback(async context =>
+    {
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsJsonAsync(new { error = "wwwroot no encontrado", path = wwwroot });
+    });
 }
 
 app.Run();
