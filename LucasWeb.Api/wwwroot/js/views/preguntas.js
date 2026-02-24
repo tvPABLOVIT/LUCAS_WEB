@@ -217,9 +217,9 @@
     auth.fetchWithAuth('/api/weather/for-date?date=' + encodeURIComponent(dateStr))
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
-        if (!data || !state.dayData) return;
-        if (dateOnly(state.dayData.date) !== dateOnly(dateStr)) return;
-        state.weatherUnavailableReason = data.reason || null;
+        if (!data || !state.dayData) { if (callback) callback(); return; }
+        if (dateOnly(state.dayData.date) !== dateOnly(dateStr)) { if (callback) callback(); return; }
+        var merged = false;
         var shifts = state.dayData.shifts || [];
         var dayFromApi = data.day || data.Day;
         (data.shifts || data.Shifts || []).forEach(function (ws) {
@@ -227,10 +227,10 @@
           var found = shifts.find(function (s) { return (s.shift_name || '').toString().trim().toLowerCase() === name.toLowerCase(); });
           if (found) {
             var wc = ws.weather_code ?? ws.WeatherCode; var wt = ws.weather_temp_avg ?? ws.WeatherTempAvg; var wp = ws.weather_precip_mm ?? ws.WeatherPrecipMm; var ww = ws.weather_wind_max_kmh ?? ws.WeatherWindMaxKmh;
-            if (found.weather_code == null && wc != null) found.weather_code = wc;
-            if (found.weather_temp_avg == null && wt != null) found.weather_temp_avg = wt;
-            if (found.weather_precip_mm == null && wp != null) found.weather_precip_mm = wp;
-            if (found.weather_wind_max_kmh == null && ww != null) found.weather_wind_max_kmh = ww;
+            if (found.weather_code == null && wc != null) { found.weather_code = wc; merged = true; }
+            if (found.weather_temp_avg == null && wt != null) { found.weather_temp_avg = wt; merged = true; }
+            if (found.weather_precip_mm == null && wp != null) { found.weather_precip_mm = wp; merged = true; }
+            if (found.weather_wind_max_kmh == null && ww != null) { found.weather_wind_max_kmh = ww; merged = true; }
           }
         });
         if (state.dayData.weather_code == null && dayFromApi) {
@@ -239,8 +239,9 @@
           state.dayData.weather_temp_min = dayFromApi.weather_temp_min ?? dayFromApi.WeatherTempMin ?? state.dayData.weather_temp_min;
           state.dayData.weather_precip_mm = dayFromApi.weather_precip_mm ?? dayFromApi.WeatherPrecipMm ?? state.dayData.weather_precip_mm;
           state.dayData.weather_wind_max_kmh = dayFromApi.weather_wind_max_kmh ?? dayFromApi.WeatherWindMaxKmh ?? state.dayData.weather_wind_max_kmh;
-          state.weatherUnavailableReason = null;
+          merged = true;
         }
+        state.weatherUnavailableReason = merged ? null : (data.reason || null);
         if (callback) callback();
       })
       .catch(function () { if (callback) callback(); });
@@ -581,7 +582,7 @@
     options = options || {};
     var preserveShift = options.preserveShift === true;
     var currentShift = state.activeShiftIndex;
-    // No borrar state.dayData aquí: la respuesta de clima llega después y necesita hacer merge con el mismo día
+    state.weatherUnavailableReason = null;
     if (!preserveShift) state.activeShiftIndex = getShiftByCurrentTime();
     var wrap = document.getElementById('preguntas-form-wrap');
     var container = document.getElementById('dashboard-content');
@@ -589,6 +590,7 @@
     auth.fetchWithAuth('/api/execution/' + dateStr).then(function (res) {
       if (res.status === 404) {
         state.dayData = defaultDayData(dateStr);
+        state.weatherUnavailableReason = null;
         if (!preserveShift) state.activeShiftIndex = getShiftByCurrentTime();
         var wl = document.getElementById('preguntas-week-label');
         if (wl) wl.textContent = 'Semana ' + weekNumber(dateStr);
@@ -604,6 +606,7 @@
     }).then(function (data) {
       if (!data) return;
       state.dayData = normalizeDayData(data);
+      state.weatherUnavailableReason = null;
       if (!preserveShift) {
         var byTime = getShiftByCurrentTime();
         var withFeedback = -1;
