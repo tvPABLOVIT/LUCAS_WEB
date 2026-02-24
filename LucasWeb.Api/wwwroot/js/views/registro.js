@@ -12,6 +12,15 @@
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
+  function normalizeDateStr(str) {
+    if (!str || typeof str !== 'string') return (str && String(str).trim()) || todayStr();
+    var s = str.trim();
+    var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+    var d = new Date(s + (s.length === 10 ? 'T12:00:00' : ''));
+    if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return todayStr();
+  }
   function addDays(dateStr, delta) {
     var d = new Date(dateStr + 'T12:00:00');
     d.setDate(d.getDate() + delta);
@@ -304,7 +313,7 @@
   function render(container) {
     var dateStr = state.dayData ? state.dayData.date : todayStr();
     var urlDate = new URLSearchParams(window.location.search).get('date');
-    if (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate)) dateStr = urlDate;
+    if (urlDate) dateStr = normalizeDateStr(urlDate);
     var weekNum = weekNumber(dateStr);
     var tabsHtml = '<div class="registro-shift-tabs">' + SHIFT_LABELS.map(function (label, i) {
       return '<button type="button" class="registro-shift-tab' + (i === state.activeShiftIndex ? ' active' : '') + '" data-shift="' + i + '">' + label + '</button>';
@@ -427,11 +436,14 @@
   }
 
   function loadDay(dateStr) {
+    dateStr = normalizeDateStr(dateStr);
     state.dayData = null;
     state.activeShiftIndex = 0;
     var wrap = document.getElementById('registro-form-wrap');
     var container = document.getElementById('dashboard-content');
     var instruction = document.getElementById('registro-instruction');
+    var fi = document.getElementById('registro-fecha');
+    if (fi) fi.value = dateStr;
     if (wrap) wrap.innerHTML = '<p class="loading">Cargando…</p>';
     if (instruction) instruction.textContent = 'Cargando…';
     auth.fetchWithAuth('/api/execution/' + dateStr).then(function (res) {
