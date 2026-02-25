@@ -25,18 +25,20 @@
     d.setDate(d.getDate() + delta);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  /** Un dia antes: selector dia a dia (no por semana). */
+  /** Selector dia a dia: un dia antes (flecha ◀). */
   function prevDay(dateStr) {
-    var s = normalizeDateStr(dateStr);
+    var s = (normalizeDateStr(dateStr) || '').trim();
+    if (s.length < 10) return todayStr();
     var y = parseInt(s.substring(0, 4), 10);
     var m = parseInt(s.substring(5, 7), 10) - 1;
     var day = parseInt(s.substring(8, 10), 10);
     var d = new Date(y, m, day - 1);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  /** Un dia despues: selector dia a dia (no por semana). */
+  /** Selector dia a dia: un dia despues (flecha ▶). */
   function nextDay(dateStr) {
-    var s = normalizeDateStr(dateStr);
+    var s = (normalizeDateStr(dateStr) || '').trim();
+    if (s.length < 10) return todayStr();
     var y = parseInt(s.substring(0, 4), 10);
     var m = parseInt(s.substring(5, 7), 10) - 1;
     var day = parseInt(s.substring(8, 10), 10);
