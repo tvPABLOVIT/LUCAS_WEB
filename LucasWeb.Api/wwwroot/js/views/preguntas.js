@@ -349,7 +349,7 @@
     });
   }
 
-  var state = { dayData: null, activeShiftIndex: 0, weatherUnavailableReason: null };
+  var state = { dayData: null, activeShiftIndex: 0, weatherUnavailableReason: null, pendingLoadDate: null };
 
   function blockClass(hasAnswer) {
     return 'preguntas-block' + (hasAnswer ? ' preguntas-block--answered' : '');
@@ -489,12 +489,13 @@
       '<span id="preguntas-fecha-display" class="date-selector-display" title="Seleccionar fecha">' + formatDateDisplay(dateStr) + '</span>' +
       '</div>' +
       '<button type="button" id="preguntas-next" class="date-selector-arrow" title="Día siguiente">▶</button>' +
-      '</div>' +
-      '<span class="preguntas-weather-in-row">Clima: <span id="preguntas-weather" class="preguntas-weather">—</span></span></div>';
+      '</div></div>';
+    var weatherBar = '<div class="preguntas-weather-bar">Clima: <span id="preguntas-weather" class="preguntas-weather">—</span></div>';
+    var dateWeatherRow = '<div class="preguntas-date-weather-row">' + dateSelectorBar + weatherBar + '</div>';
     var headerExtra = document.getElementById('header-extra');
     if (headerExtra) headerExtra.innerHTML = '';
     if (isUserOnly && headerExtra) {
-      headerExtra.innerHTML = '<div class="header-extra-inner">' + shiftTabsHtml + dateSelectorBar + '</div>';
+      headerExtra.innerHTML = '<div class="header-extra-inner">' + shiftTabsHtml + dateWeatherRow + '</div>';
       container.innerHTML = '<div id="preguntas-form-wrap">' + getFormHtml() + '</div>';
     } else {
       var titleRow = '<div class="preguntas-title-row">' +
@@ -502,7 +503,7 @@
         '<h2 class="view-title">Feedback diario</h2>' +
         shiftTabsHtml +
         '</div>' +
-        dateSelectorBar + '</div>';
+        dateWeatherRow + '</div>';
       container.innerHTML = '<div class="card preguntas-header-card">' + titleRow + '</div><div id="preguntas-form-wrap">' + getFormHtml() + '</div>';
     }
     bind(container);
@@ -531,17 +532,17 @@
     if (fechaDisplay && fechaInput) fechaDisplay.addEventListener('click', function () { fechaInput.click(); });
     if (fechaInput) fechaInput.addEventListener('change', function () { updateDateSelector(); loadDay(fechaInput.value); });
     document.getElementById('preguntas-prev') && document.getElementById('preguntas-prev').addEventListener('click', function () {
-      if (!state.dayData) return;
       collectFormFromShift(state.activeShiftIndex);
-      var prev = addDays(state.dayData.date, -1);
+      var baseDate = state.dayData ? state.dayData.date : (fechaInput && fechaInput.value ? fechaInput.value : todayStr());
+      var prev = addDays(normalizeDateStr(baseDate), -1);
       fechaInput.value = prev;
       updateDateSelector();
       loadDay(prev);
     });
     document.getElementById('preguntas-next') && document.getElementById('preguntas-next').addEventListener('click', function () {
-      if (!state.dayData) return;
       collectFormFromShift(state.activeShiftIndex);
-      var next = addDays(state.dayData.date, 1);
+      var baseDate = state.dayData ? state.dayData.date : (fechaInput && fechaInput.value ? fechaInput.value : todayStr());
+      var next = addDays(normalizeDateStr(baseDate), 1);
       fechaInput.value = next;
       updateDateSelector();
       loadDay(next);
@@ -598,6 +599,7 @@
   function loadDay(dateStr, options) {
     options = options || {};
     dateStr = normalizeDateStr(dateStr);
+    state.pendingLoadDate = dateStr;
     var preserveShift = options.preserveShift === true;
     var currentShift = state.activeShiftIndex;
     state.weatherUnavailableReason = null;
@@ -605,8 +607,10 @@
     var wrap = document.getElementById('preguntas-form-wrap');
     var container = document.getElementById('dashboard-content');
     updateDateSelectorUI(dateStr);
-    if (wrap) wrap.innerHTML = '<p class="loading">Cargando…</p>';
+    var isInitialLoad = !state.dayData;
+    if (wrap && isInitialLoad) wrap.innerHTML = '<p class="loading">Cargando…</p>';
     auth.fetchWithAuth('/api/execution/' + dateStr).then(function (res) {
+      if (state.pendingLoadDate !== dateStr) return;
       if (res.status === 404) {
         state.dayData = defaultDayData(dateStr);
         state.weatherUnavailableReason = null;
@@ -622,6 +626,7 @@
       if (!res.ok) throw new Error('Error al cargar');
       return res.json();
     }).then(function (data) {
+      if (state.pendingLoadDate !== dateStr) return;
       if (!data) return;
       state.dayData = normalizeDayData(data);
       state.weatherUnavailableReason = null;
@@ -670,6 +675,7 @@
       }
       fetchWeatherForDate(state.dayData.date, function () { updateWeatherUI(); updateShiftTabIndicators(); });
     }).catch(function (err) {
+      if (state.pendingLoadDate !== dateStr) return;
       if (wrap) wrap.innerHTML = '<p class="error-msg">' + (err.message || 'Error al cargar el día') + '</p>';
     });
   }
