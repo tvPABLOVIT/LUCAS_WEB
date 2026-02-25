@@ -500,15 +500,15 @@
     var shiftTabsHtml = '<div class="preguntas-shift-tabs">' + SHIFT_LABELS.map(function (label, i) {
       return '<button type="button" class="preguntas-shift-tab' + (i === state.activeShiftIndex ? ' active' : '') + '" data-shift="' + i + '">' + label + '</button>';
     }).join('') + '</div>';
-    var dateSelectorBar = '<div class="date-selector-bar">' +
+    var dateSelectorBar = '<div class="date-selector-bar" role="group" aria-label="Selector de día">' +
       '<span id="preguntas-day-label" class="date-selector-day">' + getDayName(dateStr) + '</span>' +
       '<div class="date-selector-group">' +
-      '<button type="button" id="preguntas-prev" class="date-selector-arrow" title="Día anterior (un día atrás)">◀</button>' +
+      '<button type="button" id="preguntas-prev" class="date-selector-arrow" title="Día anterior" aria-label="Ir al día anterior">◀</button>' +
       '<div class="date-selector-input-wrap">' +
       '<input type="date" id="preguntas-fecha" value="' + dateStr + '" class="date-selector-input-hidden" />' +
       '<span id="preguntas-fecha-display" class="date-selector-display" title="Seleccionar fecha">' + formatDateDisplay(dateStr) + '</span>' +
       '</div>' +
-      '<button type="button" id="preguntas-next" class="date-selector-arrow" title="Día siguiente (un día adelante)">▶</button>' +
+      '<button type="button" id="preguntas-next" class="date-selector-arrow" title="Día siguiente" aria-label="Ir al día siguiente">▶</button>' +
       '</div></div>';
     var headerExtra = document.getElementById('header-extra');
     if (headerExtra) headerExtra.innerHTML = '';
@@ -551,19 +551,19 @@
     if (fechaInput) fechaInput.addEventListener('change', function () { updateDateSelector(); loadDay(fechaInput.value); });
     document.getElementById('preguntas-prev') && document.getElementById('preguntas-prev').addEventListener('click', function () {
       collectFormFromShift(state.activeShiftIndex);
-      var baseDate = state.dayData ? state.dayData.date : (fechaInput && fechaInput.value ? fechaInput.value : todayStr());
-      var prev = prevDay(baseDate);
-      fechaInput.value = prev;
+      var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : todayStr());
+      var diaAnterior = prevDay(fechaActual);
+      if (fechaInput) fechaInput.value = diaAnterior;
       updateDateSelector();
-      loadDay(prev);
+      loadDay(diaAnterior);
     });
     document.getElementById('preguntas-next') && document.getElementById('preguntas-next').addEventListener('click', function () {
       collectFormFromShift(state.activeShiftIndex);
-      var baseDate = state.dayData ? state.dayData.date : (fechaInput && fechaInput.value ? fechaInput.value : todayStr());
-      var next = nextDay(baseDate);
-      fechaInput.value = next;
+      var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : todayStr());
+      var diaSiguiente = nextDay(fechaActual);
+      if (fechaInput) fechaInput.value = diaSiguiente;
       updateDateSelector();
-      loadDay(next);
+      loadDay(diaSiguiente);
     });
     document.querySelectorAll('.preguntas-shift-tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
