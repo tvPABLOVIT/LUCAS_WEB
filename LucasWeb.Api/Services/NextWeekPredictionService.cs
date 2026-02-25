@@ -314,12 +314,12 @@ public class NextWeekPredictionService
         return weeklyGroups.Count;
     }
 
-    /// <summary>Factor en (0, 1] para bajar todas las predicciones. Si no está configurado, devuelve 0,97 (estimación algo conservadora por defecto).</summary>
+    /// <summary>Factor (0,01–2]: &lt;1 baja las predicciones, &gt;1 las sube (tendencia al alza). Vacío o 1 = sin ajuste. Por defecto 0,97.</summary>
     private async Task<decimal> GetPrediccionConservadoraFactorAsync()
     {
         var s = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(x => x.Key == "PrediccionConservadoraFactor");
         if (s?.Value == null) return 0.97m;
-        if (decimal.TryParse(s.Value.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) && v > 0m && v <= 1m)
+        if (decimal.TryParse(s.Value.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) && v > 0m && v <= 2m)
             return v;
         return 0.97m;
     }

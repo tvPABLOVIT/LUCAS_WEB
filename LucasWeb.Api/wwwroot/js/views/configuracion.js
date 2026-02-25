@@ -241,9 +241,9 @@
       '</div>' +
       '<p class="config-desc">Objetivo de facturación semanal; en el Dashboard se muestra la facturación real vs este objetivo (%).</p>' +
       '<div class="form-row">' +
-      '<div class="form-group"><label for="config-PrediccionConservadoraFactor">Factor predicción conservadora (0,01–1)</label><input type="number" id="config-PrediccionConservadoraFactor" step="0.01" min="0.01" max="1" placeholder="1 = sin ajuste" /></div>' +
+      '<div class="form-group"><label for="config-PrediccionConservadoraFactor">Factor predicción (0,01–2)</label><input type="number" id="config-PrediccionConservadoraFactor" step="0.01" min="0.01" max="2" placeholder="1 = sin ajuste" /></div>' +
       '</div>' +
-      '<p class="config-desc">Si lo defines (ej. 0,97), todas las predicciones se multiplican por este factor para bajar la estimación. Vacío o 1 = sin efecto.</p>' +
+      '<p class="config-desc">Multiplica todas las predicciones: &lt;1 baja la estimación (ej. 0,97), &gt;1 la sube si vienes al alza (ej. 1,05). Vacío o 1 = sin efecto.</p>' +
       '</div>' +
       '<div class="config-section">' +
       '<h3 class="config-section-title">Corregir formato de facturación</h3>' +
