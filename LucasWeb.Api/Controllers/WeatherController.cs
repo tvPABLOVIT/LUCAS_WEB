@@ -76,9 +76,42 @@ public class WeatherController : ControllerBase
 
         var dayStart = d.Date;
         var dayEnd = d.Date;
+        DateTime nowLocal = DateTime.UtcNow;
+        try
+        {
+            var tzMadrid = TimeZoneInfo.FindSystemTimeZoneById("Europe/Madrid");
+            nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tzMadrid);
+        }
+        catch (TimeZoneNotFoundException) { /* fallback UTC */ }
+        var isToday = dayStart == nowLocal.Date;
+
         var weatherList = await _weather.GetWeatherForRangeAsync(dayStart, dayEnd, lat, lon);
         var shiftList = await _weather.GetShiftWeatherForRangeAsync(dayStart, dayEnd, lat, lon);
         var dayInfo = weatherList.FirstOrDefault(w => w.Date.Date == dayStart);
+
+        // Para hoy usar la hora actual (clima "ahora"), no el resumen diario que puede decir "nublado" todo el día.
+        if (isToday)
+        {
+            var hourlyList = await _weather.GetHourlyWeatherForRangeAsync(dayStart, dayEnd, lat, lon);
+            var currentHour = hourlyList
+                .Where(h => h.Time <= nowLocal && h.Time.Date == dayStart)
+                .OrderByDescending(h => h.Time)
+                .FirstOrDefault();
+            if (currentHour != null)
+            {
+                dayInfo = new WeatherDayInfo
+                {
+                    Date = dayStart,
+                    WeatherCode = currentHour.WeatherCode,
+                    Description = "",
+                    TempMax = currentHour.Temperature2m,
+                    TempMin = currentHour.Temperature2m,
+                    PrecipitationSumMm = null,
+                    WindSpeedMaxKmh = currentHour.WindSpeed10mKmh
+                };
+            }
+        }
+
         object? dayObj = null;
         if (dayInfo != null)
             dayObj = new { weather_code = dayInfo.WeatherCode, weather_temp_max = dayInfo.TempMax, weather_temp_min = dayInfo.TempMin, weather_precip_mm = dayInfo.PrecipitationSumMm, weather_wind_max_kmh = dayInfo.WindSpeedMaxKmh };
