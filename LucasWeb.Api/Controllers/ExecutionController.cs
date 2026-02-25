@@ -66,6 +66,30 @@ public class ExecutionController : ControllerBase
         !string.IsNullOrWhiteSpace(s.FeedbackQ4) ||
         !string.IsNullOrWhiteSpace(s.FeedbackQ5);
 
+    /// <summary>Rellena el clima del día desde los turnos del request para que el Sheet reciba clima al sincronizar (Feedback diario no muestra clima en UI pero sí se exporta).</summary>
+    private static void ApplyDayWeatherFromShifts(ExecutionDay day, List<ShiftDto> shiftsReq)
+    {
+        var withCode = shiftsReq.FirstOrDefault(s => s.WeatherCode.HasValue);
+        if (withCode != null)
+            day.WeatherCode = withCode.WeatherCode;
+
+        var temps = shiftsReq.Where(s => s.WeatherTempAvg.HasValue).Select(s => s.WeatherTempAvg!.Value).ToList();
+        if (temps.Count > 0)
+        {
+            day.WeatherTemp = temps.First();
+            day.WeatherTempMax = temps.Max();
+            day.WeatherTempMin = temps.Min();
+        }
+
+        var precip = shiftsReq.FirstOrDefault(s => s.WeatherPrecipMm.HasValue);
+        if (precip != null)
+            day.WeatherPrecipMm = precip.WeatherPrecipMm;
+
+        var winds = shiftsReq.Where(s => s.WeatherWindMaxKmh.HasValue).Select(s => s.WeatherWindMaxKmh!.Value).ToList();
+        if (winds.Count > 0)
+            day.WeatherWindMaxKmh = winds.Max();
+    }
+
     private static (decimal revenue, decimal hours, int staffTotal, bool hasAnyRevenueOrHours, bool hasAnyFeedbackOrStaff) ComputeFromShifts(IEnumerable<ShiftDto> shifts)
     {
         decimal rev = 0;
@@ -233,6 +257,8 @@ public class ExecutionController : ControllerBase
             _db.ShiftFeedbacks.RemoveRange(day.ShiftFeedbacks);
             foreach (var s in shiftsReq)
                 _db.ShiftFeedbacks.Add(ToShift(day.Id, s, ApplyManualRevenueDiscount(s.Revenue, discountPercent)));
+            // Propagar clima de los turnos al día para que el Sheet tenga clima al sincronizar (la columna Clima usa nivel día).
+            ApplyDayWeatherFromShifts(day, shiftsReq);
         }
         await _db.SaveChangesAsync();
         var updatedDate = day.Date;

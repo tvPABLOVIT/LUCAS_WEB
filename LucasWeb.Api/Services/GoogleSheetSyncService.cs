@@ -302,6 +302,22 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         return turno.Trim();
     }
 
+    /// <summary>Descripción del clima a partir de un turno (respaldo cuando el día no tiene clima pero el turno sí, p. ej. guardado desde Feedback diario).</summary>
+    private static string? GetWeatherDescriptionFromShift(ShiftFeedback shift)
+    {
+        var parts = new List<string>();
+        if (shift.WeatherTempAvg.HasValue)
+            parts.Add($"{shift.WeatherTempAvg.Value:F0} °C");
+        var stateLabel = GetWeatherStateLabel(shift.WeatherCode);
+        if (!string.IsNullOrEmpty(stateLabel))
+            parts.Add(stateLabel);
+        if (shift.WeatherPrecipMm.HasValue && shift.WeatherPrecipMm.Value >= 15)
+            parts.Add("lluvia intensa");
+        if (shift.WeatherWindMaxKmh.HasValue && shift.WeatherWindMaxKmh.Value >= 40)
+            parts.Add("fuertes vientos");
+        return parts.Count > 0 ? string.Join(" ", parts) : null;
+    }
+
     /// <summary>Descripción del clima del día: temperatura, estado (soleado/nublado/lluvioso/etc.) y, si aplica, condiciones extremas.</summary>
     private static string? GetWeatherDescription(ExecutionDay day)
     {
@@ -437,7 +453,14 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
 
         // Columnas: A=Fecha, B=Día, C=Observaciones mediodía, D=Observaciones tarde, E=Observaciones noche, F–I=Facturación, J=Clima.
         // Observaciones (C,D,E): solo párrafo del turno (Q1–Q5). Clima (J): descripción del día (lluvioso, extremo).
+        // Si el día no tiene clima pero algún turno sí (ej. guardado desde Feedback diario), usar el primer turno con datos.
         var climaTexto = GetWeatherDescription(day) ?? "";
+        if (string.IsNullOrWhiteSpace(climaTexto))
+        {
+            var shiftWithWeather = new[] { med, tar, noc }.FirstOrDefault(s => s != null && (s.WeatherCode.HasValue || s.WeatherTempAvg.HasValue));
+            if (shiftWithWeather != null)
+                climaTexto = GetWeatherDescriptionFromShift(shiftWithWeather) ?? "";
+        }
         var row = new List<object>
         {
             day.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
