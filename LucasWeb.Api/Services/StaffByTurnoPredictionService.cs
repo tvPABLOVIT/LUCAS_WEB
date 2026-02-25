@@ -15,7 +15,7 @@ namespace LucasWeb.Api.Services;
 public class StaffByTurnoPredictionService
 {
     private readonly AppDbContext _db;
-    private const int MinSamplesPerDowShift = 3;
+    private const int MinSamplesPerDowShift = 2;
     private const int HistoricWeeks = 12;
     private static readonly string[] AllowedSchemas = { "1-1", "1-2", "2-1", "2-2", "2-3", "3-2", "3-3" };
     private static readonly decimal ComfortMargin = 1.05m;
@@ -35,24 +35,25 @@ public class StaffByTurnoPredictionService
     private static string NormalizeShift(string? s)
     {
         if (string.IsNullOrWhiteSpace(s)) return "";
-        var x = s.Trim().ToLowerInvariant().Replace("í", "i").Replace("á", "a");
-        if (x.Contains("medio")) return "mediodia";
+        var x = s.Trim().ToLowerInvariant().Replace("í", "i").Replace("á", "a").Replace("é", "e").Replace("ó", "o");
+        if (x.Contains("medio") || x == "midday" || x == "noon") return "mediodia";
         if (x.Contains("tarde")) return "tarde";
-        if (x.Contains("noche")) return "noche";
+        if (x.Contains("noche") || x == "night") return "noche";
         return x;
     }
 
-    /// <summary>Histórico por (DOW, turno): mediana de StaffFloor/StaffKitchen y media de Revenue (para ajustar por nivel de facturación reciente).</summary>
+    /// <summary>Histórico por (DOW, turno): mediana de StaffFloor/StaffKitchen y media de Revenue. Ventana: últimas 12 semanas hasta hoy. Incluye turnos feedback-only (con staff) para mediana; AvgRevenue solo de turnos con Revenue&gt;0.</summary>
     private async Task<Dictionary<(int Dow, string Shift), (int Sala, int Cocina, decimal AvgRevenue)>> GetHistoricStaffByDowShiftAsync(DateTime currentWeekMonday, CancellationToken ct = default)
     {
-        var end = currentWeekMonday.AddDays(-1).Date;
+        var end = DateTime.UtcNow.Date;
         var start = end.AddDays(-7 * HistoricWeeks).Date;
 
         var rows = await _db.ShiftFeedbacks
             .AsNoTracking()
-            .Where(s => s.ExecutionDay != null && !s.ExecutionDay.IsFeedbackOnly
+            .Where(s => s.ExecutionDay != null
                 && s.ExecutionDay.Date >= start && s.ExecutionDay.Date <= end
-                && s.StaffFloor >= 0 && s.StaffKitchen >= 0 && s.Revenue > 0)
+                && s.StaffFloor >= 0 && s.StaffKitchen >= 0
+                && (s.Revenue > 0 || (s.ExecutionDay.IsFeedbackOnly && (s.StaffFloor > 0 || s.StaffKitchen > 0))))
             .Select(s => new
             {
                 Date = s.ExecutionDay!.Date,
@@ -78,16 +79,17 @@ public class StaffByTurnoPredictionService
                 }
                 var sala = Math.Clamp(Median(salaList), 1, 3);
                 var cocina = Math.Clamp(Median(cocinaList), 1, 3);
-                var avgRevenue = g.Average(x => x.Revenue);
+                var withRevenue = g.Where(x => x.Revenue > 0).ToList();
+                var avgRevenue = withRevenue.Count > 0 ? withRevenue.Average(x => x.Revenue) : 0m;
                 return (sala, cocina, avgRevenue);
             });
 
         return byKey;
     }
 
-    /// <summary>Ratio de facturación para ajustar histórico: clamp [0.7, 1.4] para no sobre/ infra-reaccionar.</summary>
+    /// <summary>Ratio de facturación para ajustar histórico: clamp [0.7, 1.6] (1.6 permite subir personal en tendencia al alza).</summary>
     private const decimal RevenueRatioMin = 0.7m;
-    private const decimal RevenueRatioMax = 1.4m;
+    private const decimal RevenueRatioMax = 1.6m;
 
     private static decimal GetDec(object? o)
     {

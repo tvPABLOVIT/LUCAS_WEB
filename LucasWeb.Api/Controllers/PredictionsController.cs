@@ -136,8 +136,8 @@ public class PredictionsController : ControllerBase
         var horas = 4m;
         if (prodSetting != null && decimal.TryParse(prodSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var pp)) prod = pp;
         if (horasSetting != null && decimal.TryParse(horasSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var hh)) horas = hh;
-        var comfort = await _staffComfort.GetAggregatesAsync(1);
-        dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(monday, dailyJson, prod, horas, comfort) ?? dailyJson;
+        var comfort = await _staffComfort.GetAggregatesAsync(3);
+            dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(monday, dailyJson, prod, horas, comfort) ?? dailyJson;
 
         return Ok(new
         {
@@ -224,7 +224,7 @@ public class PredictionsController : ControllerBase
             var horas = 4m;
             if (prodSetting != null && decimal.TryParse(prodSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var pp)) prod = pp;
             if (horasSetting != null && decimal.TryParse(horasSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var hh)) horas = hh;
-            var comfort = await _staffComfort.GetAggregatesAsync(1);
+            var comfort = await _staffComfort.GetAggregatesAsync(3);
             dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(nextMonday, dailyJson, prod, horas, comfort) ?? dailyJson;
         }
         return Ok(new
@@ -258,6 +258,15 @@ public class PredictionsController : ControllerBase
         dailyJson = await _enrichment.EnrichDailyPredictionsAsync(dailyJson, nextMonday, lat, lon, countryCode);
         if (string.IsNullOrWhiteSpace(dailyJson))
             return Ok(new { saved = false, message = "Error al enriquecer la predicción." });
+
+        var prodSetting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "ProductividadIdealEurHora");
+        var horasSetting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "HorasPorTurno");
+        var prod = 50m;
+        var horas = 4m;
+        if (prodSetting != null && decimal.TryParse(prodSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var pp)) prod = pp;
+        if (horasSetting != null && decimal.TryParse(horasSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var hh)) horas = hh;
+        var comfort = await _staffComfort.GetAggregatesAsync(3);
+        dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(nextMonday, dailyJson, prod, horas, comfort) ?? dailyJson;
 
         decimal totalRevenue = 0;
         try
