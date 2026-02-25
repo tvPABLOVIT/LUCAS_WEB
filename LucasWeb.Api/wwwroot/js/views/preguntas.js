@@ -6,6 +6,7 @@
   var Q2_OPTIONS = ['Muy espaciadas, sin acumulación', 'Entradas tranquilas', 'Flujo constante', 'Muchas entradas juntas', 'Entradas continuas sin margen'];
   var Q3_OPTIONS = ['Siempre adelantado', 'Generalmente con margen', 'Justo', 'Poco margen', 'Ningún margen'];
   var Q4_OPTIONS = ['Muy fácil', 'Fácil', 'Normal', 'Difícil', 'Muy difícil'];
+  var _dateSelectorBound = false;
 
   function todayStr() {
     var d = new Date();
@@ -68,14 +69,15 @@
     if (h < 20) return 1;
     return 2;
   }
-  /** Obtiene la fecha del query string cuando la navegación es por hash (#preguntas?date=yyyy-MM-dd). */
+  /** Obtiene la fecha del query string cuando la navegación es por hash (#preguntas?date=yyyy-MM-dd). Acepta también 2026-2-5 y la normaliza. */
   function getDateFromHash() {
     var hash = (window.location.hash || '');
     var q = hash.indexOf('?');
     var search = q >= 0 ? hash.slice(q) : '';
     var date = search ? new URLSearchParams(search).get('date') : null;
-    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
-    return (new URLSearchParams(window.location.search).get('date')) || null;
+    if (!date) date = (new URLSearchParams(window.location.search).get('date')) || null;
+    if (date) return normalizeDateStr(date);
+    return null;
   }
   function radioGroup(name, options, selected) {
     var s = (selected || '').trim();
@@ -174,9 +176,10 @@
       }
       return defaultShift(name);
     });
+    var rawDate = apiData.date || apiData.Date;
     return {
       id: apiData.id,
-      date: apiData.date || apiData.Date,
+      date: normalizeDateStr(rawDate || todayStr()),
       total_revenue: apiData.total_revenue ?? apiData.TotalRevenue ?? 0,
       total_hours_worked: apiData.total_hours_worked ?? apiData.TotalHoursWorked ?? 0,
       staff_total: apiData.staff_total ?? apiData.StaffTotal ?? 0,
@@ -489,6 +492,7 @@
   }
 
   function render(container) {
+    _dateSelectorBound = false;
     var dateStr = state.dayData ? state.dayData.date : todayStr();
     var urlDate = getDateFromHash();
     if (urlDate) dateStr = normalizeDateStr(urlDate);
@@ -547,55 +551,60 @@
         if (dayLabel) dayLabel.textContent = getDayName(v);
       }
     }
-    if (fechaDisplay && fechaInput) fechaDisplay.addEventListener('click', function () { fechaInput.click(); });
-    if (fechaInput) fechaInput.addEventListener('change', function () { updateDateSelector(); loadDay(fechaInput.value); });
-    document.getElementById('preguntas-prev') && document.getElementById('preguntas-prev').addEventListener('click', function () {
-      collectFormFromShift(state.activeShiftIndex);
-      var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : todayStr());
-      var diaAnterior = prevDay(fechaActual);
-      if (fechaInput) fechaInput.value = diaAnterior;
-      updateDateSelector();
-      loadDay(diaAnterior);
-    });
-    document.getElementById('preguntas-next') && document.getElementById('preguntas-next').addEventListener('click', function () {
-      collectFormFromShift(state.activeShiftIndex);
-      var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : todayStr());
-      var diaSiguiente = nextDay(fechaActual);
-      if (fechaInput) fechaInput.value = diaSiguiente;
-      updateDateSelector();
-      loadDay(diaSiguiente);
-    });
-    document.querySelectorAll('.preguntas-shift-tab').forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        var idx = parseInt(tab.getAttribute('data-shift'), 10);
-        if (idx === state.activeShiftIndex) return;
+    if (!_dateSelectorBound) {
+      _dateSelectorBound = true;
+      if (fechaDisplay && fechaInput) fechaDisplay.addEventListener('click', function () { fechaInput.click(); });
+      if (fechaInput) fechaInput.addEventListener('change', function () { updateDateSelector(); loadDay(fechaInput.value); });
+      var prevBtn = document.getElementById('preguntas-prev');
+      if (prevBtn) prevBtn.addEventListener('click', function () {
         collectFormFromShift(state.activeShiftIndex);
-        state.activeShiftIndex = idx;
-        document.querySelectorAll('.preguntas-shift-tab').forEach(function (t) { t.classList.toggle('active', parseInt(t.getAttribute('data-shift'), 10) === idx); });
-        var cardBody = document.getElementById('preguntas-card-body');
-        if (cardBody) {
-          cardBody.innerHTML = getFormInnerHtml();
-          fillFormForShift(idx);
-          applyHighlightFromData(getShiftDataByIndex(idx));
-          applyAnsweredStateFromDom();
-          updateStatus();
-          var btnSave = document.getElementById('preguntas-guardar');
-          if (btnSave) btnSave.addEventListener('click', save);
-          bindRadioChanges();
-          bindRevenueFormat();
-        } else {
-          wrap.innerHTML = getFormHtml();
-          fillFormForShift(idx);
-          applyHighlightFromData(getShiftDataByIndex(idx));
-          applyAnsweredStateFromDom();
-          updateStatus();
-          var btnSave = document.getElementById('preguntas-guardar');
-          if (btnSave) btnSave.addEventListener('click', save);
-          bindRadioChanges();
-          bindRevenueFormat();
-        }
+        var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : todayStr());
+        var diaAnterior = prevDay(fechaActual);
+        if (fechaInput) fechaInput.value = diaAnterior;
+        updateDateSelector();
+        loadDay(diaAnterior);
       });
-    });
+      var nextBtn = document.getElementById('preguntas-next');
+      if (nextBtn) nextBtn.addEventListener('click', function () {
+        collectFormFromShift(state.activeShiftIndex);
+        var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : todayStr());
+        var diaSiguiente = nextDay(fechaActual);
+        if (fechaInput) fechaInput.value = diaSiguiente;
+        updateDateSelector();
+        loadDay(diaSiguiente);
+      });
+      document.querySelectorAll('.preguntas-shift-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          var idx = parseInt(tab.getAttribute('data-shift'), 10);
+          if (idx === state.activeShiftIndex) return;
+          collectFormFromShift(state.activeShiftIndex);
+          state.activeShiftIndex = idx;
+          document.querySelectorAll('.preguntas-shift-tab').forEach(function (t) { t.classList.toggle('active', parseInt(t.getAttribute('data-shift'), 10) === idx); });
+          var cardBody = document.getElementById('preguntas-card-body');
+          if (cardBody) {
+            cardBody.innerHTML = getFormInnerHtml();
+            fillFormForShift(idx);
+            applyHighlightFromData(getShiftDataByIndex(idx));
+            applyAnsweredStateFromDom();
+            updateStatus();
+            var btnSave = document.getElementById('preguntas-guardar');
+            if (btnSave) btnSave.addEventListener('click', save);
+            bindRadioChanges();
+            bindRevenueFormat();
+          } else {
+            wrap.innerHTML = getFormHtml();
+            fillFormForShift(idx);
+            applyHighlightFromData(getShiftDataByIndex(idx));
+            applyAnsweredStateFromDom();
+            updateStatus();
+            var btnSave = document.getElementById('preguntas-guardar');
+            if (btnSave) btnSave.addEventListener('click', save);
+            bindRadioChanges();
+            bindRevenueFormat();
+          }
+        });
+      });
+    }
     var btnSave = document.getElementById('preguntas-guardar');
     if (btnSave) btnSave.addEventListener('click', save);
     bindRadioChanges();
