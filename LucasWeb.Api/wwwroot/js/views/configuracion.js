@@ -233,11 +233,9 @@
       '<div class="form-group"><label for="config-HorasPorTurno">Horas por turno</label><input type="number" id="config-HorasPorTurno" step="0.1" min="1" max="24" value="4" /></div>' +
       '<div class="form-group"><label for="config-ProductividadIdealEurHora">Productividad ideal (€/h)</label><input type="number" id="config-ProductividadIdealEurHora" step="0.01" value="50" /></div>' +
       '<div class="form-group"><label for="config-CostePersonalPorHora">Coste por hora de personal (€/h)</label><input type="number" id="config-CostePersonalPorHora" step="0.01" value="15.73" /></div>' +
-      '<div class="form-group"><label for="config-DescuentoFacturacionManualPorcentaje">Descuento facturación manual (%)</label><input type="number" id="config-DescuentoFacturacionManualPorcentaje" step="0.1" min="0" max="100" value="9.1" placeholder="9.1" /></div>' +
       '</div>' +
       '<p class="config-desc">Objetivo de facturación por hora trabajada; se usará en Estimaciones para comparar con la productividad real.</p>' +
       '<p class="config-desc">Coste medio por hora de personal; se usa en Estimaciones para el KPI Costo de personal (horas × €/h).</p>' +
-      '<p class="config-desc">Porcentaje que se descuenta a la facturación cuando el usuario la introduce manualmente (ej. 9,1). No se aplica a la facturación importada del Excel.</p>' +
       '<div class="form-row">' +
       '<div class="form-group"><label for="config-FacturacionObjetivoSemanal">Facturación objetivo (€/semana)</label><input type="number" id="config-FacturacionObjetivoSemanal" step="1" min="0" placeholder="ej. 12000" /></div>' +
       '</div>' +
@@ -343,7 +341,6 @@
       if ((el = document.getElementById('config-HorasPorTurno'))) el.value = data.HorasPorTurno != null && data.HorasPorTurno !== '' ? data.HorasPorTurno : '4';
       if ((el = document.getElementById('config-ProductividadIdealEurHora'))) el.value = data.ProductividadIdealEurHora != null ? data.ProductividadIdealEurHora : '50';
       if ((el = document.getElementById('config-CostePersonalPorHora'))) el.value = data.CostePersonalPorHora != null ? data.CostePersonalPorHora : '15.73';
-      if ((el = document.getElementById('config-DescuentoFacturacionManualPorcentaje'))) el.value = (data.DescuentoFacturacionManualPorcentaje != null && data.DescuentoFacturacionManualPorcentaje !== '') ? data.DescuentoFacturacionManualPorcentaje : '9.1';
       if ((el = document.getElementById('config-PrediccionConservadoraFactor'))) el.value = (data.PrediccionConservadoraFactor != null && data.PrediccionConservadoraFactor !== '') ? data.PrediccionConservadoraFactor : '';
       if ((el = document.getElementById('config-FacturacionObjetivoSemanal'))) el.value = (data.FacturacionObjetivoSemanal != null && data.FacturacionObjetivoSemanal !== '') ? data.FacturacionObjetivoSemanal : '';
       if ((el = document.getElementById('config-NombreRestaurante'))) el.value = data.NombreRestaurante != null ? data.NombreRestaurante : '';
@@ -426,18 +423,15 @@
     var horas = parseFloat(document.getElementById('config-HorasPorTurno')?.value ?? '4', 10);
     var prod = parseFloat(document.getElementById('config-ProductividadIdealEurHora')?.value ?? '50', 10);
     var coste = parseFloat(document.getElementById('config-CostePersonalPorHora')?.value ?? '15.73', 10);
-    var descuentoManual = document.getElementById('config-DescuentoFacturacionManualPorcentaje')?.value?.trim() ?? '';
     if (isNaN(horas) || horas < 1 || horas > 24) { showMsg(msgEl, 'Horas por turno debe estar entre 1 y 24.', false); return; }
     if (isNaN(prod) || prod < 0) { showMsg(msgEl, 'Productividad ideal debe ser ≥ 0.', false); return; }
     if (isNaN(coste) || coste < 0) { showMsg(msgEl, 'Coste por hora de personal debe ser ≥ 0.', false); return; }
-    if (descuentoManual !== '' && (isNaN(parseFloat(descuentoManual.replace(',', '.'))) || parseFloat(descuentoManual.replace(',', '.')) < 0 || parseFloat(descuentoManual.replace(',', '.')) > 100)) { showMsg(msgEl, 'Descuento facturación manual debe estar entre 0 y 100.', false); return; }
     var factorConservador = document.getElementById('config-PrediccionConservadoraFactor')?.value?.trim() ?? '';
     var factObjSem = document.getElementById('config-FacturacionObjetivoSemanal')?.value?.trim() ?? '';
     var body = {
       HorasPorTurno: String(horas),
       ProductividadIdealEurHora: String(prod),
       CostePersonalPorHora: String(coste),
-      DescuentoFacturacionManualPorcentaje: descuentoManual === '' ? '9.1' : String(descuentoManual.replace(',', '.')),
       FacturacionObjetivoSemanal: factObjSem === '' ? '' : String(parseFloat(factObjSem.replace(',', '.')) || 0),
       PrediccionConservadoraFactor: factorConservador === '' || factorConservador === '1' ? '' : factorConservador,
       NombreRestaurante: document.getElementById('config-NombreRestaurante')?.value ?? '',
@@ -557,9 +551,9 @@
       '<div class="form-group"><label for="config-GoogleSheetsUrl">URL de la hoja</label><input type="url" id="config-GoogleSheetsUrl" placeholder="https://docs.google.com/..." /></div>' +
       '<p class="config-desc">Archivo de credenciales (cuenta de servicio): nombre de archivo o ruta completa.</p>' +
       '<div class="form-group"><label for="config-GoogleCredentialsPath">Ruta credenciales</label><input type="text" id="config-GoogleCredentialsPath" /></div>' +
-      '<div class="form-row"><button type="button" class="btn-secondary" id="config-sheets-open">Abrir Google Sheets</button><button type="button" class="btn-secondary" id="config-sheets-export">Exportar todo al Google Sheet</button><button type="button" class="btn-secondary" id="config-import-excel-btn">Importar archivo de estimaciones (Excel)</button></div>' +
-      '<input type="file" id="config-import-excel-file" accept=".xlsx" style="display:none" />' +
-      '<p class="config-desc">Exportar todo envía todos los días guardados al sheet. Importar: seleccione un Excel (ej. s6_2026.xlsx); extrae facturaciones de 2 sem antes y actualiza BD y Google Sheet.</p></div>' +
+      '<div class="form-row"><button type="button" class="btn-secondary" id="config-sheets-open">Abrir Google Sheets</button><button type="button" class="btn-secondary" id="config-sheets-export">Exportar todo al Google Sheet</button><button type="button" class="btn-secondary" id="config-import-excel-btn">Importar archivo(s) de estimaciones (Excel)</button></div>' +
+      '<input type="file" id="config-import-excel-file" accept=".xlsx" style="display:none" multiple />' +
+      '<p class="config-desc">Exportar todo envía todos los días guardados al sheet. Importar: seleccione uno o varios Excel (ej. s6_2026.xlsx); extrae facturaciones de 2 sem antes y actualiza BD y Google Sheet.</p></div>' +
       '<p id="config-int-msg" class="config-msg hidden"></p>' +
       '<button type="button" id="config-int-guardar" class="btn-primary btn-large">Guardar integraciones</button></div>';
     loadSettingsForIntegraciones();
@@ -586,27 +580,47 @@
     if (importBtn && importFile) {
       importBtn.addEventListener('click', function () { importFile.click(); });
       importFile.addEventListener('change', function () {
-        if (!importFile.files || !importFile.files[0]) return;
-        var fd = new FormData();
-        fd.append('file', importFile.files[0]);
+        var files = importFile.files;
+        if (!files || files.length === 0) return;
         var msgEl = document.getElementById('config-int-msg');
-        showMsg(msgEl, 'Importando…');
-        auth.fetchWithAuth('/api/import/estimacion-excel', { method: 'POST', body: fd }).then(function (r) {
-          if (r.status === 401) return null;
-          return safeParseResponse(r).then(function (d) {
-            if (!r.ok) throw new Error(d && d.message ? d.message : (d && d.errors && d.errors.length ? d.errors.join(' ') : 'Error al importar'));
-            return d;
+        var total = files.length;
+        var totalCreated = 0;
+        var totalUpdated = 0;
+        var totalShifts = 0;
+        var allErrors = [];
+        function sendNext(index) {
+          if (index >= total) {
+            var msg = total === 1
+              ? ((totalCreated || totalUpdated || totalShifts) ? (totalCreated + ' días creados, ' + totalUpdated + ' actualizados, ' + totalShifts + ' turnos.') : 'Importado.')
+              : (total + ' archivos: ' + totalCreated + ' días creados, ' + totalUpdated + ' actualizados, ' + totalShifts + ' turnos.');
+            if (allErrors.length > 0) msg += ' Errores: ' + allErrors.slice(0, 5).join('; ');
+            showMsg(msgEl, msg, allErrors.length === 0);
+            importFile.value = '';
+            return;
+          }
+          showMsg(msgEl, 'Importando ' + (index + 1) + '/' + total + '…');
+          var fd = new FormData();
+          fd.append('file', files[index]);
+          auth.fetchWithAuth('/api/import/estimacion-excel', { method: 'POST', body: fd }).then(function (r) {
+            if (r.status === 401) return null;
+            return safeParseResponse(r).then(function (d) {
+              if (!r.ok) throw new Error(d && d.message ? d.message : (d && d.errors && d.errors.length ? d.errors.join(' ') : 'Error al importar'));
+              return d;
+            });
+          }).then(function (d) {
+            if (d) {
+              totalCreated += d.days_created || 0;
+              totalUpdated += d.days_updated || 0;
+              totalShifts += d.shifts_updated || 0;
+              if (d.errors && d.errors.length) allErrors.push((files[index].name || '') + ': ' + d.errors.join(', '));
+            }
+            sendNext(index + 1);
+          }).catch(function (e) {
+            allErrors.push((files[index].name || '') + ': ' + (e.message || 'Error'));
+            sendNext(index + 1);
           });
-        }).then(function (d) {
-          if (!d) return;
-          var msg = (d.message && d.message.length > 0) ? d.message : 'Importado.';
-          if (d.days_created != null && !d.message) msg += ' Días creados: ' + d.days_created + '.';
-          if (d.days_updated != null && !d.message) msg += ' Días actualizados: ' + d.days_updated + '.';
-          if (d.shifts_updated != null && !d.message) msg += ' Turnos: ' + d.shifts_updated + '.';
-          if (d.errors && d.errors.length) msg += (msg ? ' ' : '') + d.errors.join(' ');
-          showMsg(msgEl, msg, true);
-        }).catch(function (e) { showMsg(msgEl, e.message || 'Error al importar', false); });
-        importFile.value = '';
+        }
+        sendNext(0);
       });
     }
   }

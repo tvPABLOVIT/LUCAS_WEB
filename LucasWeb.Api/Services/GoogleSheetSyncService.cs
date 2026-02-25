@@ -13,8 +13,7 @@ namespace LucasWeb.Api.Services;
 
 /// <summary>
 /// Sincroniza días con Google Sheet: hoja del mes (Mes Año), una fila por día (fila = día + 1), 9 columnas A–I. Ver GUARDADO_GOOGLE_SHEET.md.
-/// Facturación escrita en el sheet: la misma norma que en BD. Cuando el dato viene de ingreso manual ya está guardado con descuento 9,1%;
-/// cuando viene de importación Excel se guarda y se escribe en el sheet sin descuento. Escribimos siempre el valor almacenado en BD.
+/// Facturación escrita en el sheet: el valor almacenado en BD (manual o importado) se escribe tal cual.
 /// </summary>
 public class GoogleSheetSyncService : IGoogleSheetSyncService
 {
@@ -47,7 +46,7 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         }
     }
 
-    /// <summary>Varios días (Exportar todo / Import Excel): escribe cada uno en su hoja del mes. Si los datos vienen de Excel no tienen descuento 9,1%.</summary>
+    /// <summary>Varios días (Exportar todo / Import Excel): escribe cada uno en su hoja del mes.</summary>
     public async Task SyncAsync(IEnumerable<DateTime> dates, CancellationToken cancellationToken = default)
     {
         var dateList = dates.ToList();

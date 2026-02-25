@@ -22,26 +22,6 @@ public class ExecutionController : ControllerBase
     private static readonly string[] Q3Allowed = { "Siempre adelantado", "Generalmente con margen", "Justo", "Poco margen", "Ningún margen" };
     private static readonly string[] Q4Allowed = { "Muy fácil", "Fácil", "Normal", "Difícil", "Muy difícil" };
 
-    /// <summary>Porcentaje por defecto de descuento en facturación manual (configurable en Settings → DescuentoFacturacionManualPorcentaje).</summary>
-    private const decimal DefaultManualRevenueDiscountPercent = 9.1m;
-
-    private async Task<decimal> GetManualRevenueDiscountPercentAsync()
-    {
-        var value = await _db.Settings.AsNoTracking()
-            .Where(s => s.Key == "DescuentoFacturacionManualPorcentaje")
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync();
-        if (string.IsNullOrWhiteSpace(value) || !decimal.TryParse(value.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var pct))
-            return DefaultManualRevenueDiscountPercent;
-        return Math.Clamp(pct, 0m, 100m);
-    }
-
-    private static decimal ApplyManualRevenueDiscount(decimal revenue, decimal percent)
-    {
-        if (revenue <= 0 || percent <= 0) return revenue;
-        return Math.Round(revenue * (100m - percent) / 100m, 2);
-    }
-
     private static bool IsAllowed(string? value, string[] allowed) =>
         string.IsNullOrWhiteSpace(value) || allowed.Contains(value.Trim());
 
@@ -166,11 +146,9 @@ public class ExecutionController : ControllerBase
             if (err != null) return BadRequest(new { message = err });
         }
 
-        var discountPercent = await GetManualRevenueDiscountPercentAsync();
         var computed = ComputeFromShifts(shiftsReq);
         var staffTotal = shiftsReq.Count > 0 ? computed.staffTotal : request.StaffTotal;
         var totalRevenue = (shiftsReq.Count > 0 && computed.hasAnyRevenueOrHours) ? computed.revenue : request.TotalRevenue;
-        totalRevenue = ApplyManualRevenueDiscount(totalRevenue, discountPercent);
         var totalHours = (shiftsReq.Count > 0 && computed.hasAnyRevenueOrHours) ? computed.hours : request.TotalHoursWorked;
         var isFeedbackOnly = totalRevenue == 0 && totalHours == 0 && shiftsReq.Count > 0 && computed.hasAnyFeedbackOrStaff;
         var day = new ExecutionDay
@@ -190,7 +168,7 @@ public class ExecutionController : ControllerBase
         {
             foreach (var s in shiftsReq)
             {
-                _db.ShiftFeedbacks.Add(ToShift(day.Id, s, ApplyManualRevenueDiscount(s.Revenue, discountPercent)));
+                _db.ShiftFeedbacks.Add(ToShift(day.Id, s, null));
             }
         }
         await _db.SaveChangesAsync();
@@ -232,22 +210,19 @@ public class ExecutionController : ControllerBase
             var err = ValidateShiftFeedback(s);
             if (err != null) return BadRequest(new { message = err });
         }
-        var discountPercent = await GetManualRevenueDiscountPercentAsync();
         if (shiftsReq.Count > 0)
         {
             var computed = ComputeFromShifts(shiftsReq);
-            var rev = computed.hasAnyRevenueOrHours ? computed.revenue : request.TotalRevenue;
-            day.TotalRevenue = ApplyManualRevenueDiscount(rev, discountPercent);
+            day.TotalRevenue = computed.hasAnyRevenueOrHours ? computed.revenue : request.TotalRevenue;
             day.TotalHoursWorked = computed.hasAnyRevenueOrHours ? computed.hours : request.TotalHoursWorked;
             day.StaffTotal = computed.staffTotal;
             day.IsFeedbackOnly = day.TotalRevenue == 0 && day.TotalHoursWorked == 0 && computed.hasAnyFeedbackOrStaff;
         }
         else
         {
-            day.TotalRevenue = ApplyManualRevenueDiscount(request.TotalRevenue, discountPercent);
+            day.TotalRevenue = request.TotalRevenue;
             day.TotalHoursWorked = request.TotalHoursWorked;
             day.StaffTotal = request.StaffTotal;
-            // Si actualizas sin turnos, no tocamos IsFeedbackOnly (lo define el contenido real de turnos).
         }
         day.Notes = request.Notes;
         day.UpdatedAt = DateTime.UtcNow;
@@ -256,7 +231,7 @@ public class ExecutionController : ControllerBase
         {
             _db.ShiftFeedbacks.RemoveRange(day.ShiftFeedbacks);
             foreach (var s in shiftsReq)
-                _db.ShiftFeedbacks.Add(ToShift(day.Id, s, ApplyManualRevenueDiscount(s.Revenue, discountPercent)));
+                _db.ShiftFeedbacks.Add(ToShift(day.Id, s, null));
             // Propagar clima de los turnos al día para que el Sheet tenga clima al sincronizar (la columna Clima usa nivel día).
             ApplyDayWeatherFromShifts(day, shiftsReq);
         }

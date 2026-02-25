@@ -19,7 +19,6 @@ public class SettingsController : ControllerBase
 
     private static readonly string[] AllowedKeys = {
         "ProductividadIdealEurHora", "HorasPorTurno", "CostePersonalPorHora", "HorasSemanalesContrato", "FacturacionObjetivoSemanal",
-        "DescuentoFacturacionManualPorcentaje",
         "NombreRestaurante", "DireccionRestaurante", "LatRestaurante", "LonRestaurante", "CountryCode",
         "Empleados",
         "GoogleSheetsUrl", "GoogleCredentialsPath", "GeminiApiKey", "WeatherApiKey",

@@ -78,7 +78,7 @@ public class ImportController : ControllerBase
     }
 
     /// <summary>
-    /// Importa desde Excel (Dashboard). Los datos del Excel actualizan los cargados manualmente (sobrescriben); la facturación no se descuenta (el 9,1% solo se aplica al ingreso manual).
+    /// Importa desde Excel (Dashboard). Los datos del Excel actualizan los cargados manualmente (sobrescriben); la facturación se guarda tal cual.
     /// Si el archivo se llama sN_AAAA → formato estimaciones. Si no, formato genérico: fila 1 cabecera, A=fecha, B=facturación, C=horas.
     /// </summary>
     [HttpPost("excel")]
@@ -156,7 +156,7 @@ public class ImportController : ControllerBase
                 return Ok(result);
             }
 
-            // Los datos del Excel actualizan los cargados manualmente (sobrescriben). Facturación del Excel no se descuenta (ya viene aplicado el 9,1%).
+            // Los datos del Excel actualizan los cargados manualmente (sobrescriben).
             var genericRows = ExcelImportService.ParseGenericSheet(ws, errors);
             foreach (var row in genericRows)
             {
@@ -178,7 +178,7 @@ public class ImportController : ControllerBase
                 }
                 else
                 {
-                    // Actualizar día existente (p. ej. datos manuales): Excel sobrescribe; no aplicar descuento 9,1%.
+                    // Actualizar día existente (p. ej. datos manuales): Excel sobrescribe.
                     day.TotalRevenue = row.TotalRevenue;
                     day.TotalHoursWorked = row.TotalHoursWorked;
                     if (row.TotalRevenue > 0 || row.TotalHoursWorked > 0) day.IsFeedbackOnly = false;
@@ -390,7 +390,7 @@ public class ImportController : ControllerBase
             }
             else
             {
-                // Actualizar día existente (manual u otro): Excel sobrescribe; no aplicar descuento 9,1%.
+                // Actualizar día existente (manual u otro): Excel sobrescribe.
                 day.TotalRevenue = total;
                 day.TotalHoursWorked = totalHours;
                 if (total > 0 || totalHours > 0) day.IsFeedbackOnly = false;
