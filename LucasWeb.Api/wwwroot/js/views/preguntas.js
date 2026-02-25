@@ -11,6 +11,15 @@
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
+  function normalizeDateStr(str) {
+    if (!str || typeof str !== 'string') return todayStr();
+    var s = str.trim();
+    var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+    var d = new Date(s + (s.length === 10 ? 'T12:00:00' : ''));
+    if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return todayStr();
+  }
   function addDays(dateStr, delta) {
     var d = new Date(dateStr + 'T12:00:00');
     d.setDate(d.getDate() + delta);
@@ -205,7 +214,7 @@
   }
   function weatherTextOrUnavailable(shift, fallbackDay) {
     var t = weatherTextShift(shift, fallbackDay);
-    if (t === '—' || !t) return isUserOnlyView() ? 'Clima no disponible' : 'No hay datos (Configuración → ubicación o prueba con hoy)';
+    if (t === '—' || !t) return '';
     return t;
   }
   function dateOnly(str) {
@@ -249,12 +258,8 @@
   function updateWeatherUI() {
     var el = document.getElementById('preguntas-weather');
     if (!el) return;
-    if (state.weatherUnavailableReason === 'no_location') {
-      el.textContent = isUserOnlyView() ? 'Clima no disponible' : 'Configura lat/lon en Configuración';
-      return;
-    }
-    if (state.weatherUnavailableReason === 'no_data') {
-      el.textContent = 'Sin datos para esta fecha';
+    if (state.weatherUnavailableReason === 'no_location' || state.weatherUnavailableReason === 'no_data') {
+      el.textContent = '';
       return;
     }
     var day = state.dayData;
@@ -465,7 +470,7 @@
   function render(container) {
     var dateStr = state.dayData ? state.dayData.date : todayStr();
     var urlDate = getDateFromHash();
-    if (urlDate) dateStr = urlDate;
+    if (urlDate) dateStr = normalizeDateStr(urlDate);
     state.activeShiftIndex = state.dayData ? state.activeShiftIndex : getShiftByCurrentTime();
     var role = (auth && auth.getRole) ? auth.getRole() : '';
     var fullWebRoles = ['admin', 'manager', 'master'];
@@ -578,22 +583,35 @@
     bindRevenueFormat();
   }
 
+  function updateDateSelectorUI(dateStr) {
+    var dateStrNorm = normalizeDateStr(dateStr);
+    var fi = document.getElementById('preguntas-fecha');
+    var fd = document.getElementById('preguntas-fecha-display');
+    var dl = document.getElementById('preguntas-day-label');
+    var wl = document.getElementById('preguntas-week-label');
+    if (fi) fi.value = dateStrNorm;
+    if (fd) fd.textContent = formatDateDisplay(dateStrNorm);
+    if (dl) dl.textContent = getDayName(dateStrNorm);
+    if (wl) wl.textContent = 'Semana ' + weekNumber(dateStrNorm);
+  }
+
   function loadDay(dateStr, options) {
     options = options || {};
+    dateStr = normalizeDateStr(dateStr);
     var preserveShift = options.preserveShift === true;
     var currentShift = state.activeShiftIndex;
     state.weatherUnavailableReason = null;
     if (!preserveShift) state.activeShiftIndex = getShiftByCurrentTime();
     var wrap = document.getElementById('preguntas-form-wrap');
     var container = document.getElementById('dashboard-content');
+    updateDateSelectorUI(dateStr);
     if (wrap) wrap.innerHTML = '<p class="loading">Cargando…</p>';
     auth.fetchWithAuth('/api/execution/' + dateStr).then(function (res) {
       if (res.status === 404) {
         state.dayData = defaultDayData(dateStr);
         state.weatherUnavailableReason = null;
         if (!preserveShift) state.activeShiftIndex = getShiftByCurrentTime();
-        var wl = document.getElementById('preguntas-week-label');
-        if (wl) wl.textContent = 'Semana ' + weekNumber(dateStr);
+        updateDateSelectorUI(dateStr);
         var wrap404 = document.getElementById('preguntas-form-wrap');
         if (wrap404) wrap404.innerHTML = getFormHtml();
         var cont404 = document.getElementById('dashboard-content');
@@ -629,14 +647,7 @@
         feedback_q4: activeShift.feedback_q4,
         feedback_q5: activeShift.feedback_q5
       } : null;
-      var fechaInput = document.getElementById('preguntas-fecha');
-      if (fechaInput) fechaInput.value = state.dayData.date;
-      var fd = document.getElementById('preguntas-fecha-display');
-      if (fd) fd.textContent = formatDateDisplay(state.dayData.date);
-      var dl = document.getElementById('preguntas-day-label');
-      if (dl) dl.textContent = getDayName(state.dayData.date);
-      var wl = document.getElementById('preguntas-week-label');
-      if (wl) wl.textContent = 'Semana ' + weekNumber(state.dayData.date);
+      updateDateSelectorUI(state.dayData.date);
       var wrapEl = document.getElementById('preguntas-form-wrap');
       if (wrapEl) {
         wrapEl.innerHTML = getFormHtml();
