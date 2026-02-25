@@ -31,12 +31,10 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         _logger = logger;
     }
 
-    /// <summary>Un día guardado (Preguntas o Registro): escribe en la hoja del mes en segundo plano. La facturación ya viene con descuento 9,1% aplicado en BD.</summary>
+    /// <summary>Un día guardado (Preguntas o Registro): escribe en la hoja del mes en segundo plano. Incluye días solo feedback (preguntas) para que las observaciones C,D,E se actualicen.</summary>
     public async Task SyncDayAsync(ExecutionDay day, CancellationToken cancellationToken = default)
     {
         if (day?.ShiftFeedbacks == null) return;
-        // Evitar volcar a Google Sheets días "solo feedback" (sin facturación/horas), para no contaminar métricas.
-        if (day.IsFeedbackOnly && day.TotalRevenue == 0 && day.TotalHoursWorked == 0) return;
         var (service, spreadsheetId) = await GetServiceAndSheetIdAsync(cancellationToken);
         if (service == null || string.IsNullOrEmpty(spreadsheetId)) return;
         try
@@ -80,7 +78,6 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         {
             try
             {
-                if (day.IsFeedbackOnly && day.TotalRevenue == 0 && day.TotalHoursWorked == 0) continue;
                 await WriteDayToMonthSheetAsync(service, spreadsheetId, day, cancellationToken);
             }
             catch

@@ -255,6 +255,7 @@
       })
       .catch(function () { if (callback) callback(); });
   }
+  /** En esta vista el clima no se muestra en la GUI; se obtiene y guarda en segundo plano para el Sheet. */
   function updateWeatherUI() {
     var el = document.getElementById('preguntas-weather');
     if (!el) return;
@@ -426,8 +427,8 @@
     var card = document.querySelector('.preguntas-card');
     if (!card) return;
     var blocks = card.querySelectorAll('.preguntas-block');
-    if (blocks.length < 4) return;
-    [1, 2, 3, 4].forEach(function (i) {
+    if (blocks.length < 5) return;
+    [1, 2, 3, 4, 5].forEach(function (i) {
       var val = shiftData && shiftData['feedback_q' + i];
       var has = hasFeedbackValue(val);
       var block = blocks[i - 1];
@@ -606,7 +607,12 @@
     var container = document.getElementById('dashboard-content');
     updateDateSelectorUI(dateStr);
     var isInitialLoad = !state.dayData;
-    if (wrap && isInitialLoad) wrap.innerHTML = '<p class="loading">Cargando…</p>';
+    if (isInitialLoad && wrap) wrap.innerHTML = '<p class="loading">Cargando…</p>';
+    if (!isInitialLoad) {
+      state.dayData = defaultDayData(dateStr);
+      if (wrap) wrap.innerHTML = getFormHtml();
+      if (container) { bind(container); updateStatus(); updateShiftTabIndicators(); }
+    }
     auth.fetchWithAuth('/api/execution/' + dateStr).then(function (res) {
       if (state.pendingLoadDate !== dateStr) return;
       if (res.status === 404) {
