@@ -20,14 +20,29 @@
     if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     return todayStr();
   }
-  var ONE_DAY = 1;
   function addDays(dateStr, delta) {
     var d = new Date(dateStr + 'T12:00:00');
     d.setDate(d.getDate() + delta);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  function prevDay(dateStr) { return addDays(normalizeDateStr(dateStr), -ONE_DAY); }
-  function nextDay(dateStr) { return addDays(normalizeDateStr(dateStr), ONE_DAY); }
+  /** Un dia antes: selector dia a dia (no por semana). */
+  function prevDay(dateStr) {
+    var s = normalizeDateStr(dateStr);
+    var y = parseInt(s.substring(0, 4), 10);
+    var m = parseInt(s.substring(5, 7), 10) - 1;
+    var day = parseInt(s.substring(8, 10), 10);
+    var d = new Date(y, m, day - 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  /** Un dia despues: selector dia a dia (no por semana). */
+  function nextDay(dateStr) {
+    var s = normalizeDateStr(dateStr);
+    var y = parseInt(s.substring(0, 4), 10);
+    var m = parseInt(s.substring(5, 7), 10) - 1;
+    var day = parseInt(s.substring(8, 10), 10);
+    var d = new Date(y, m, day + 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
   function weekNumber(dateStr) {
     var d = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
     d.setDate(d.getDate() + 4 - (d.getDay() === 0 ? 7 : d.getDay()));
