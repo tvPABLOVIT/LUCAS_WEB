@@ -481,15 +481,14 @@
       return '<button type="button" class="preguntas-shift-tab' + (i === state.activeShiftIndex ? ' active' : '') + '" data-shift="' + i + '">' + label + '</button>';
     }).join('') + '</div>';
     var dateSelectorBar = '<div class="date-selector-bar">' +
-      '<span id="preguntas-week-label" class="preguntas-week-label"></span>' +
       '<span id="preguntas-day-label" class="date-selector-day">' + getDayName(dateStr) + '</span>' +
       '<div class="date-selector-group">' +
-      '<button type="button" id="preguntas-prev" class="date-selector-arrow" title="Día anterior">◀</button>' +
+      '<button type="button" id="preguntas-prev" class="date-selector-arrow" title="Día anterior (un día atrás)">◀</button>' +
       '<div class="date-selector-input-wrap">' +
       '<input type="date" id="preguntas-fecha" value="' + dateStr + '" class="date-selector-input-hidden" />' +
       '<span id="preguntas-fecha-display" class="date-selector-display" title="Seleccionar fecha">' + formatDateDisplay(dateStr) + '</span>' +
       '</div>' +
-      '<button type="button" id="preguntas-next" class="date-selector-arrow" title="Día siguiente">▶</button>' +
+      '<button type="button" id="preguntas-next" class="date-selector-arrow" title="Día siguiente (un día adelante)">▶</button>' +
       '</div></div>';
     var headerExtra = document.getElementById('header-extra');
     if (headerExtra) headerExtra.innerHTML = '';
@@ -588,11 +587,9 @@
     var fi = document.getElementById('preguntas-fecha');
     var fd = document.getElementById('preguntas-fecha-display');
     var dl = document.getElementById('preguntas-day-label');
-    var wl = document.getElementById('preguntas-week-label');
     if (fi) fi.value = dateStrNorm;
     if (fd) fd.textContent = formatDateDisplay(dateStrNorm);
     if (dl) dl.textContent = getDayName(dateStrNorm);
-    if (wl) wl.textContent = 'Semana ' + weekNumber(dateStrNorm);
   }
 
   function loadDay(dateStr, options) {
