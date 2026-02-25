@@ -20,11 +20,14 @@
     if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     return todayStr();
   }
+  var ONE_DAY = 1;
   function addDays(dateStr, delta) {
     var d = new Date(dateStr + 'T12:00:00');
     d.setDate(d.getDate() + delta);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
+  function prevDay(dateStr) { return addDays(normalizeDateStr(dateStr), -ONE_DAY); }
+  function nextDay(dateStr) { return addDays(normalizeDateStr(dateStr), ONE_DAY); }
   function weekNumber(dateStr) {
     var d = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
     d.setDate(d.getDate() + 4 - (d.getDay() === 0 ? 7 : d.getDay()));
@@ -532,7 +535,7 @@
     document.getElementById('preguntas-prev') && document.getElementById('preguntas-prev').addEventListener('click', function () {
       collectFormFromShift(state.activeShiftIndex);
       var baseDate = state.dayData ? state.dayData.date : (fechaInput && fechaInput.value ? fechaInput.value : todayStr());
-      var prev = addDays(normalizeDateStr(baseDate), -1);
+      var prev = prevDay(baseDate);
       fechaInput.value = prev;
       updateDateSelector();
       loadDay(prev);
@@ -540,7 +543,7 @@
     document.getElementById('preguntas-next') && document.getElementById('preguntas-next').addEventListener('click', function () {
       collectFormFromShift(state.activeShiftIndex);
       var baseDate = state.dayData ? state.dayData.date : (fechaInput && fechaInput.value ? fechaInput.value : todayStr());
-      var next = addDays(normalizeDateStr(baseDate), 1);
+      var next = nextDay(baseDate);
       fechaInput.value = next;
       updateDateSelector();
       loadDay(next);
