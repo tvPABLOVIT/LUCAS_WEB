@@ -490,12 +490,10 @@
       '</div>' +
       '<button type="button" id="preguntas-next" class="date-selector-arrow" title="Día siguiente">▶</button>' +
       '</div></div>';
-    var weatherBar = '<div class="preguntas-weather-bar">Clima: <span id="preguntas-weather" class="preguntas-weather">—</span></div>';
-    var dateWeatherRow = '<div class="preguntas-date-weather-row">' + dateSelectorBar + weatherBar + '</div>';
     var headerExtra = document.getElementById('header-extra');
     if (headerExtra) headerExtra.innerHTML = '';
     if (isUserOnly && headerExtra) {
-      headerExtra.innerHTML = '<div class="header-extra-inner">' + shiftTabsHtml + dateWeatherRow + '</div>';
+      headerExtra.innerHTML = '<div class="header-extra-inner">' + shiftTabsHtml + dateSelectorBar + '</div>';
       container.innerHTML = '<div id="preguntas-form-wrap">' + getFormHtml() + '</div>';
     } else {
       var titleRow = '<div class="preguntas-title-row">' +
@@ -503,7 +501,7 @@
         '<h2 class="view-title">Feedback diario</h2>' +
         shiftTabsHtml +
         '</div>' +
-        dateWeatherRow + '</div>';
+        dateSelectorBar + '</div>';
       container.innerHTML = '<div class="card preguntas-header-card">' + titleRow + '</div><div id="preguntas-form-wrap">' + getFormHtml() + '</div>';
     }
     bind(container);
