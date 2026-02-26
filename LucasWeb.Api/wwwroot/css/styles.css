@@ -215,6 +215,7 @@ body { margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 .dashboard-table th { color: var(--text-muted); font-weight: 600; }
 .dashboard-action-link { color: var(--accent); text-decoration: none; font-weight: 600; }
 .dashboard-action-link:hover { text-decoration: underline; }
+button.dashboard-action-link { border: none; background: none; cursor: pointer; padding: 0; font: inherit; }
 .dashboard-action-sep { color: var(--text-muted); margin: 0 0.35rem; }
 .dashboard-events-inline { color: var(--text-muted); font-size: 0.85rem; }
 .dashboard-events-more { color: var(--text-muted); font-size: 0.8rem; }
@@ -237,6 +238,8 @@ body { margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 .dashboard-weather { color: var(--text-muted); white-space: nowrap; }
 .dashboard-table td .dashboard-weather { white-space: nowrap; }
 .dashboard-day-card-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.dashboard-day-card--pending { opacity: 0.75; }
+.dashboard-day-card--pending .dashboard-day-card-meta { color: var(--text-muted); }
 
 /* Mobile-first: cards, tabla solo en pantallas anchas */
 @media (max-width: 900px) {

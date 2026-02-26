@@ -140,6 +140,14 @@ public class DashboardWeekResponse
 
     [JsonPropertyName("last30Days")]
     public List<DailyRevenueItemDto> Last30Days { get; set; } = new();
+
+    /// <summary>True si la semana seleccionada es la semana en curso (aún incompleta).</summary>
+    [JsonPropertyName("isCurrentWeek")]
+    public bool IsCurrentWeek { get; set; }
+
+    /// <summary>Número de días incluidos en los totales (1-7 en semana en curso, 7 en semana cerrada, 0 si no aplica).</summary>
+    [JsonPropertyName("daysIncludedCount")]
+    public int DaysIncludedCount { get; set; }
 }
 
 public class DailyRevenueItemDto

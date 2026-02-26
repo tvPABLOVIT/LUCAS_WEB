@@ -1,6 +1,12 @@
 (function (global) {
   var auth = global.LUCAS_AUTH;
   var DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  function escapeHtml(s) {
+    if (s == null || s === undefined) return '';
+    var div = document.createElement('div');
+    div.textContent = String(s);
+    return div.innerHTML;
+  }
   function getWeekStart(d) {
     var date = typeof d === 'string' ? new Date(d + 'T12:00:00') : new Date(d);
     var day = date.getDay();
@@ -54,7 +60,7 @@
       '<div class="dashboard-title-row">' +
       '<div class="dashboard-title-block">' +
       '<h2 class="view-title">Dashboard</h2>' +
-      '<p class="dashboard-subtitle">Datos de la semana seleccionada</p>' +
+      '<p id="dashboard-subtitle" class="dashboard-subtitle">Datos de la semana seleccionada</p>' +
       '</div>' +
       '<div class="dashboard-week-bar">' +
       '<button type="button" id="dashboard-cargar" class="btn-primary dashboard-week-btn-actualizar">Actualizar</button>' +
@@ -98,6 +104,9 @@
     var resumenEl = document.getElementById('dashboard-resumen');
     var daysWrap = document.getElementById('dashboard-days-table-wrap');
     var daysCardsWrap = document.getElementById('dashboard-days-cards-wrap');
+    var loading = false;
+
+    function isDashboardVisible() { return !!document.getElementById('dashboard-cargar'); }
 
     // Asegurar 4 KPIs en una fila (evita depender de caché CSS).
     if (kpisEl) {
@@ -114,6 +123,17 @@
       });
     }
     function load() {
+      if (loading) return;
+      loading = true;
+      var btnCargar = document.getElementById('dashboard-cargar');
+      if (btnCargar) btnCargar.disabled = true;
+
+      if (!kpisEl || !resumenEl || !daysWrap) {
+        loading = false;
+        if (btnCargar) btnCargar.disabled = false;
+        return;
+      }
+
       var ws = (weekInput && weekInput.value) || weekStart;
       if (weekRangeEl) { weekRangeEl.textContent = 'Cargando…'; weekRangeEl.classList.add('dashboard-week-range--loading'); }
       if (badgeEl) {
@@ -141,18 +161,47 @@
           return r2.json();
         }).catch(function () { return []; })
       ]).then(function (arr) {
+        if (!isDashboardVisible()) {
+          loading = false;
+          var b = document.getElementById('dashboard-cargar');
+          if (b) b.disabled = false;
+          return;
+        }
         var data = arr[0];
         var events = arr[1] || [];
-        if (!data) return;
+        if (!data) {
+          loading = false;
+          var b2 = document.getElementById('dashboard-cargar');
+          if (b2) b2.disabled = false;
+          return;
+        }
         if (weekRangeEl) { weekRangeEl.textContent = formatWeekRange((weekInput && weekInput.value) || weekStart); weekRangeEl.classList.remove('dashboard-week-range--loading'); }
-        kpisEl.innerHTML = '';
+        var subtitleEl = document.getElementById('dashboard-subtitle');
+        if (subtitleEl) {
+          var wsForSub = (weekInput && weekInput.value) || weekStart;
+          var isCurrent = data.isCurrentWeek === true || (data.isCurrentWeek !== false && isCurrentWeek(wsForSub));
+          var n = data.daysIncludedCount != null ? data.daysIncludedCount : 0;
+          if (isCurrent && (n === 0 || n == null)) {
+            var todayObj = new Date();
+            var todayYmdSub = todayObj.getFullYear() + '-' + String(todayObj.getMonth() + 1).padStart(2, '0') + '-' + String(todayObj.getDate()).padStart(2, '0');
+            var monSub = new Date(wsForSub + 'T12:00:00');
+            var todayDateSub = new Date(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate());
+            var monDateSub = new Date(monSub.getFullYear(), monSub.getMonth(), monSub.getDate());
+            var diffDays = Math.floor((todayDateSub - monDateSub) / 86400000);
+            n = diffDays < 0 ? 0 : Math.min(7, diffDays + 1);
+          }
+          subtitleEl.textContent = isCurrent ? ('Datos hasta hoy (' + n + ' de 7 días)') : 'Semana cerrada — datos completos';
+        }
+        if (kpisEl) kpisEl.innerHTML = '';
         var revValue = data.totalRevenue != null ? data.totalRevenue.toFixed(0) + ' €' : '—';
         var pctVsPrev = '';
+        if (data.isCurrentWeek && data.daysIncludedCount != null && data.daysIncludedCount > 0)
+          pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted">Datos parciales (hasta hoy)</div>';
         if (data.totalRevenue != null && data.prevWeekRevenue != null && data.prevWeekRevenue > 0) {
           var pct = ((data.totalRevenue - data.prevWeekRevenue) / data.prevWeekRevenue) * 100;
-          if (pct > 0) pctVsPrev = '<div class="kpi-card-sub kpi-card-sub--up">+' + pct.toFixed(1) + '% vs sem. ant.</div>';
-          else if (pct < 0) pctVsPrev = '<div class="kpi-card-sub kpi-card-sub--down">' + pct.toFixed(1) + '% vs sem. ant.</div>';
-          else pctVsPrev = '<div class="kpi-card-sub">0% vs sem. ant.</div>';
+          if (pct > 0) pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--up">+' + pct.toFixed(1) + '% vs sem. ant.</div>';
+          else if (pct < 0) pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--down">' + pct.toFixed(1) + '% vs sem. ant.</div>';
+          else pctVsPrev += '<div class="kpi-card-sub">0% vs sem. ant.</div>';
         }
         // % vs objetivo (facturación)
         var objRaw = data.facturacionObjetivo != null ? data.facturacionObjetivo : data.FacturacionObjetivo;
@@ -167,11 +216,13 @@
         }
         var prodValue = data.avgProductivity != null ? data.avgProductivity.toFixed(1) + ' €/h' : '—';
         var pctVsPrevProd = '';
+        if (data.isCurrentWeek && data.daysIncludedCount != null && data.daysIncludedCount > 0)
+          pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--muted">Datos parciales (hasta hoy)</div>';
         if (data.avgProductivity != null && data.prevWeekProductivity != null && data.prevWeekProductivity > 0) {
           var pctProd = ((data.avgProductivity - data.prevWeekProductivity) / data.prevWeekProductivity) * 100;
-          if (pctProd > 0) pctVsPrevProd = '<div class="kpi-card-sub kpi-card-sub--up">+' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
-          else if (pctProd < 0) pctVsPrevProd = '<div class="kpi-card-sub kpi-card-sub--down">' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
-          else pctVsPrevProd = '<div class="kpi-card-sub">0% vs sem. ant.</div>';
+          if (pctProd > 0) pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--up">+' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
+          else if (pctProd < 0) pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--down">' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
+          else pctVsPrevProd += '<div class="kpi-card-sub">0% vs sem. ant.</div>';
         }
         // % vs objetivo (productividad)
         var prodObjRaw = data.productividadObjetivo != null ? data.productividadObjetivo : (data.ProductividadObjetivo != null ? data.ProductividadObjetivo : data.productividadIdealEurHora);
@@ -225,10 +276,40 @@
         });
 
         var days = data.days || [];
-        if (days.length === 0) {
-          daysWrap.innerHTML = '<p class="dashboard-empty">Aún no hay días registrados para esta semana. Puedes añadirlos desde <a href="#registro" class="dashboard-link-registro">Registro de ejecución</a>.</p><p class="dashboard-empty-hint">Si acabas de cargar datos de muestra, asegúrate de que el selector de semana es la <strong>semana actual</strong> (lunes de esta semana) y pulsa <strong>Actualizar</strong>.</p>';
+        var daysToShow = days;
+        if (data.isCurrentWeek && days.length >= 0) {
+          var ws = (weekInput && weekInput.value) || weekStart;
+          daysToShow = [];
+          for (var i = 0; i < 7; i++) {
+            var dateStr = addDays(ws, i);
+            var found = null;
+            for (var j = 0; j < days.length; j++) { if (days[j].date === dateStr) { found = days[j]; break; } }
+            if (found) daysToShow.push(found);
+            else daysToShow.push({ date: dateStr, dayName: dayNameFromDate(dateStr), isPlaceholder: true });
+          }
+        } else if (!data.isCurrentWeek) {
+          var wsPast = (weekInput && weekInput.value) || weekStart;
+          daysToShow = [];
+          for (var i = 0; i < 7; i++) {
+            var dateStrPast = addDays(wsPast, i);
+            var foundPast = null;
+            for (var j = 0; j < days.length; j++) { if (days[j].date === dateStrPast) { foundPast = days[j]; break; } }
+            if (foundPast) daysToShow.push(foundPast);
+            else daysToShow.push({ date: dateStrPast, dayName: dayNameFromDate(dateStrPast), isPlaceholder: true });
+          }
+        }
+        if (daysToShow.length === 0) {
+          var wsForEmpty = (weekInput && weekInput.value) || weekStart;
+          var isFutureWeek = getWeekStart(new Date()) < wsForEmpty;
+          if (isFutureWeek) {
+            daysWrap.innerHTML = '<p class="dashboard-empty">Semana futura: aún no hay datos.</p>';
+          } else {
+            daysWrap.innerHTML = '<p class="dashboard-empty">Aún no hay días registrados para esta semana. Puedes añadirlos desde <a href="#registro" class="dashboard-link-registro">Registro de ejecución</a>.</p><p class="dashboard-empty-hint">Si acabas de cargar datos de muestra, asegúrate de que el selector de semana es la <strong>semana actual</strong> (lunes de esta semana) y pulsa <strong>Actualizar</strong>.</p>';
+          }
           if (daysCardsWrap) daysCardsWrap.innerHTML = '';
         } else {
+          var todayObj = new Date();
+          var todayYmd = todayObj.getFullYear() + '-' + String(todayObj.getMonth() + 1).padStart(2, '0') + '-' + String(todayObj.getDate()).padStart(2, '0');
           function weatherEmoji(code) {
             if (code == null) return '—';
             code = Number(code);
@@ -258,7 +339,19 @@
           }
 
           var headers = ['Día', 'Fecha', 'Clima', 'Facturación', 'Horas', 'Productividad (€/h)', 'Personal', 'Tendencia', 'Acciones'];
-          var rows = days.map(function (d) {
+          var rows = daysToShow.map(function (d) {
+            if (d.isPlaceholder) {
+              var dayName = d.dayName || dayNameFromDate(d.date);
+              var dateShort = formatDateShort(d.date);
+              var isFuture = d.date > todayYmd;
+              var trendLabel = isFuture ? 'Pendiente' : 'Sin datos';
+              var accionesPlaceholder = isFuture ? '—' : (
+                '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(d.date) + '">Registro</a>' +
+                '<span class="dashboard-action-sep">·</span>' +
+                '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(d.date) + '">Feedback</a>'
+              );
+              return [dayName, dateShort, '—', '—', '—', '—', '—', '<span class="dashboard-weather">' + trendLabel + '</span>', accionesPlaceholder];
+            }
             var dayName = d.dayName || dayNameFromDate(d.date);
             var dateShort = formatDateShort(d.date);
             var clima = '<span class="dashboard-weather">' + weatherText(d) + '</span>';
@@ -296,22 +389,60 @@
               if (evs.length > 2) evTxt += '<br><span class="dashboard-events-more">+' + (evs.length - 2) + ' más</span>';
               trend += (trend ? '<br>' : '') + '<span class="dashboard-events-inline">' + evTxt + '</span>';
             }
-            var dateStr = d.date || '';
             var acciones =
               '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(dateStr) + '">Registro</a>' +
               '<span class="dashboard-action-sep">·</span>' +
-              '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(dateStr) + '">Feedback</a>';
+              '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(dateStr) + '">Feedback</a>' +
+              '<span class="dashboard-action-sep">·</span>' +
+              '<button type="button" class="dashboard-action-link dashboard-event-add" data-date="' + escapeHtml(dateStr) + '">+ Evento</button>';
             return [dayName, dateShort, clima, rev, hours, prod, staff, trend, acciones];
           });
           var personalTitle = 'Sala y cocina por turno (Mediodía-Tarde-Noche). Con PDF: se muestran las horas del cuadrante por turno (reales). Sin PDF (dato manual): Horas calc. = (Sala+Cocina) × h/turno (Config.).';
-          var tendenciaTitle = 'vs media: media de facturación de ese día de la semana en las últimas 12 semanas. (hoy ±%): este día respecto a esa media. Tendencia ↑/↓: evolución del día de la semana en el tiempo (mitad reciente vs antigua de 12 sem.). vs sem. ant.: mismo día de la semana anterior.';
+          var hoyTexto = data.isCurrentWeek ? '(hoy ±%)' : '(este día ±%)';
+          var tendenciaTitle = 'vs media: media de facturación de ese día de la semana en las últimas 12 semanas. ' + hoyTexto + ': este día respecto a esa media. Tendencia ↑/↓: evolución del día de la semana en el tiempo (mitad reciente vs antigua de 12 sem.). vs sem. ant.: mismo día de la semana anterior.';
           var thead = '<thead><tr><th>Día</th><th>Fecha</th><th>Clima</th><th>Facturación</th><th>Horas</th><th>Productividad (€/h)</th><th title="' + personalTitle + '">Personal</th><th title="' + tendenciaTitle + '">Tendencia</th><th>Acciones</th></tr></thead>';
           var tbody = '<tbody>' + rows.map(function (row) { return '<tr>' + row.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>';
           daysWrap.innerHTML = '<table class="dashboard-table">' + thead + tbody + '</table>';
 
+          function bindEventAddButtons(container) {
+            if (!container) return;
+            container.querySelectorAll('.dashboard-event-add').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                var dateStr = btn.getAttribute('data-date') || '';
+                var name = prompt('Nombre del evento', '');
+                if (!name || !name.trim()) return;
+                var impact = prompt('Impacto (Alto/Medio/Bajo o vacío)', '') || '';
+                var desc = prompt('Descripción (opcional)', '') || '';
+                auth.fetchWithAuth('/api/events', {
+                  method: 'POST',
+                  body: JSON.stringify({ date: dateStr, name: name, impact: impact, description: desc })
+                }).then(function (r) {
+                  if (!r.ok) return r.json().then(function (d) { throw new Error(d.message || 'Error'); });
+                  return r.json();
+                }).then(function () { load(); }).catch(function (e) { alert(e.message || 'Error al crear evento'); });
+              });
+            });
+          }
+          bindEventAddButtons(daysWrap);
+
           // Cards (móvil): más legible que una tabla de 7 columnas.
           if (daysCardsWrap) {
-            daysCardsWrap.innerHTML = '<div class="dashboard-days-cards">' + days.map(function (d) {
+            daysCardsWrap.innerHTML = '<div class="dashboard-days-cards">' + daysToShow.map(function (d) {
+              if (d.isPlaceholder) {
+                var dayName = d.dayName || dayNameFromDate(d.date);
+                var dateShort = formatDateShort(d.date);
+                var isFutureCard = d.date > todayYmd;
+                var trendLabelCard = isFutureCard ? 'Pendiente' : 'Sin datos';
+                var actionsHtml = isFutureCard ? '' : (
+                  '<div class="dashboard-day-card-actions">' +
+                  '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(d.date) + '">Abrir registro</a> ' +
+                  '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(d.date) + '">Feedback</a>' +
+                  '</div>'
+                );
+                return '<div class="dashboard-day-card dashboard-day-card--pending">' +
+                  '<div class="dashboard-day-card-head"><div class="dashboard-day-card-title">' + dayName + '</div><div class="dashboard-day-card-date">' + dateShort + '</div></div>' +
+                  '<div class="dashboard-day-card-meta"><span class="dashboard-weather">' + trendLabelCard + '</span></div>' + actionsHtml + '</div>';
+              }
               var dayName = d.dayName || dayNameFromDate(d.date);
               var dateShort = formatDateShort(d.date);
               var rev = d.revenue != null ? d.revenue.toFixed(0) + ' €' : '—';
@@ -373,23 +504,7 @@
                 '</div>';
             }).join('') + '</div>';
 
-            // Bind botones "+ Evento" (móvil)
-            daysCardsWrap.querySelectorAll('.dashboard-event-add').forEach(function (btn) {
-              btn.addEventListener('click', function () {
-                var dateStr = btn.getAttribute('data-date') || '';
-                var name = prompt('Nombre del evento', '');
-                if (!name || !name.trim()) return;
-                var impact = prompt('Impacto (Alto/Medio/Bajo o vacío)', '') || '';
-                var desc = prompt('Descripción (opcional)', '') || '';
-                auth.fetchWithAuth('/api/events', {
-                  method: 'POST',
-                  body: JSON.stringify({ date: dateStr, name: name, impact: impact, description: desc })
-                }).then(function (r) {
-                  if (!r.ok) return r.json().then(function (d) { throw new Error(d.message || 'Error'); });
-                  return r.json();
-                }).then(function () { load(); }).catch(function (e) { alert(e.message || 'Error al crear evento'); });
-              });
-            });
+            bindEventAddButtons(daysCardsWrap);
           }
         }
         var chartEl = document.getElementById('dashboard-chart-30d');
@@ -458,14 +573,34 @@
             chartEl.innerHTML = '<p class="dashboard-chart-scale">' + scaleLabel + '</p><div class="dashboard-chart-bars">' + bars + '</div>';
           }
         }
+        loading = false;
+        var btnDone = document.getElementById('dashboard-cargar');
+        if (btnDone) btnDone.disabled = false;
+        var btnNextEl = document.getElementById('dashboard-next');
+        if (btnNextEl) {
+          var currentMon = getWeekStart(new Date());
+          var selectedWs = (weekInput && weekInput.value) || weekStart;
+          btnNextEl.disabled = (selectedWs === currentMon);
+          btnNextEl.title = (selectedWs === currentMon) ? 'Semana actual' : 'Semana siguiente';
+        }
       }).catch(function (err) {
+        if (!isDashboardVisible()) {
+          loading = false;
+          var b = document.getElementById('dashboard-cargar');
+          if (b) b.disabled = false;
+          return;
+        }
         if (weekRangeEl) { weekRangeEl.textContent = formatWeekRange((weekInput && weekInput.value) || weekStart); weekRangeEl.classList.remove('dashboard-week-range--loading'); }
-        kpisEl.innerHTML = '<p class="error-msg">' + (err.message || 'Error al cargar.') + '</p>';
+        if (kpisEl) kpisEl.innerHTML = '<p class="error-msg">' + (err.message || 'Error al cargar.') + '</p>';
         var chartEl = document.getElementById('dashboard-chart-30d');
         if (chartEl) chartEl.innerHTML = '<p class="dashboard-empty">Sin datos para el gráfico.</p>';
+        loading = false;
+        var btnErr = document.getElementById('dashboard-cargar');
+        if (btnErr) btnErr.disabled = false;
       });
     }
-    document.getElementById('dashboard-cargar').addEventListener('click', load);
+    var btnCargarEl = document.getElementById('dashboard-cargar');
+    if (btnCargarEl) btnCargarEl.addEventListener('click', load);
     if (weekInput) weekInput.addEventListener('change', function () {
       // Normalizar a lunes aunque el usuario elija cualquier día.
       try {
@@ -473,22 +608,31 @@
       } catch (e) { }
       load();
     });
-    document.getElementById('dashboard-prev').addEventListener('click', function () {
+    var btnPrev = document.getElementById('dashboard-prev');
+    if (btnPrev) btnPrev.addEventListener('click', function () {
       var ws = (weekInput && weekInput.value) || weekStart;
-      weekInput.value = addDays(ws, -7);
+      if (weekInput) weekInput.value = addDays(ws, -7);
       if (weekRangeEl) { weekRangeEl.textContent = formatWeekRange(weekInput.value); weekRangeEl.classList.remove('dashboard-week-range--loading'); }
       load();
     });
-    document.getElementById('dashboard-next').addEventListener('click', function () {
-      var ws = (weekInput && weekInput.value) || weekStart;
-      weekInput.value = addDays(ws, 7);
-      if (weekRangeEl) { weekRangeEl.textContent = formatWeekRange(weekInput.value); weekRangeEl.classList.remove('dashboard-week-range--loading'); }
-      load();
-    });
+    var btnNext = document.getElementById('dashboard-next');
+    if (btnNext) {
+      btnNext.addEventListener('click', function () {
+        var ws = (weekInput && weekInput.value) || weekStart;
+        if (weekInput) weekInput.value = addDays(ws, 7);
+        if (weekRangeEl) { weekRangeEl.textContent = formatWeekRange(weekInput.value); weekRangeEl.classList.remove('dashboard-week-range--loading'); }
+        load();
+      });
+      var currentMonInit = getWeekStart(new Date());
+      var selInit = (weekInput && weekInput.value) || weekStart;
+      btnNext.disabled = (selInit === currentMonInit);
+      btnNext.title = (selInit === currentMonInit) ? 'Semana actual' : 'Semana siguiente';
+    }
     var excelFile = document.getElementById('dashboard-excel-file');
     var excelStatus = document.getElementById('dashboard-excel-status');
-    document.getElementById('dashboard-import-excel').addEventListener('click', function () { excelFile.click(); });
-    excelFile.addEventListener('change', function () {
+    var btnImportExcel = document.getElementById('dashboard-import-excel');
+    if (btnImportExcel && excelFile) btnImportExcel.addEventListener('click', function () { excelFile.click(); });
+    if (excelFile) excelFile.addEventListener('change', function () {
       var files = this.files;
       if (!files || files.length === 0) return;
       var ws = (weekInput && weekInput.value) || weekStart;
@@ -522,9 +666,16 @@
         var fd = new FormData();
         fd.append('file', files[index]);
         auth.fetchWithAuth('/api/import/excel?weekStart=' + encodeURIComponent(ws), { method: 'POST', body: fd }).then(function (r) {
-          if (r.status === 401) return null;
+          if (r.status === 401) {
+            if (global.LUCAS_APP && global.LUCAS_APP.onUnauthorized) global.LUCAS_APP.onUnauthorized();
+            if (excelStatus) { excelStatus.textContent = 'Sesión expirada.'; excelStatus.className = 'dashboard-import-status error'; }
+            if (excelBtn) excelBtn.disabled = false;
+            excelFile.value = '';
+            return null;
+          }
           return r.json();
         }).then(function (data) {
+          if (data === null) return;
           if (data) {
             totalCreated += data.days_created || 0;
             totalUpdated += data.days_updated || 0;
@@ -541,8 +692,9 @@
     });
     var pdfFile = document.getElementById('dashboard-pdf-file');
     var pdfStatus = document.getElementById('dashboard-pdf-status');
-    document.getElementById('dashboard-import-pdf').addEventListener('click', function () { pdfFile.click(); });
-    pdfFile.addEventListener('change', function () {
+    var btnImportPdf = document.getElementById('dashboard-import-pdf');
+    if (btnImportPdf && pdfFile) btnImportPdf.addEventListener('click', function () { pdfFile.click(); });
+    if (pdfFile) pdfFile.addEventListener('change', function () {
       if (!this.files || this.files.length === 0) return;
       var ws = (weekInput && weekInput.value) || weekStart;
       var pdfBtn = document.getElementById('dashboard-import-pdf');
@@ -553,7 +705,12 @@
       var fd = new FormData();
       fd.append('file', this.files[0]);
       auth.fetchWithAuth('/api/import/cuadrante-pdf?weekStart=' + encodeURIComponent(ws), { method: 'POST', body: fd }).then(function (r) {
-        if (r.status === 401) return null;
+        if (r.status === 401) {
+          if (global.LUCAS_APP && global.LUCAS_APP.onUnauthorized) global.LUCAS_APP.onUnauthorized();
+          pdfStatus.textContent = 'Sesión expirada.';
+          pdfStatus.className = 'dashboard-import-status error';
+          return null;
+        }
         if (!r.ok) {
           return r.json().catch(function () { return {}; }).then(function (d) {
             throw new Error(d.message || ('Error del servidor (' + r.status + ')'));

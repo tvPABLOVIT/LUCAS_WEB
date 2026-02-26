@@ -12,8 +12,13 @@ namespace LucasWeb.Api.Controllers;
 public class DashboardController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly ILogger<DashboardController> _logger;
 
-    public DashboardController(AppDbContext db) => _db = db;
+    public DashboardController(AppDbContext db, ILogger<DashboardController> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
     [HttpGet("daily-revenue")]
     public async Task<ActionResult<List<DailyRevenueItemDto>>> GetDailyRevenue([FromQuery] int days = 30)
@@ -36,9 +41,10 @@ public class DashboardController : ControllerBase
             }).ToList();
             return Ok(items);
         }
-        catch
+        catch (Exception ex)
         {
-            return Ok(new List<DailyRevenueItemDto>());
+            _logger.LogError(ex, "Error en GET dashboard/daily-revenue");
+            return StatusCode(500, new { message = "Error al cargar la facturación diaria." });
         }
     }
 
@@ -52,11 +58,13 @@ public class DashboardController : ControllerBase
             start = GetMonday(start.Date);
 
         DateTime effectiveAsOf;
-        if (string.IsNullOrEmpty(asOf) || !DateTime.TryParse(asOf, out effectiveAsOf))
+        if (string.IsNullOrEmpty(asOf) || !DateTime.TryParse(asOf, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out effectiveAsOf))
             effectiveAsOf = DateTime.UtcNow.Date;
         else
             effectiveAsOf = effectiveAsOf.Date;
 
+        try
+        {
         var end = start.AddDays(7);
         var days = await _db.ExecutionDays
             .Include(e => e.ShiftFeedbacks)
@@ -71,6 +79,8 @@ public class DashboardController : ControllerBase
             numDaysToCompare = 7;
         else
             numDaysToCompare = (int)(effectiveAsOf - start).TotalDays + 1;
+
+        var isCurrentWeek = effectiveAsOf >= start && effectiveAsOf < end;
 
         var daysInRange = numDaysToCompare > 0 ? days.Where(d => d.Date <= effectiveAsOf).ToList() : new List<Models.ExecutionDay>();
         var totalRevenue = daysInRange.Sum(d => d.TotalRevenue);
@@ -253,14 +263,17 @@ public class DashboardController : ControllerBase
         if (days.Count > 0)
         {
             if (productivityForWeek.HasValue && productivityForWeek > 80)
-                resumenClasificacion = "🟢 Semana buena";
+                resumenClasificacion = isCurrentWeek ? "🟢 Semana buena (provisional)" : "🟢 Semana buena";
             else if (productivityForWeek.HasValue && productivityForWeek > 50)
-                resumenClasificacion = "🟡 Semana normal";
+                resumenClasificacion = isCurrentWeek ? "🟡 Semana normal (provisional)" : "🟡 Semana normal";
             else
-                resumenClasificacion = "🔴 Semana baja";
+                resumenClasificacion = isCurrentWeek ? "🔴 Semana baja (provisional)" : "🔴 Semana baja";
 
             var parts = new List<string>();
-            parts.Add($"Esta semana la facturación total ha sido de {totalRevenue:N0} €, con {totalEffectiveHours:N1} horas trabajadas.");
+            if (isCurrentWeek && numDaysToCompare > 0)
+                parts.Add($"Hasta hoy ({numDaysToCompare} de 7 días) la facturación ha sido de {totalRevenue:N0} €, con {totalEffectiveHours:N1} horas trabajadas.");
+            else
+                parts.Add($"En esa semana la facturación total fue de {totalRevenue:N0} €, con {totalEffectiveHours:N1} horas trabajadas.");
             if (productivityForWeek.HasValue)
             {
                 if (productivityForWeek > 80)
@@ -292,7 +305,17 @@ public class DashboardController : ControllerBase
                 else
                     parts.Add($"La media de las últimas doce semanas ronda los {avgRevenueHistoric.Value:N0} €; esta semana va en línea con ese nivel.");
             }
+            if (isCurrentWeek && numDaysToCompare > 0)
+                parts.Add("(Datos parciales: la semana aún está en curso.)");
             resumenTexto = string.Join(" ", parts);
+        }
+        else if (isCurrentWeek)
+        {
+            resumenTexto = "Aún no hay datos esta semana. Los totales y la clasificación aparecerán cuando añadas días desde Registro de ejecución o importes Excel.";
+        }
+        else if (!isCurrentWeek && days.Count == 0)
+        {
+            resumenTexto = "Esta semana pasada no tiene días registrados. Puedes añadirlos desde Registro de ejecución (las fechas quedarán en el pasado).";
         }
 
         decimal? costePersonalEur = null;
@@ -352,7 +375,10 @@ public class DashboardController : ControllerBase
         catch { }
 
         var last30Days = await GetLast30DaysRevenueAsync();
-        if (last30Days.Count == 0 && days.Count > 0)
+        var todayForWindow = DateTime.UtcNow.Date;
+        var windowStart = todayForWindow.AddDays(-29);
+        var weekInWindow = start >= windowStart && start <= todayForWindow;
+        if (last30Days.Count == 0 && days.Count > 0 && weekInWindow)
             last30Days = days.Select(d => new DailyRevenueItemDto { Date = d.Date.ToString("yyyy-MM-dd"), Revenue = d.TotalRevenue }).ToList();
 
         return Ok(new DashboardWeekResponse
@@ -375,8 +401,16 @@ public class DashboardController : ControllerBase
             FacturacionObjetivo = facturacionObjetivo,
             ProductividadObjetivo = productividadObjetivo,
             Days = dayItems,
-            Last30Days = last30Days
+            Last30Days = last30Days,
+            IsCurrentWeek = isCurrentWeek,
+            DaysIncludedCount = numDaysToCompare
         });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error en GET dashboard/week");
+            return StatusCode(500, new { message = "Error al cargar el resumen semanal." });
+        }
     }
 
     private static DateTime GetMonday(DateTime d)
