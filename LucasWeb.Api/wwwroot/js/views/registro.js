@@ -128,7 +128,10 @@
       weather_temp_min: apiData.weather_temp_min ?? apiData.WeatherTempMin ?? null,
       weather_precip_mm: apiData.weather_precip_mm ?? apiData.WeatherPrecipMm ?? null,
       weather_wind_max_kmh: apiData.weather_wind_max_kmh ?? apiData.WeatherWindMaxKmh ?? null,
-      shifts: shifts
+      shifts: shifts,
+      day_sgt: apiData.day_sgt ?? apiData.DaySgt ?? null,
+      day_estado: apiData.day_estado ?? apiData.DayEstado ?? null,
+      day_resumen_diario: apiData.day_resumen_diario ?? apiData.DayResumenDiario ?? null
     };
   }
 
@@ -189,21 +192,22 @@
   }
 
   function getShiftScore(shift) {
-    return (global.LUCAS_SCORING && global.LUCAS_SCORING.scoreFromShift(shift)) || { sgt: 0, estado: '—', resumenNivel3: '', completo: false };
+    return (global.LUCAS_SCORING && global.LUCAS_SCORING.scoreFromShift(shift)) || { sgt: 0, estado: '—', resumenNivel3: '', completo: false, difficultyScoreKitchen: null, comfortLevelKitchen: null };
   }
   function getDayResumen() {
-    if (!state.dayData || !state.dayData.shifts.length) return { sgd: 0, estado: '—', texto: 'Sin datos de turnos. Día equilibrado.' };
+    if (!state.dayData || !state.dayData.shifts.length) return { avgSgt: '0', estado: '—', texto: 'Sin datos de turnos. Día equilibrado.' };
     var scores = state.dayData.shifts.map(function (s) { return getShiftScore(s); });
     var withSgt = scores.filter(function (s) { return s.sgt >= 6; });
     var avg = withSgt.length ? withSgt.reduce(function (a, s) { return a + s.sgt; }, 0) / withSgt.length : 0;
     var estado = avg < 11 ? 'Tranquilo' : avg < 15 ? 'Equilibrado' : avg < 19 ? 'Productivo' : avg < 23 ? 'Exigente' : 'Crítico';
     var texto = withSgt.length ? 'Promedio SGT turnos: ' + avg.toFixed(1) + '. ' + estado + '.' : 'Sin datos de turnos. Día equilibrado.';
-    return { sgd: avg.toFixed(1), estado: estado, texto: texto };
+    return { avgSgt: avg.toFixed(1), estado: estado, texto: texto };
   }
 
   function collectFormFromShift(idx) {
     var s = state.dayData && state.dayData.shifts[idx];
     if (!s) return;
+    if (state.dayData) state.dayData.day_resumen_diario = null;
     var rev = document.getElementById('registro-revenue');
     var hrs = document.getElementById('registro-hours');
     var floor = document.getElementById('registro-staff_floor');
@@ -268,7 +272,10 @@
     if (resumenTurno) resumenTurno.textContent = score.completo ? score.resumenNivel3 : 'Completa Volumen, Ritmo, Margen y Dificultad para ver el resumen del turno.';
     var dayRes = getDayResumen();
     var resumenDia = document.getElementById('registro-resumen-dia');
-    if (resumenDia) resumenDia.textContent = 'SGD: ' + dayRes.sgd + '  Estado: ' + dayRes.estado + ' — ' + dayRes.texto;
+    if (resumenDia) {
+      var txt = (state.dayData && state.dayData.day_resumen_diario) ? state.dayData.day_resumen_diario : ('Promedio SGT: ' + dayRes.avgSgt + '  Estado: ' + dayRes.estado + ' — ' + dayRes.texto);
+      resumenDia.textContent = txt;
+    }
     updateWeatherUI();
   }
   function updateHorasCalculado() {

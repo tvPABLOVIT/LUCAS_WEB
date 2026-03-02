@@ -166,4 +166,13 @@ public class ExecutionDayResponse
 
     [JsonPropertyName("shifts")]
     public List<ShiftDto> Shifts { get; set; } = new();
+
+    [JsonPropertyName("day_sgt")]
+    public decimal? DaySgt { get; set; }
+
+    [JsonPropertyName("day_estado")]
+    public string? DayEstado { get; set; }
+
+    [JsonPropertyName("day_resumen_diario")]
+    public string? DayResumenDiario { get; set; }
 }

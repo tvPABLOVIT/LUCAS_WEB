@@ -237,7 +237,14 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-day-card-meta .label { color: var(--text-muted); font-weight: 600; }
 .dashboard-weather { color: var(--text-muted); white-space: nowrap; }
 .dashboard-table td .dashboard-weather { white-space: nowrap; }
+.dashboard-observaciones-wrap { max-width: 28rem; }
+.dashboard-observaciones-text { margin-bottom: 0.35rem; line-height: 1.4; word-break: break-word; }
+.dashboard-observaciones-actions { font-size: 0.85rem; }
+.dashboard-observaciones-actions .dashboard-action-link { margin-right: 0.5rem; }
+.dashboard-observaciones-actions-inline { font-size: 0.85rem; }
 .dashboard-day-card-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.dashboard-day-card-feedback { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.6rem; word-break: break-word; }
+.dashboard-day-card-feedback .label { font-weight: 600; color: var(--text-muted); }
 .dashboard-day-card--pending { opacity: 0.75; }
 .dashboard-day-card--pending .dashboard-day-card-meta { color: var(--text-muted); }
 

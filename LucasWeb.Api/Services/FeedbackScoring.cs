@@ -1,8 +1,10 @@
 namespace LucasWeb.Api.Services;
 
 /// <summary>
-/// Índices 1–5 a partir de las opciones de feedback Q1–Q4 (igual que scoring.js).
-/// DifficultyScore y ComfortLevel para análisis de "límite cómodo" por esquema de personal.
+/// Dificultad y confort por turno para analytics (límite cómodo, predicción de personal).
+/// — DifficultyScore 1–5: métrica de DIFICULTAD; se persiste en ShiftFeedback y se usa en StaffRevenueComfortService.
+/// — En el frontend, scoring.js calcula SGT (6–31) y Estado: métrica de INTENSIDAD/ESTADO para la UI (no es lo mismo que DifficultyScore).
+/// Opciones Q1–Q4 (y Q5 = mismas que Q4): única fuente de verdad en backend; mantener en sync con scoring.js.
 /// </summary>
 public static class FeedbackScoring
 {
@@ -60,6 +62,30 @@ public static class FeedbackScoring
     {
         var d = OptionToIndex(q5, Q4Options);
         if (d >= 1 && d <= 5) return d;
+        return null;
+    }
+
+    /// <summary>SGT (Score Global Turno) 6–31 a partir de Q1–Q4. Misma fórmula que scoring.js: (V×2)+R+(6−M)+D. Devuelve 0 si falta algún eje.</summary>
+    public static int CalcSgt(string? q1, string? q2, string? q3, string? q4)
+    {
+        var v = OptionToIndex(q1, Q1Options);
+        var r = OptionToIndex(q2, Q2Options);
+        var m = OptionToIndex(q3, Q3Options);
+        var d = OptionToIndex(q4, Q4Options);
+        if (v < 1 || v > 5 || r < 1 || r > 5 || m < 1 || m > 5 || d < 1 || d > 5) return 0;
+        return (v * 2) + r + (6 - m) + d;
+    }
+
+    /// <summary>Estado del turno según SGT (igual que scoring.js getEstado). Null si SGT &lt; 6.</summary>
+    public static string? GetEstadoFromSgt(int sgt)
+    {
+        if (sgt < 6) return null;
+        if (sgt <= 10) return "Infrautilizado";
+        if (sgt <= 14) return "Tranquilo";
+        if (sgt <= 18) return "Equilibrado";
+        if (sgt <= 22) return "Productivo";
+        if (sgt <= 26) return "Exigente";
+        if (sgt <= 31) return "Crítico";
         return null;
     }
 }

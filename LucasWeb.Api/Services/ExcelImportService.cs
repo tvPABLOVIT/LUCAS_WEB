@@ -153,7 +153,7 @@ public static class ExcelImportService
     /// <summary>Parsea la hoja en formato estimaciones (filas 21, 22, 26, 30, J39). targetDate = refDate − 14 días.</summary>
     public static List<EstimacionDayData> ParseEstimacionSheet(IXLWorksheet ws, int fileYear, int weekNum, List<string> errors)
     {
-        const int rowDates = 21, rowMed = 22, rowTar = 26, rowNoc = 30, rowHours = 39, colHours = 10;
+        const int rowDates = 21, rowMed = 22, rowTar = 26, rowNoc = 30;
         var dayData = new List<(DateTime TargetDate, decimal RevMed, decimal RevTar, decimal RevNoc)>();
 
         for (var col = 3; col <= 9; col++)
@@ -173,28 +173,15 @@ public static class ExcelImportService
 
         if (dayData.Count == 0) return new List<EstimacionDayData>();
 
-        var realWeeklyHours = GetDecimalFromCell(ws.Cell(rowHours, colHours));
-        var revenuePerDay = dayData.Select(x => x.RevMed + x.RevTar + x.RevNoc).ToList();
-        var totalRevenueWeek = revenuePerDay.Sum();
-        decimal[] realHoursPerDay;
-        if (totalRevenueWeek > 0 && realWeeklyHours > 0)
-            realHoursPerDay = revenuePerDay.Select(r => r / totalRevenueWeek * realWeeklyHours).ToArray();
-        else
-            realHoursPerDay = Enumerable.Range(0, dayData.Count).Select(_ => realWeeklyHours / dayData.Count).ToArray();
-
         var result = new List<EstimacionDayData>();
         for (var i = 0; i < dayData.Count; i++)
         {
             var (targetDate, revMed, revTar, revNoc) = dayData[i];
-            var total = revMed + revTar + revNoc;
-            var realHoursDay = realHoursPerDay[i];
+            // IMPORTANTE:
+            // Este template solo trae una cifra de horas semanales (J39) y NO horas por día/turno.
+            // Repartir horas proporcionalmente a la facturación fuerza una productividad casi constante y puede inducir a error en el dashboard.
+            // Por fiabilidad, importamos las horas como 0 (desconocidas) hasta que lleguen horas reales (Excel genérico o PDF/cuadrante).
             decimal hoursMed = 0, hoursTar = 0, hoursNoc = 0;
-            if (total > 0 && realHoursDay > 0)
-            {
-                hoursMed = revMed / total * realHoursDay;
-                hoursTar = revTar / total * realHoursDay;
-                hoursNoc = revNoc / total * realHoursDay;
-            }
             result.Add(new EstimacionDayData
             {
                 TargetDate = targetDate,

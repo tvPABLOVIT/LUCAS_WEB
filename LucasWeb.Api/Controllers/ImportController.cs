@@ -392,7 +392,10 @@ public class ImportController : ControllerBase
             {
                 // Actualizar día existente (manual u otro): Excel sobrescribe.
                 day.TotalRevenue = total;
-                day.TotalHoursWorked = totalHours;
+                // El template de estimaciones no siempre trae horas reales por día (pueden venir como 0).
+                // Para no degradar datos reales, solo sobrescribir si hay horas > 0.
+                if (totalHours > 0)
+                    day.TotalHoursWorked = totalHours;
                 if (total > 0 || totalHours > 0) day.IsFeedbackOnly = false;
                 day.UpdatedAt = DateTime.UtcNow;
                 updated++;
@@ -425,7 +428,9 @@ public class ImportController : ControllerBase
         else
         {
             shift.Revenue = revenue;
-            shift.HoursWorked = hoursWorked;
+            // Igual que a nivel de día: no sobrescribir horas reales con 0 (estimación sin horas por turno).
+            if (hoursWorked > 0)
+                shift.HoursWorked = hoursWorked;
         }
     }
 

@@ -337,20 +337,87 @@
             if (d.weatherWindMaxKmh != null) parts.push(Number(d.weatherWindMaxKmh).toFixed(0) + 'km/h');
             return parts.join(' · ');
           }
+          /** Construye el párrafo de observaciones: apertura (facturación + productividad + estado), conclusión narrativa del día y frase de comparación con la media. */
+          function buildDayObservationsParagraph(d) {
+            if (!d) return '';
+            var revNum = d.revenue != null ? Number(d.revenue) : null;
+            var hoursNum = d.effectiveHours != null ? Number(d.effectiveHours) : (d.hoursWorked != null ? Number(d.hoursWorked) : null);
+            var prodNum = d.effectiveProductivity != null ? Number(d.effectiveProductivity) : (d.productivity != null ? Number(d.productivity) : null);
+            var dayConclusion = (d.dayConclusion != null && String(d.dayConclusion).trim() !== '') ? String(d.dayConclusion).trim() : '';
+            var dayNameLabel = d.dayName || 'día';
+            var dayEstado = (d.dayEstado != null && String(d.dayEstado).trim() !== '') ? String(d.dayEstado).trim() : null;
+            var parts = [];
+            var opening = '';
+            if (revNum != null && revNum > 0 && prodNum != null) {
+              opening = 'El ' + dayNameLabel + ' se facturaron ' + revNum.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' € y la productividad del día fue de ' + Number(prodNum).toFixed(1) + ' €/h.';
+            } else if (revNum != null && revNum > 0 && hoursNum != null && hoursNum > 0) {
+              opening = 'El ' + dayNameLabel + ' se facturaron ' + revNum.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' € con ' + Number(hoursNum).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' horas trabajadas.';
+            } else if (revNum != null && revNum > 0) {
+              opening = 'El ' + dayNameLabel + ' se facturaron ' + revNum.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €; no hay horas registradas.';
+            } else if (revNum != null && revNum === 0 && (hoursNum == null || hoursNum === 0)) {
+              opening = 'El ' + dayNameLabel + ' no hay datos de facturación ni horas.';
+            } else {
+              opening = 'El ' + dayNameLabel + ' no hay datos suficientes para un resumen.';
+            }
+            if (dayEstado) opening += ' Día ' + dayEstado.toLowerCase() + '.';
+            parts.push(opening);
+            if (dayConclusion !== '') parts.push(escapeHtml(dayConclusion));
+            var conclusionExtra = [];
+            // Productividad: solo juicio (alto/normal/bajo), sin repetir el valor numérico ya mostrado en la apertura
+            if (prodNum != null && prodNum > 0) {
+              var prodFrase;
+              if (prodNum >= 80) prodFrase = 'En términos de productividad, fue un nivel alto de rendimiento por hora.';
+              else if (prodNum >= 50) prodFrase = 'En términos de productividad, el nivel se mantuvo dentro de la normalidad.';
+              else prodFrase = 'En términos de productividad, el nivel quedó algo por debajo de lo deseable.';
+              conclusionExtra.push(prodFrase);
+            }
+            // Facturación frente a la media histórica del mismo día de la semana
+            if (d.avgRevenueHistoric != null && d.pctVsAvgHistoric != null && typeof d.pctVsAvgHistoric === 'number') {
+              var pct = d.pctVsAvgHistoric;
+              var absPct = Math.abs(pct);
+              var diaMedia = (d.dayName || 'día').toLowerCase();
+              var fraseFacturacion = '';
+              if (pct >= 0) {
+                if (absPct <= 5) fraseFacturacion = 'La facturación se mantuvo en línea con la media de los ' + diaMedia + '.';
+                else if (absPct <= 15) fraseFacturacion = 'La facturación estuvo ligeramente por encima de la media de los ' + diaMedia + ', pero sin que eso se tradujera en presión operativa.';
+                else fraseFacturacion = 'La facturación estuvo claramente por encima de la media de los ' + diaMedia + '.';
+              } else {
+                if (absPct <= 5) fraseFacturacion = 'La facturación se mantuvo en línea con la media de los ' + diaMedia + '.';
+                else if (absPct <= 15) fraseFacturacion = 'La facturación estuvo ligeramente por debajo de la media de los ' + diaMedia + '.';
+                else fraseFacturacion = 'La facturación estuvo por debajo de la media de los ' + diaMedia + '.';
+              }
+              conclusionExtra.push(fraseFacturacion);
+            }
+            // Tendencia de las últimas semanas para ese día de la semana (al alza / a la baja / estable)
+            if (d.trendLabel != null && String(d.trendLabel).trim() !== '') {
+              var trend = String(d.trendLabel).toLowerCase();
+              var diaTendencia = (d.dayName || 'día').toLowerCase();
+              if (/alza|subida|ascendente|↑/.test(trend)) {
+                conclusionExtra.push('Los ' + diaTendencia + ' llevan varias semanas al alza.');
+              } else if (/baja|descenso|↓/.test(trend)) {
+                conclusionExtra.push('Los ' + diaTendencia + ' vienen algo más flojos en las últimas semanas.');
+              } else if (/estable|→/.test(trend)) {
+                conclusionExtra.push('Los ' + diaTendencia + ' se mantienen estables en las últimas semanas.');
+              }
+            }
+            if (conclusionExtra.length > 0) parts.push(conclusionExtra.map(function (s) { return escapeHtml(s); }).join(' '));
+            return parts.join(' ');
+          }
 
-          var headers = ['Día', 'Fecha', 'Clima', 'Facturación', 'Horas', 'Productividad (€/h)', 'Personal', 'Tendencia', 'Acciones'];
+          var headers = ['Día', 'Fecha', 'Clima', 'Facturación', 'Horas', 'Productividad (€/h)', 'Personal', 'Observaciones del Día'];
           var rows = daysToShow.map(function (d) {
             if (d.isPlaceholder) {
               var dayName = d.dayName || dayNameFromDate(d.date);
               var dateShort = formatDateShort(d.date);
               var isFuture = d.date > todayYmd;
-              var trendLabel = isFuture ? 'Pendiente' : 'Sin datos';
-              var accionesPlaceholder = isFuture ? '—' : (
-                '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(d.date) + '">Registro</a>' +
-                '<span class="dashboard-action-sep">·</span>' +
-                '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(d.date) + '">Feedback</a>'
+              var observacionesPlaceholder = isFuture ? '—' : (
+                '<span class="dashboard-observaciones-text">Sin datos.</span> ' +
+                '<span class="dashboard-observaciones-actions-inline">' +
+                '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(d.date) + '">Registro</a> ' +
+                '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(d.date) + '">Feedback</a>' +
+                '</span>'
               );
-              return [dayName, dateShort, '—', '—', '—', '—', '—', '<span class="dashboard-weather">' + trendLabel + '</span>', accionesPlaceholder];
+              return [dayName, dateShort, '—', '—', '—', '—', '—', observacionesPlaceholder];
             }
             var dayName = d.dayName || dayNameFromDate(d.date);
             var dateShort = formatDateShort(d.date);
@@ -372,35 +439,19 @@
             }
             if (staffParts.length === 0 && d.staffTotal != null) staffParts.push(String(d.staffTotal));
             var staff = staffParts.length ? staffParts.join('<br/>') : '—';
-            // Orden: 1) vs media (con hoy %), 2) tendencia 12 sem., 3) vs sem. ant.
-            var trendParts = [];
-            if (d.avgRevenueHistoric != null && d.avgRevenueHistoric !== '') {
-              var mediaStr = 'vs media ' + Number(d.avgRevenueHistoric).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €';
-              if (d.pctVsAvgHistoric != null && typeof d.pctVsAvgHistoric === 'number') mediaStr += ' (hoy ' + (d.pctVsAvgHistoric >= 0 ? '+' : '') + d.pctVsAvgHistoric + '%)';
-              trendParts.push(mediaStr);
-            }
-            if (d.trendLabel) trendParts.push(d.trendLabel);
-            if (d.trendVsPrevWeek) trendParts.push(d.trendVsPrevWeek);
-            var trend = trendParts.length ? trendParts.join('<br>') : '—';
             var dateStr = d.date || '';
-            var evs = eventsByDate[dateStr] || [];
-            if (evs.length > 0) {
-              var evTxt = evs.slice(0, 2).map(function (e) { return (e.impact ? ('[' + e.impact + '] ') : '') + (e.name || ''); }).join('<br>');
-              if (evs.length > 2) evTxt += '<br><span class="dashboard-events-more">+' + (evs.length - 2) + ' más</span>';
-              trend += (trend ? '<br>' : '') + '<span class="dashboard-events-inline">' + evTxt + '</span>';
-            }
-            var acciones =
-              '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(dateStr) + '">Registro</a>' +
-              '<span class="dashboard-action-sep">·</span>' +
-              '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(dateStr) + '">Feedback</a>' +
-              '<span class="dashboard-action-sep">·</span>' +
-              '<button type="button" class="dashboard-action-link dashboard-event-add" data-date="' + escapeHtml(dateStr) + '">+ Evento</button>';
-            return [dayName, dateShort, clima, rev, hours, prod, staff, trend, acciones];
+            var observacionesParagraph = buildDayObservationsParagraph(d);
+            var observacionesCell = '<div class="dashboard-observaciones-wrap">' +
+              '<div class="dashboard-observaciones-text">' + observacionesParagraph + '</div>' +
+              '<div class="dashboard-observaciones-actions">' +
+              '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(dateStr) + '">Registro</a> ' +
+              '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(dateStr) + '">Feedback</a> ' +
+              '<button type="button" class="dashboard-action-link dashboard-event-add" data-date="' + escapeHtml(dateStr) + '">+ Evento</button>' +
+              '</div></div>';
+            return [dayName, dateShort, clima, rev, hours, prod, staff, observacionesCell];
           });
           var personalTitle = 'Sala y cocina por turno (Mediodía-Tarde-Noche). Con PDF: se muestran las horas del cuadrante por turno (reales). Sin PDF (dato manual): Horas calc. = (Sala+Cocina) × h/turno (Config.).';
-          var hoyTexto = data.isCurrentWeek ? '(hoy ±%)' : '(este día ±%)';
-          var tendenciaTitle = 'vs media: media de facturación de ese día de la semana en las últimas 12 semanas. ' + hoyTexto + ': este día respecto a esa media. Tendencia ↑/↓: evolución del día de la semana en el tiempo (mitad reciente vs antigua de 12 sem.). vs sem. ant.: mismo día de la semana anterior.';
-          var thead = '<thead><tr><th>Día</th><th>Fecha</th><th>Clima</th><th>Facturación</th><th>Horas</th><th>Productividad (€/h)</th><th title="' + personalTitle + '">Personal</th><th title="' + tendenciaTitle + '">Tendencia</th><th>Acciones</th></tr></thead>';
+          var thead = '<thead><tr><th>Día</th><th>Fecha</th><th>Clima</th><th>Facturación</th><th>Horas</th><th>Productividad (€/h)</th><th title="' + personalTitle + '">Personal</th><th>Observaciones del Día</th></tr></thead>';
           var tbody = '<tbody>' + rows.map(function (row) { return '<tr>' + row.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>';
           daysWrap.innerHTML = '<table class="dashboard-table">' + thead + tbody + '</table>';
 
@@ -495,6 +546,7 @@
                 (d.calculatedStaffHours != null ? '<div><span class="label">Horas equipo</span> ' + Number(d.calculatedStaffHours).toFixed(1) + ' h</div>' : '') +
                 '<div><span class="label">Tendencia</span> ' + trendLine + '</div>' +
                 '</div>' +
+                '<div class="dashboard-day-card-feedback"><span class="label">Observaciones del día</span> ' + buildDayObservationsParagraph(d) + '</div>' +
                 '<div class="dashboard-day-card-actions">' +
                 '<a class="btn-secondary btn-sm" href="' + hrefRegistro + '">Abrir registro</a>' +
                 '<a class="btn-secondary btn-sm" href="' + hrefPreguntas + '">Abrir feedback</a>' +

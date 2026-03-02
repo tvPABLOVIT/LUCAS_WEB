@@ -17,24 +17,20 @@ public class ExecutionController : ControllerBase
     private readonly IServiceScopeFactory _scopeFactory;
 
     private static readonly string[] AllowedShiftNames = { "Mediodia", "Tarde", "Noche" };
-    private static readonly string[] Q1Allowed = { "Pocas mesas", "Media sala", "Sala completa", "Sala y terraza completas", "Sala y terraza completas y doblamos mesas" };
-    private static readonly string[] Q2Allowed = { "Muy espaciadas, sin acumulación", "Entradas tranquilas", "Flujo constante", "Muchas entradas juntas", "Entradas continuas sin margen" };
-    private static readonly string[] Q3Allowed = { "Siempre adelantado", "Generalmente con margen", "Justo", "Poco margen", "Ningún margen" };
-    private static readonly string[] Q4Allowed = { "Muy fácil", "Fácil", "Normal", "Difícil", "Muy difícil" };
-
+    // Opciones de feedback: única fuente de verdad en backend (sync con scoring.js en frontend).
     private static bool IsAllowed(string? value, string[] allowed) =>
-        string.IsNullOrWhiteSpace(value) || allowed.Contains(value.Trim());
+        string.IsNullOrWhiteSpace(value) || allowed.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase);
 
     private static string? ValidateShiftFeedback(ShiftDto s)
     {
         if (string.IsNullOrWhiteSpace(s.ShiftName)) return "Turno: shift_name requerido";
         if (!AllowedShiftNames.Contains(s.ShiftName.Trim(), StringComparer.OrdinalIgnoreCase))
             return "Turno: shift_name no permitido (use Mediodia, Tarde o Noche)";
-        if (!IsAllowed(s.FeedbackQ1, Q1Allowed)) return "Q1 (Volumen): valor no permitido";
-        if (!IsAllowed(s.FeedbackQ2, Q2Allowed)) return "Q2 (Ritmo): valor no permitido";
-        if (!IsAllowed(s.FeedbackQ3, Q3Allowed)) return "Q3 (Margen): valor no permitido";
-        if (!IsAllowed(s.FeedbackQ4, Q4Allowed)) return "Q4 (Dificultad): valor no permitido";
-        if (!IsAllowed(s.FeedbackQ5, Q4Allowed)) return "Q5 (Dificultad cocina): valor no permitido";
+        if (!IsAllowed(s.FeedbackQ1, FeedbackScoring.Q1Options)) return "Q1 (Volumen): valor no permitido";
+        if (!IsAllowed(s.FeedbackQ2, FeedbackScoring.Q2Options)) return "Q2 (Ritmo): valor no permitido";
+        if (!IsAllowed(s.FeedbackQ3, FeedbackScoring.Q3Options)) return "Q3 (Margen): valor no permitido";
+        if (!IsAllowed(s.FeedbackQ4, FeedbackScoring.Q4Options)) return "Q4 (Dificultad): valor no permitido";
+        if (!IsAllowed(s.FeedbackQ5, FeedbackScoring.Q4Options)) return "Q5 (Dificultad cocina): valor no permitido";
         return null;
     }
 
@@ -290,60 +286,67 @@ public class ExecutionController : ControllerBase
     private async Task<ExecutionDay> LoadDay(Guid id) =>
         (await _db.ExecutionDays.Include(e => e.ShiftFeedbacks.OrderBy(s => s.ShiftName)).FirstAsync(e => e.Id == id))!;
 
-    private static ExecutionDayResponse ToResponse(ExecutionDay day) => new()
+    private static ExecutionDayResponse ToResponse(ExecutionDay day)
     {
-        Id = day.Id.ToString(),
-        Date = day.Date.ToString("yyyy-MM-dd"),
-        TotalRevenue = day.TotalRevenue,
-        TotalHoursWorked = day.TotalHoursWorked,
-        StaffTotal = day.StaffTotal,
-        Notes = day.Notes,
-        IsFeedbackOnly = day.IsFeedbackOnly,
-        WeatherCode = day.WeatherCode,
-        WeatherTempMax = day.WeatherTempMax,
-        WeatherTempMin = day.WeatherTempMin,
-        WeatherPrecipMm = day.WeatherPrecipMm,
-        WeatherWindMaxKmh = day.WeatherWindMaxKmh,
-        Shifts = day.ShiftFeedbacks.Select(s =>
+        var (daySgt, dayEstado, dayResumenDiario) = DayScoringHelper.ComputeDayResumen(day.ShiftFeedbacks);
+        return new ExecutionDayResponse
         {
-            decimal? hoursSala = null;
-            decimal? hoursCocina = null;
-            var total = s.StaffFloor + s.StaffKitchen;
-            if (s.HoursWorked > 0 && total > 0)
+            Id = day.Id.ToString(),
+            Date = day.Date.ToString("yyyy-MM-dd"),
+            TotalRevenue = day.TotalRevenue,
+            TotalHoursWorked = day.TotalHoursWorked,
+            StaffTotal = day.StaffTotal,
+            Notes = day.Notes,
+            IsFeedbackOnly = day.IsFeedbackOnly,
+            WeatherCode = day.WeatherCode,
+            WeatherTempMax = day.WeatherTempMax,
+            WeatherTempMin = day.WeatherTempMin,
+            WeatherPrecipMm = day.WeatherPrecipMm,
+            WeatherWindMaxKmh = day.WeatherWindMaxKmh,
+            Shifts = day.ShiftFeedbacks.Select(s =>
             {
-                hoursSala = Math.Round(s.HoursWorked * s.StaffFloor / total, 2);
-                hoursCocina = Math.Round(s.HoursWorked * s.StaffKitchen / total, 2);
-            }
-            return new ShiftDto
-            {
-                ShiftName = s.ShiftName,
-                Revenue = s.Revenue,
-                HoursWorked = s.HoursWorked,
-                PlannedHours = s.PlannedHours,
-                StaffFloor = s.StaffFloor,
-                StaffKitchen = s.StaffKitchen,
-                HoursSalaEstimated = hoursSala,
-                HoursCocinaEstimated = hoursCocina,
-                FeedbackQ1 = s.FeedbackQ1,
-                FeedbackQ2 = s.FeedbackQ2,
-                FeedbackQ3 = s.FeedbackQ3,
-                FeedbackQ4 = s.FeedbackQ4,
-                FeedbackQ5 = s.FeedbackQ5,
-                RevenuePerWaiterSala = s.RevenuePerWaiterSala,
-                DifficultyScore = s.DifficultyScore,
-                ComfortLevel = s.ComfortLevel,
-                RevenuePerWaiterCocina = s.RevenuePerWaiterCocina,
-                DifficultyScoreKitchen = s.DifficultyScoreKitchen,
-                ComfortLevelKitchen = s.ComfortLevelKitchen,
-                RecordedBy = s.RecordedBy,
-                EditedBy = s.EditedBy,
-                WeatherCode = s.WeatherCode,
-                WeatherTempAvg = s.WeatherTempAvg,
-                WeatherPrecipMm = s.WeatherPrecipMm,
-                WeatherWindMaxKmh = s.WeatherWindMaxKmh
-            };
-        }).ToList()
-    };
+                decimal? hoursSala = null;
+                decimal? hoursCocina = null;
+                var total = s.StaffFloor + s.StaffKitchen;
+                if (s.HoursWorked > 0 && total > 0)
+                {
+                    hoursSala = Math.Round(s.HoursWorked * s.StaffFloor / total, 2);
+                    hoursCocina = Math.Round(s.HoursWorked * s.StaffKitchen / total, 2);
+                }
+                return new ShiftDto
+                {
+                    ShiftName = s.ShiftName,
+                    Revenue = s.Revenue,
+                    HoursWorked = s.HoursWorked,
+                    PlannedHours = s.PlannedHours,
+                    StaffFloor = s.StaffFloor,
+                    StaffKitchen = s.StaffKitchen,
+                    HoursSalaEstimated = hoursSala,
+                    HoursCocinaEstimated = hoursCocina,
+                    FeedbackQ1 = s.FeedbackQ1,
+                    FeedbackQ2 = s.FeedbackQ2,
+                    FeedbackQ3 = s.FeedbackQ3,
+                    FeedbackQ4 = s.FeedbackQ4,
+                    FeedbackQ5 = s.FeedbackQ5,
+                    RevenuePerWaiterSala = s.RevenuePerWaiterSala,
+                    DifficultyScore = s.DifficultyScore,
+                    ComfortLevel = s.ComfortLevel,
+                    RevenuePerWaiterCocina = s.RevenuePerWaiterCocina,
+                    DifficultyScoreKitchen = s.DifficultyScoreKitchen,
+                    ComfortLevelKitchen = s.ComfortLevelKitchen,
+                    RecordedBy = s.RecordedBy,
+                    EditedBy = s.EditedBy,
+                    WeatherCode = s.WeatherCode,
+                    WeatherTempAvg = s.WeatherTempAvg,
+                    WeatherPrecipMm = s.WeatherPrecipMm,
+                    WeatherWindMaxKmh = s.WeatherWindMaxKmh
+                };
+            }).ToList(),
+            DaySgt = daySgt,
+            DayEstado = dayEstado,
+            DayResumenDiario = dayResumenDiario
+        };
+    }
 
     private static ShiftFeedback ToShift(Guid executionDayId, ShiftDto dto, decimal? revenueOverride = null)
     {

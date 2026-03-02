@@ -223,6 +223,21 @@ Las respuestas Q1–Q4 se guardan como **texto** (FeedbackQ1–FeedbackQ4); los 
 
 ---
 
+## 7.1. Dos métricas distintas (no confundir)
+
+| Métrica | Dónde | Significado | Uso |
+|--------|--------|-------------|-----|
+| **SGT + Estado** | Frontend (scoring.js) | **Intensidad/estado** del turno (6–31, Infrautilizado…Crítico). | UI: resumen por turno, resumen del día ("Promedio SGT"). |
+| **DifficultyScore 1–5 + ComfortLevel** | Backend (FeedbackScoring.cs) | **Dificultad** para analytics. Se persiste en ShiftFeedback. | Límite cómodo (StaffRevenueComfortService), predicción de personal. |
+
+Un mismo turno puede tener por ejemplo SGT 18 (Equilibrado) y DifficultyScore 3 (Normal). No son equivalentes: SGT combina V,R,M,D con una fórmula; DifficultyScore prioriza Q4 o una media ponderada.
+
+**Cocina:** Q5 usa las mismas opciones que Q4. El backend calcula DifficultyScoreKitchen y ComfortLevelKitchen; el frontend (scoring.js) expone también difficultyScoreKitchen y comfortLevelKitchen desde Q5 para coherencia en la UI.
+
+**Opciones Q1–Q5:** La única fuente de verdad en backend es `FeedbackScoring.cs` (Q1Options, Q2Options, Q3Options, Q4Options). ExecutionController valida con esas mismas listas. En frontend, scoring.js debe mantener las mismas opciones en sync (Q1_OPTIONS, etc.).
+
+---
+
 ## 8. Tabla resumen: de la opción al tipo
 
 Flujo en una sola línea:

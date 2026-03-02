@@ -80,6 +80,26 @@ public class DashboardDayItemDto
 
     [JsonPropertyName("weatherWindMaxKmh")]
     public decimal? WeatherWindMaxKmh { get; set; }
+
+    /// <summary>Resumen del día: notas libres o observaciones generadas desde feedback por turno. Null/vacío si no hay datos.</summary>
+    [JsonPropertyName("dayFeedbackSummary")]
+    public string? DayFeedbackSummary { get; set; }
+
+    /// <summary>Promedio SGT de los turnos del día (6–31). Null si no hay turnos con feedback completo.</summary>
+    [JsonPropertyName("daySgt")]
+    public decimal? DaySgt { get; set; }
+
+    /// <summary>Estado del día según promedio SGT: Tranquilo, Equilibrado, Productivo, Exigente, Crítico.</summary>
+    [JsonPropertyName("dayEstado")]
+    public string? DayEstado { get; set; }
+
+    /// <summary>Resumen diario en un párrafo: estado del día + evolución por turnos (mañana, tarde, noche).</summary>
+    [JsonPropertyName("dayResumenDiario")]
+    public string? DayResumenDiario { get; set; }
+
+    /// <summary>Conclusión narrativa del día para observaciones: "Fue un día X, estable en todos los turnos, con flujo controlado..."</summary>
+    [JsonPropertyName("dayConclusion")]
+    public string? DayConclusion { get; set; }
 }
 
 public class DashboardWeekResponse

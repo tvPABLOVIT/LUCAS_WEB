@@ -1,6 +1,10 @@
 /**
  * Scoring de turnos: V/R/M/D, SGT, Estado, Tipo T1–T15, Resumen Nivel 3.
  * Basado en SCORING_COMPLETO_VRMD_SGT.md (adaptado a la app web).
+ *
+ * Métricas UI (este archivo): SGT e Estado = INTENSIDAD/ESTADO del turno (lectura rápida).
+ * Métricas analytics (backend FeedbackScoring): DifficultyScore 1–5 y ComfortLevel = DIFICULTAD para límite cómodo.
+ * Opciones: mantener en sync con FeedbackScoring.cs (Q1Options, Q2Options, Q3Options, Q4Options).
  */
 (function (global) {
   'use strict';
@@ -12,6 +16,7 @@
   var Q2_OPTIONS = ['Muy espaciadas, sin acumulación', 'Entradas tranquilas', 'Flujo constante', 'Muchas entradas juntas', 'Entradas continuas sin margen'];
   var Q3_OPTIONS = ['Siempre adelantado', 'Generalmente con margen', 'Justo', 'Poco margen', 'Ningún margen'];
   var Q4_OPTIONS = ['Muy fácil', 'Fácil', 'Normal', 'Difícil', 'Muy difícil'];
+  // Q5 (cocina) usa las mismas opciones que Q4
 
   function optionToIndex(text, options) {
     if (!text || typeof text !== 'string') return 0;
@@ -26,6 +31,18 @@
   function getRitmoIndex(q2) { return optionToIndex(q2, Q2_OPTIONS); }
   function getMargenIndex(q3) { return optionToIndex(q3, Q3_OPTIONS); }
   function getDificultadIndex(q4) { return optionToIndex(q4, Q4_OPTIONS); }
+  /** Cocina: mismas opciones que Q4 (dificultad). Alineado con backend FeedbackScoring.ComputeDifficultyScoreKitchen. */
+  function getDificultadCocinaIndex(q5) { return optionToIndex(q5, Q4_OPTIONS); }
+
+  /**
+   * Nivel de confort 1–5 → Cómodo / Límite / Complicado (igual que backend GetComfortLevel).
+   */
+  function getComfortLevel(score) {
+    if (score == null || score < 1 || score > 5) return null;
+    if (score <= 2.5) return 'Cómodo';
+    if (score <= 3.5) return 'Límite';
+    return 'Complicado';
+  }
 
   /**
    * Calcula SGT = (V×2) + R + (6−M) + D. Devuelve 0 si falta algún eje (1-5).
@@ -154,21 +171,25 @@
   }
 
   /**
-   * A partir de un turno (objeto con feedback_q1..q4), calcula índices, SGT, estado, tipo y resumen.
+   * A partir de un turno (objeto con feedback_q1..q5), calcula índices, SGT, estado, tipo, resumen y scoring cocina (Q5).
    */
   function scoreFromShift(shift) {
     var q1 = shift && (shift.feedback_q1 != null ? shift.feedback_q1 : shift.FeedbackQ1);
     var q2 = shift && (shift.feedback_q2 != null ? shift.feedback_q2 : shift.FeedbackQ2);
     var q3 = shift && (shift.feedback_q3 != null ? shift.feedback_q3 : shift.FeedbackQ3);
     var q4 = shift && (shift.feedback_q4 != null ? shift.feedback_q4 : shift.FeedbackQ4);
+    var q5 = shift && (shift.feedback_q5 != null ? shift.feedback_q5 : shift.FeedbackQ5);
     var v = getVolumenIndex(q1);
     var r = getRitmoIndex(q2);
     var m = getMargenIndex(q3);
     var d = getDificultadIndex(q4);
+    var dCocina = getDificultadCocinaIndex(q5);
     var sgt = calcSgt(v, r, m, d);
     var estado = getEstado(sgt);
     var tipoInfo = estado != null ? getTipoTurno(estado, v, r, m, d) : (v && r && m && d ? getTipoTurno('Equilibrado', v, r, m, d) : { tipo: null, label: '' });
     var resumen = buildResumenNivel3(v, r, m, d, sgt);
+    var difficultyScoreKitchen = (dCocina >= 1 && dCocina <= 5) ? dCocina : null;
+    var comfortLevelKitchen = getComfortLevel(difficultyScoreKitchen);
     return {
       v: v, r: r, m: m, d: d,
       sgt: sgt,
@@ -176,7 +197,9 @@
       tipo: tipoInfo.tipo,
       tipoLabel: tipoInfo.label,
       resumenNivel3: resumen,
-      completo: v >= 1 && r >= 1 && m >= 1 && d >= 1
+      completo: v >= 1 && r >= 1 && m >= 1 && d >= 1,
+      difficultyScoreKitchen: difficultyScoreKitchen,
+      comfortLevelKitchen: comfortLevelKitchen
     };
   }
 
@@ -187,6 +210,8 @@
     getRitmoIndex: getRitmoIndex,
     getMargenIndex: getMargenIndex,
     getDificultadIndex: getDificultadIndex,
+    getDificultadCocinaIndex: getDificultadCocinaIndex,
+    getComfortLevel: getComfortLevel,
     calcSgt: calcSgt,
     getEstado: getEstado,
     getTipoTurno: getTipoTurno,

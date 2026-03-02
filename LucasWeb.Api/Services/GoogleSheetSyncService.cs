@@ -272,35 +272,6 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         return char.ToUpperInvariant(name[0]) + name[1..];
     }
 
-    /// <summary>Observaciones del turno: solo el párrafo generado a partir de Q1–Q5 (sin clima). El clima va en columna J.</summary>
-    private static string BuildObservacionesFromFeedback(ShiftFeedback? shift)
-    {
-        static string LowerFirst(string s)
-        {
-            if (string.IsNullOrEmpty(s) || s.Length == 0) return s;
-            return char.ToLowerInvariant(s[0]) + s[1..];
-        }
-
-        var q1 = (shift?.FeedbackQ1 ?? "").Trim();
-        var q2 = (shift?.FeedbackQ2 ?? "").Trim();
-        var q3 = (shift?.FeedbackQ3 ?? "").Trim();
-        var q4 = (shift?.FeedbackQ4 ?? "").Trim();
-        var q5 = (shift?.FeedbackQ5 ?? "").Trim();
-        var hasFeedback = !string.IsNullOrEmpty(q1) || !string.IsNullOrEmpty(q2) || !string.IsNullOrEmpty(q3) || !string.IsNullOrEmpty(q4) || !string.IsNullOrEmpty(q5);
-        if (!hasFeedback) return "";
-
-        var partes = new List<string>();
-        if (!string.IsNullOrEmpty(q1)) partes.Add("con " + LowerFirst(q1));
-        if (!string.IsNullOrEmpty(q2)) partes.Add(LowerFirst(q2));
-        if (!string.IsNullOrEmpty(q3)) partes.Add(LowerFirst(q3));
-        var turno = "Fue un turno " + string.Join(", ", partes) + ".";
-        if (!string.IsNullOrEmpty(q4))
-            turno += " En conjunto resultó " + LowerFirst(q4) + ".";
-        if (!string.IsNullOrEmpty(q5))
-            turno += " En cocina: " + LowerFirst(q5) + ".";
-        return turno.Trim();
-    }
-
     /// <summary>Descripción del clima a partir de un turno (respaldo cuando el día no tiene clima pero el turno sí, p. ej. guardado desde Feedback diario).</summary>
     private static string? GetWeatherDescriptionFromShift(ShiftFeedback shift)
     {
@@ -464,9 +435,9 @@ public class GoogleSheetSyncService : IGoogleSheetSyncService
         {
             day.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             GetDayOfWeekName(day.Date),
-            BuildObservacionesFromFeedback(med),
-            BuildObservacionesFromFeedback(tar),
-            BuildObservacionesFromFeedback(noc),
+            FeedbackObservationsHelper.BuildObservacionesFromFeedback(med),
+            FeedbackObservationsHelper.BuildObservacionesFromFeedback(tar),
+            FeedbackObservationsHelper.BuildObservacionesFromFeedback(noc),
             (double)(med?.Revenue ?? 0),
             (double)(tar?.Revenue ?? 0),
             (double)(noc?.Revenue ?? 0),

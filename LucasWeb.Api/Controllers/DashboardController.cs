@@ -1,5 +1,6 @@
 using LucasWeb.Api.Data;
 using LucasWeb.Api.DTOs;
+using LucasWeb.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -227,6 +228,15 @@ public class DashboardController : ControllerBase
             if (dayAvg.HasValue && dayAvg.Value > 0)
                 pctVsAvg = (int)Math.Round((d.TotalRevenue - dayAvg.Value) / dayAvg.Value * 100);
 
+            var dayFeedbackSummary = !string.IsNullOrWhiteSpace(d.Notes)
+                ? d.Notes.Trim()
+                : FeedbackObservationsHelper.BuildDayFeedbackSummary(d.ShiftFeedbacks ?? Enumerable.Empty<Models.ShiftFeedback>());
+            if (string.IsNullOrWhiteSpace(dayFeedbackSummary))
+                dayFeedbackSummary = null;
+
+            var (daySgt, dayEstado, dayResumenDiario) = DayScoringHelper.ComputeDayResumen(d.ShiftFeedbacks);
+            var dayConclusion = DayScoringHelper.BuildDayConclusion(d.ShiftFeedbacks);
+
             return new DashboardDayItemDto
             {
                 Date = d.Date.ToString("yyyy-MM-dd"),
@@ -250,7 +260,12 @@ public class DashboardController : ControllerBase
                 WeatherTempMax = d.WeatherTempMax,
                 WeatherTempMin = d.WeatherTempMin,
                 WeatherPrecipMm = d.WeatherPrecipMm,
-                WeatherWindMaxKmh = d.WeatherWindMaxKmh
+                WeatherWindMaxKmh = d.WeatherWindMaxKmh,
+                DayFeedbackSummary = dayFeedbackSummary,
+                DaySgt = daySgt,
+                DayEstado = dayEstado,
+                DayResumenDiario = dayResumenDiario,
+                DayConclusion = dayConclusion
             };
         }).ToList();
 
