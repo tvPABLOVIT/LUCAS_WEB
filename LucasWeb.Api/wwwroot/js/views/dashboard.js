@@ -390,13 +390,11 @@
               }
               conclusionExtra.push(fraseFacturacion);
             }
-            // Tendencia: 5 niveles (levemente al alza, al alza, estable, levemente a la baja, a la baja). Incluir % si viene en trendLabel.
+            // Tendencia: 5 niveles (solo texto, sin mostrar el % en el párrafo).
             if (d.trendLabel != null && String(d.trendLabel).trim() !== '') {
               var trend = String(d.trendLabel);
               var trendLower = trend.toLowerCase();
               var diaTendencia = (d.dayName || 'día').toLowerCase();
-              var pctMatch = trend.match(/\(([+-]?\d+%)\)/);
-              var pctStr = (pctMatch && pctMatch[1]) ? (' ' + pctMatch[1]) : '';
               var frase = '';
               if (trendLower.indexOf('levemente al alza') !== -1) {
                 frase = 'Los ' + diaTendencia + ' suben levemente en las últimas semanas.';
@@ -409,7 +407,7 @@
               } else if (trendLower.indexOf('estable') !== -1) {
                 frase = 'Los ' + diaTendencia + ' se mantienen estables en las últimas semanas.';
               }
-              if (frase) conclusionExtra.push(frase + pctStr);
+              if (frase) conclusionExtra.push(frase);
             }
             if (conclusionExtra.length > 0) parts.push(conclusionExtra.map(function (s) { return escapeHtml(s); }).join(' '));
             return parts.join(' ');
@@ -453,12 +451,7 @@
             var dateStr = d.date || '';
             var observacionesParagraph = buildDayObservationsParagraph(d);
             var observacionesCell = '<div class="dashboard-observaciones-wrap">' +
-              '<div class="dashboard-observaciones-text">' + observacionesParagraph + '</div>' +
-              '<div class="dashboard-observaciones-actions">' +
-              '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(dateStr) + '">Registro</a> ' +
-              '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(dateStr) + '">Feedback</a> ' +
-              '<button type="button" class="dashboard-action-link dashboard-event-add" data-date="' + escapeHtml(dateStr) + '">+ Evento</button>' +
-              '</div></div>';
+              '<div class="dashboard-observaciones-text">' + observacionesParagraph + '</div></div>';
             return [dayName, dateShort, clima, rev, hours, prod, staff, observacionesCell];
           });
           var personalTitle = 'Sala y cocina por turno (Mediodía-Tarde-Noche). Con PDF: se muestran las horas del cuadrante por turno (reales). Sin PDF (dato manual): Horas calc. = (Sala+Cocina) × h/turno (Config.).';
