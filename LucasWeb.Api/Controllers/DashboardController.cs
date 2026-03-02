@@ -12,6 +12,12 @@ namespace LucasWeb.Api.Controllers;
 [Authorize]
 public class DashboardController : ControllerBase
 {
+    private const int TrendWeeks = 6;
+    private const int TrendMinSamples = 4;
+    private static readonly decimal TrendThresholdStrong = 0.10m;
+    private static readonly decimal TrendThresholdSlight = 0.05m;
+    private static readonly decimal TrendDeadBand = 0.03m;
+
     private readonly AppDbContext _db;
     private readonly ILogger<DashboardController> _logger;
 
@@ -105,7 +111,7 @@ public class DashboardController : ControllerBase
         decimal? avgRevenueHistoric = null;
         decimal? avgProductivityHistoric = null;
         decimal? avgHoursHistoric = null;
-        var historicCutoff = start.AddDays(-56); // últimas 8 semanas
+        var historicCutoff = start.AddDays(-(TrendWeeks * 7)); // últimas 6 semanas
         var allHistoricDays = await _db.ExecutionDays
             .AsNoTracking()
             .Where(e => !e.IsFeedbackOnly && e.Date >= historicCutoff && e.Date < start)
@@ -129,15 +135,13 @@ public class DashboardController : ControllerBase
             .GroupBy(e => e.Date.DayOfWeek)
             .ToDictionary(g => g.Key, g => g.Average(x => x.TotalRevenue));
 
-        // Tendencia por día de la semana: evolución en el tiempo (no "hoy vs media").
-        // Se comparan la mitad reciente vs la mitad antigua de ese día en las últimas 8 semanas:
-        // si los martes recientes facturan de media más que los martes de hace 6+ semanas → "Al alza (+X%)".
+        // Tendencia por día de la semana: mitad reciente vs mitad antigua en las últimas 6 semanas. 5 niveles con banda muerta.
         var trendByDayOfWeek = new Dictionary<DayOfWeek, string?>();
         foreach (var dow in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday })
         {
             var list = allHistoricDays.Where(e => e.Date.DayOfWeek == dow).OrderBy(e => e.Date).ToList();
             string? label = null;
-            if (list.Count >= 2)
+            if (list.Count >= TrendMinSamples)
             {
                 var half = list.Count / 2;
                 var firstHalf = list.Take(half).Select(e => e.TotalRevenue).ToList();
@@ -149,9 +153,18 @@ public class DashboardController : ControllerBase
                     var pct = (avgSecond - avgFirst) / avgFirst;
                     var pctPct = (int)Math.Round(pct * 100);
                     var pctStr = pctPct >= 0 ? "+" + pctPct + "%" : pctPct + "%";
-                    if (pct > 0.05m) label = "↑ Al alza (" + pctStr + ")";
-                    else if (pct < -0.05m) label = "↓ A la baja (" + pctStr + ")";
-                    else label = "→ Estable (" + pctStr + ")";
+                    if (Math.Abs(pct) < TrendDeadBand)
+                        label = "→ Estable (" + pctStr + ")";
+                    else if (pct >= TrendThresholdStrong)
+                        label = "↑ Al alza (" + pctStr + ")";
+                    else if (pct >= TrendThresholdSlight)
+                        label = "↗ Levemente al alza (" + pctStr + ")";
+                    else if (pct > -TrendThresholdSlight)
+                        label = "→ Estable (" + pctStr + ")";
+                    else if (pct > -TrendThresholdStrong)
+                        label = "↘ Levemente a la baja (" + pctStr + ")";
+                    else
+                        label = "↓ A la baja (" + pctStr + ")";
                 }
             }
             trendByDayOfWeek[dow] = label;

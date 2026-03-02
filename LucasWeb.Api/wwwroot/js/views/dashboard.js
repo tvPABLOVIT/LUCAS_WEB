@@ -389,17 +389,26 @@
               }
               conclusionExtra.push(fraseFacturacion);
             }
-            // Tendencia de las últimas semanas para ese día de la semana (al alza / a la baja / estable)
+            // Tendencia: 5 niveles (levemente al alza, al alza, estable, levemente a la baja, a la baja). Incluir % si viene en trendLabel.
             if (d.trendLabel != null && String(d.trendLabel).trim() !== '') {
-              var trend = String(d.trendLabel).toLowerCase();
+              var trend = String(d.trendLabel);
+              var trendLower = trend.toLowerCase();
               var diaTendencia = (d.dayName || 'día').toLowerCase();
-              if (/alza|subida|ascendente|↑/.test(trend)) {
-                conclusionExtra.push('Los ' + diaTendencia + ' llevan varias semanas al alza.');
-              } else if (/baja|descenso|↓/.test(trend)) {
-                conclusionExtra.push('Los ' + diaTendencia + ' vienen algo más flojos en las últimas semanas.');
-              } else if (/estable|→/.test(trend)) {
-                conclusionExtra.push('Los ' + diaTendencia + ' se mantienen estables en las últimas semanas.');
+              var pctMatch = trend.match(/\(([+-]?\d+%)\)/);
+              var pctStr = (pctMatch && pctMatch[1]) ? (' ' + pctMatch[1]) : '';
+              var frase = '';
+              if (trendLower.indexOf('levemente al alza') !== -1) {
+                frase = 'Los ' + diaTendencia + ' suben levemente en las últimas semanas.';
+              } else if (trendLower.indexOf('al alza') !== -1) {
+                frase = 'Los ' + diaTendencia + ' llevan varias semanas al alza.';
+              } else if (trendLower.indexOf('levemente a la baja') !== -1) {
+                frase = 'Los ' + diaTendencia + ' bajan un poco en las últimas semanas.';
+              } else if (trendLower.indexOf('a la baja') !== -1) {
+                frase = 'Los ' + diaTendencia + ' vienen algo más flojos en las últimas semanas.';
+              } else if (trendLower.indexOf('estable') !== -1) {
+                frase = 'Los ' + diaTendencia + ' se mantienen estables en las últimas semanas.';
               }
+              if (frase) conclusionExtra.push(frase + pctStr);
             }
             if (conclusionExtra.length > 0) parts.push(conclusionExtra.map(function (s) { return escapeHtml(s); }).join(' '));
             return parts.join(' ');
