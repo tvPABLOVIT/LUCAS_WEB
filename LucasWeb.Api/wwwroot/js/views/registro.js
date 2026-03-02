@@ -43,6 +43,21 @@
     var names = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
     return names[d.getDay()];
   }
+  /** Acepta coma y punto como decimal (1639,32 y 1639.32). Si hay ambos, el último es decimal. */
+  function parseDecimalLocale(str) {
+    if (str == null || str === '') return NaN;
+    var s = String(str).trim().replace(/\s/g, '');
+    if (!s) return NaN;
+    var lastComma = s.lastIndexOf(',');
+    var lastPoint = s.lastIndexOf('.');
+    if (lastComma < 0 && lastPoint < 0) return parseFloat(s);
+    if (lastComma >= 0 && lastPoint < 0) return parseFloat(s.replace(/,/g, '.'));
+    if (lastPoint >= 0 && lastComma < 0) return parseFloat(s);
+    var decimalSep = lastComma > lastPoint ? ',' : '.';
+    var thousands = decimalSep === ',' ? '.' : ',';
+    s = s.replace(new RegExp('\\' + thousands, 'g'), '').replace(decimalSep, '.');
+    return parseFloat(s);
+  }
   function radioGroup(name, options, selected) {
     var s = (selected || '').trim();
     return options.map(function (o) {
@@ -217,8 +232,8 @@
     var q3 = document.querySelector('input[name="registro_q3"]:checked');
     var q4 = document.querySelector('input[name="registro_q4"]:checked');
     var q5 = document.querySelector('input[name="registro_q5"]:checked');
-    s.revenue = rev ? parseFloat(rev.value) || 0 : 0;
-    s.hours_worked = hrs ? parseFloat(hrs.value) || 0 : 0;
+    s.revenue = rev ? parseDecimalLocale(rev.value) || 0 : 0;
+    s.hours_worked = hrs ? parseDecimalLocale(hrs.value) || 0 : 0;
     s.staff_floor = floor ? Math.min(99, Math.max(0, parseInt(floor.value, 10) || 0)) : 0;
     s.staff_kitchen = kitchen ? Math.min(99, Math.max(0, parseInt(kitchen.value, 10) || 0)) : 0;
     s.feedback_q1 = q1 ? q1.value : null;

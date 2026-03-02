@@ -138,16 +138,33 @@ public static class ExcelImportService
         return new DateTime(effectiveYear, month, d);
     }
 
-    /// <summary>GetDecimal según doc: double, luego string con InvariantCulture, es-ES, CurrentCulture.</summary>
+    /// <summary>GetDecimal: valor numérico de la celda o parseo de string. Acepta coma y punto como decimal (ej. 1639,32 y 1639.32).</summary>
     public static decimal GetDecimalFromCell(IXLCell cell)
     {
         if (cell.TryGetValue(out double d) && !double.IsNaN(d)) return (decimal)d;
         var s = cell.GetString()?.Trim();
         if (string.IsNullOrEmpty(s)) return 0;
-        if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed)) return parsed;
+        var normalized = NormalizeDecimalString(s);
+        if (decimal.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed)) return parsed;
+        if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out parsed)) return parsed;
         if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.GetCultureInfo("es-ES"), out parsed)) return parsed;
         if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.CurrentCulture, out parsed)) return parsed;
         return 0;
+    }
+
+    /// <summary>Normaliza string numérico para aceptar coma o punto como decimal (ej. 1639,32 y 1639.32 → 1639.32). Si hay ambos, el último es el decimal.</summary>
+    private static string NormalizeDecimalString(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return s;
+        var lastComma = s.LastIndexOf(',');
+        var lastPoint = s.LastIndexOf('.');
+        if (lastComma < 0 && lastPoint < 0) return s;
+        if (lastComma >= 0 && lastPoint < 0) return s.Replace(",", ".");
+        if (lastPoint >= 0 && lastComma < 0) return s;
+        var decimalSep = lastComma > lastPoint ? ',' : '.';
+        var thousands = decimalSep == ',' ? '.' : ',';
+        var withoutThousands = s.Replace(thousands.ToString(), "");
+        return withoutThousands.Replace(decimalSep, '.');
     }
 
     /// <summary>Parsea la hoja en formato estimaciones (filas 21, 22, 26, 30, J39). targetDate = refDate − 14 días.</summary>

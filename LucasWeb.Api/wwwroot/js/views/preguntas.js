@@ -325,11 +325,19 @@
     if (n !== n) return '';
     return formatEuroFormatter.format(n);
   }
+  /** Acepta coma y punto como decimal: 1639,32 y 1639.32 → 1639.32. Si hay ambos, el último es decimal (1.639,32 o 1,639.32). */
   function parseEuro(str) {
     if (str == null || str === '') return NaN;
     var s = String(str).trim().replace(/\s/g, '');
     if (!s) return NaN;
-    s = s.replace(/\./g, '').replace(',', '.');
+    var lastComma = s.lastIndexOf(',');
+    var lastPoint = s.lastIndexOf('.');
+    if (lastComma < 0 && lastPoint < 0) return parseFloat(s);
+    if (lastComma >= 0 && lastPoint < 0) { s = s.replace(/,/g, '.'); return parseFloat(s); }
+    if (lastPoint >= 0 && lastComma < 0) return parseFloat(s);
+    var decimalSep = lastComma > lastPoint ? ',' : '.';
+    var thousands = decimalSep === ',' ? '.' : ',';
+    s = s.replace(new RegExp('\\' + thousands, 'g'), '').replace(decimalSep, '.');
     return parseFloat(s);
   }
   function parseDecimal(str) {

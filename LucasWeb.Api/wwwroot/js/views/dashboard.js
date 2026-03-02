@@ -193,7 +193,7 @@
           subtitleEl.textContent = isCurrent ? ('Datos hasta hoy (' + n + ' de 7 días)') : 'Semana cerrada — datos completos';
         }
         if (kpisEl) kpisEl.innerHTML = '';
-        var revValue = data.totalRevenue != null ? data.totalRevenue.toFixed(0) + ' €' : '—';
+        var revValue = data.totalRevenue != null ? Number(data.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
         var pctVsPrev = '';
         if (data.isCurrentWeek && data.daysIncludedCount != null && data.daysIncludedCount > 0)
           pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted">Datos parciales (hasta hoy)</div>';
@@ -348,12 +348,13 @@
             var dayEstado = (d.dayEstado != null && String(d.dayEstado).trim() !== '') ? String(d.dayEstado).trim() : null;
             var parts = [];
             var opening = '';
+            var revFormatted = revNum != null ? Number(revNum).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
             if (revNum != null && revNum > 0 && prodNum != null) {
-              opening = 'El ' + dayNameLabel + ' se facturaron ' + revNum.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' € y la productividad del día fue de ' + Number(prodNum).toFixed(1) + ' €/h.';
+              opening = 'El ' + dayNameLabel + ' se facturaron ' + revFormatted + ' € y la productividad del día fue de ' + Number(prodNum).toFixed(1) + ' €/h.';
             } else if (revNum != null && revNum > 0 && hoursNum != null && hoursNum > 0) {
-              opening = 'El ' + dayNameLabel + ' se facturaron ' + revNum.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' € con ' + Number(hoursNum).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' horas trabajadas.';
+              opening = 'El ' + dayNameLabel + ' se facturaron ' + revFormatted + ' € con ' + Number(hoursNum).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' horas trabajadas.';
             } else if (revNum != null && revNum > 0) {
-              opening = 'El ' + dayNameLabel + ' se facturaron ' + revNum.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €; no hay horas registradas.';
+              opening = 'El ' + dayNameLabel + ' se facturaron ' + revFormatted + ' €; no hay horas registradas.';
             } else if (revNum != null && revNum === 0 && (hoursNum == null || hoursNum === 0)) {
               opening = 'El ' + dayNameLabel + ' no hay datos de facturación ni horas.';
             } else {
@@ -432,7 +433,7 @@
             var dayName = d.dayName || dayNameFromDate(d.date);
             var dateShort = formatDateShort(d.date);
             var clima = '<span class="dashboard-weather">' + weatherText(d) + '</span>';
-            var rev = d.revenue != null ? d.revenue.toFixed(0) + ' €' : '—';
+            var rev = d.revenue != null ? Number(d.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
             var hoursVal = d.effectiveHours != null ? d.effectiveHours : d.hoursWorked;
             var hours = hoursVal != null ? hoursVal.toFixed(1) : '—';
             var prodVal = d.effectiveProductivity != null ? d.effectiveProductivity : d.productivity;
@@ -506,7 +507,7 @@
               }
               var dayName = d.dayName || dayNameFromDate(d.date);
               var dateShort = formatDateShort(d.date);
-              var rev = d.revenue != null ? d.revenue.toFixed(0) + ' €' : '—';
+              var rev = d.revenue != null ? Number(d.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
               var hoursVal = d.effectiveHours != null ? d.effectiveHours : d.hoursWorked;
               var hours = hoursVal != null ? hoursVal.toFixed(1) + ' h' : '—';
               var prodVal = d.effectiveProductivity != null ? d.effectiveProductivity : d.productivity;
@@ -517,7 +518,7 @@
               else if (d.staffTotal != null) staffLine = 'Total: ' + d.staffTotal;
               var trendParts = [];
               if (d.avgRevenueHistoric != null && d.avgRevenueHistoric !== '') {
-                var mediaStr = 'vs media ' + Number(d.avgRevenueHistoric).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €';
+                var mediaStr = 'vs media ' + Number(d.avgRevenueHistoric).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
                 if (d.pctVsAvgHistoric != null && typeof d.pctVsAvgHistoric === 'number') mediaStr += ' (hoy ' + (d.pctVsAvgHistoric >= 0 ? '+' : '') + d.pctVsAvgHistoric + '%)';
                 trendParts.push(mediaStr);
               }
