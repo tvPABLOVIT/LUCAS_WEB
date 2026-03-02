@@ -58,7 +58,7 @@ public class DashboardDayItemDto
     [JsonPropertyName("pctVsAvgHistoric")]
     public int? PctVsAvgHistoric { get; set; }
 
-    /// <summary>Tendencia del día de la semana en el tiempo: comparando mitad reciente vs mitad antigua de las últimas 12 semanas (ej. "↑ Al alza (+17%)").</summary>
+    /// <summary>Tendencia del día de la semana en el tiempo: comparando mitad reciente vs mitad antigua de las últimas 8 semanas (ej. "↑ Al alza (+17%)").</summary>
     [JsonPropertyName("trendLabel")]
     public string? TrendLabel { get; set; }
 

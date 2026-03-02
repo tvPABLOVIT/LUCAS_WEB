@@ -105,7 +105,7 @@ public class DashboardController : ControllerBase
         decimal? avgRevenueHistoric = null;
         decimal? avgProductivityHistoric = null;
         decimal? avgHoursHistoric = null;
-        var historicCutoff = start.AddDays(-84); // últimas 12 semanas (no todo el año)
+        var historicCutoff = start.AddDays(-56); // últimas 8 semanas
         var allHistoricDays = await _db.ExecutionDays
             .AsNoTracking()
             .Where(e => !e.IsFeedbackOnly && e.Date >= historicCutoff && e.Date < start)
@@ -130,7 +130,7 @@ public class DashboardController : ControllerBase
             .ToDictionary(g => g.Key, g => g.Average(x => x.TotalRevenue));
 
         // Tendencia por día de la semana: evolución en el tiempo (no "hoy vs media").
-        // Se comparan la mitad reciente vs la mitad antigua de ese día en las últimas 12 semanas:
+        // Se comparan la mitad reciente vs la mitad antigua de ese día en las últimas 8 semanas:
         // si los martes recientes facturan de media más que los martes de hace 6+ semanas → "Al alza (+X%)".
         var trendByDayOfWeek = new Dictionary<DayOfWeek, string?>();
         foreach (var dow in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday })

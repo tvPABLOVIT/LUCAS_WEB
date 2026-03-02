@@ -359,7 +359,8 @@
             } else {
               opening = 'El ' + dayNameLabel + ' no hay datos suficientes para un resumen.';
             }
-            if (dayEstado) opening += ' Día ' + dayEstado.toLowerCase() + '.';
+            // El estado del día se cuenta en dayConclusion (\"Fue un día tranquilo...\");
+            // no lo repetimos aquí para evitar \"Día tranquilo. Fue un día tranquilo...\".
             parts.push(opening);
             if (dayConclusion !== '') parts.push(escapeHtml(dayConclusion));
             var conclusionExtra = [];
