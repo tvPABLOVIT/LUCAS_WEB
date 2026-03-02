@@ -419,13 +419,7 @@
               var dayName = d.dayName || dayNameFromDate(d.date);
               var dateShort = formatDateShort(d.date);
               var isFuture = d.date > todayYmd;
-              var observacionesPlaceholder = isFuture ? '—' : (
-                '<span class="dashboard-observaciones-text">Sin datos.</span> ' +
-                '<span class="dashboard-observaciones-actions-inline">' +
-                '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(d.date) + '">Registro</a> ' +
-                '<a class="dashboard-action-link" href="#preguntas?date=' + encodeURIComponent(d.date) + '">Feedback</a>' +
-                '</span>'
-              );
+              var observacionesPlaceholder = isFuture ? '—' : '<span class="dashboard-observaciones-text">Sin datos.</span>';
               return [dayName, dateShort, '—', '—', '—', '—', '—', observacionesPlaceholder];
             }
             var dayName = d.dayName || dayNameFromDate(d.date);
@@ -515,12 +509,10 @@
                 if (d.pctVsAvgHistoric != null && typeof d.pctVsAvgHistoric === 'number') mediaStr += ' (hoy ' + (d.pctVsAvgHistoric >= 0 ? '+' : '') + d.pctVsAvgHistoric + '%)';
                 trendParts.push(mediaStr);
               }
-              if (d.trendLabel) trendParts.push(d.trendLabel);
+              if (d.trendLabel) trendParts.push(String(d.trendLabel).replace(/\s*\([+-]?\d+%\)\s*$/, '').trim());
               if (d.trendVsPrevWeek) trendParts.push(d.trendVsPrevWeek);
               var trendLine = trendParts.length ? trendParts.join(' · ') : '—';
               var climaLine = weatherText(d);
-              var hrefRegistro = '#registro?date=' + encodeURIComponent(d.date || '');
-              var hrefPreguntas = '#preguntas?date=' + encodeURIComponent(d.date || '');
               var dateStr = d.date || '';
               var evs = eventsByDate[dateStr] || [];
               var eventsHtml = '';
@@ -535,7 +527,6 @@
                   (evs.length > 2 ? '<div class="dashboard-events-more">+' + (evs.length - 2) + ' más</div>' : '') +
                   '</div>';
               }
-              var addBtn = '<button type="button" class="btn-secondary btn-sm dashboard-event-add" data-date="' + dateStr + '">+ Evento</button>';
               return '' +
                 '<div class="dashboard-day-card">' +
                 '<div class="dashboard-day-card-head"><div class="dashboard-day-card-title">' + dayName + '</div><div class="dashboard-day-card-date">' + dateShort + '</div></div>' +
@@ -551,11 +542,6 @@
                 '<div><span class="label">Tendencia</span> ' + trendLine + '</div>' +
                 '</div>' +
                 '<div class="dashboard-day-card-feedback"><span class="label">Observaciones del día</span> ' + buildDayObservationsParagraph(d) + '</div>' +
-                '<div class="dashboard-day-card-actions">' +
-                '<a class="btn-secondary btn-sm" href="' + hrefRegistro + '">Abrir registro</a>' +
-                '<a class="btn-secondary btn-sm" href="' + hrefPreguntas + '">Abrir feedback</a>' +
-                addBtn +
-                '</div>' +
                 eventsHtml +
                 '</div>';
             }).join('') + '</div>';
