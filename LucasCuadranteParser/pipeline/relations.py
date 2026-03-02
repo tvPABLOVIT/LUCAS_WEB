@@ -23,21 +23,30 @@ class ShiftAggregate:
     hours_worked: float
 
 
+def _normalize_for_role(s: str) -> str:
+    """Minúsculas, espacios, quitar acentos para matching robusto (PDF puede venir con encoding raro)."""
+    if not s:
+        return ""
+    s = re.sub(r"\s+", " ", s.lower().strip())
+    for old, new in (("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n"), ("ü", "u")):
+        s = s.replace(old, new)
+    return s
+
+
 def _role_to_area(role: str) -> str | None:
     """Devuelve 'sala', 'cocina' o None si no se reconoce."""
     if not role:
         return None
-    r = role.lower().strip()
-    # Normalizar: quitar espacios extra, guiones, etc.
-    r_normalized = re.sub(r'\s+', ' ', r).strip()
-    # Buscar coincidencia exacta primero, luego parcial
+    r = _normalize_for_role(role)
+    if not r:
+        return None
     for key, area in config.ROLE_TO_AREA.items():
-        key_normalized = key.lower().strip()
-        # Coincidencia exacta o parcial más flexible
-        if key_normalized == r_normalized or key_normalized in r_normalized or r_normalized in key_normalized:
+        key_n = _normalize_for_role(key)
+        if not key_n:
+            continue
+        if key_n == r or key_n in r or r in key_n:
             return area
-        # También buscar sin espacios ni guiones
-        if key_normalized.replace(' ', '').replace('-', '') in r_normalized.replace(' ', '').replace('-', ''):
+        if key_n.replace(" ", "").replace("-", "") in r.replace(" ", "").replace("-", ""):
             return area
     return None
 
@@ -107,24 +116,18 @@ def apply_shift_rules(day_entities: DayEntities) -> List[ShiftAggregate]:
                 continue
             h = _hours_in_shift_window(ps, shift_name)
             hours_worked += h
-            # Contar personal: si tiene ≥ MIN_HOURS_IN_SHIFT cuenta como 1, pero también
-            # si tiene > 0 horas (aunque sean menos) y el rol se reconoce, contar como 0.5
-            # para no perder personal en turnos cortos
             if h > 0:
                 area = _role_to_area(ps.role)
                 if h >= config.MIN_HOURS_IN_SHIFT:
-                    # Turno completo: cuenta como 1
                     if area == "sala":
                         staff_floor += 1
                     elif area == "cocina":
                         staff_kitchen += 1
-                elif h >= 0.5 and area:  # Turno corto pero reconocible: cuenta como 0.5
-                    # Redondeamos al final, así que 0.5 se suma y luego se redondea a 1 si hay suficientes
+                elif h >= 0.5 and area:
                     if area == "sala":
                         staff_floor += 0.5
                     elif area == "cocina":
                         staff_kitchen += 0.5
-        # Redondear personal: si hay 0.5 o más, redondear hacia arriba
         staff_floor_final = int(round(staff_floor))
         staff_kitchen_final = int(round(staff_kitchen))
         result.append(

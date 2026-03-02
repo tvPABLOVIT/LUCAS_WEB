@@ -68,6 +68,57 @@ Camarero/a
     assert shift_names == {"Mediodia", "Tarde", "Noche"}
 
 
+def test_calculated_sala_1_1_2():
+    """
+    Referencia: en dayplanning el lunes el esquema de sala es 1-1-2.
+    El cálculo (roles + ventanas) debe dar staff_floor Mediodía=1, Tarde=1, Noche=2.
+    """
+    text = """
+Lunes 9 febrero 	0h 	1h 	Total 	Firma
+Sala (referencia 1-1-2)
+Manager
+10:00 - 16:00
+Camarero/a
+16:00 - 20:00
+Camarero/a
+20:00 - 00:00
+Camarero/a
+20:00 - 01:00
+"""
+    blocks, _ = segment_by_days(text)
+    assert len(blocks) >= 1
+    entities_list = extract_entities_from_day_blocks(blocks, year_from_week=2026)
+    assert len(entities_list) >= 1
+    lucas = to_lucas_week(entities_list)
+    shifts = {s["shift_name"]: s for s in lucas[0]["shifts"]}
+    assert shifts["Mediodia"]["staff_floor"] == 1, "Mediodía debe tener 1 en sala (Manager 10-16)"
+    assert shifts["Tarde"]["staff_floor"] == 1, "Tarde debe tener 1 en sala (Camarero 16-20)"
+    assert shifts["Noche"]["staff_floor"] == 2, "Noche debe tener 2 en sala (2 Camarero 20-00/01)"
+
+
+def test_calculated_sala_1_1_2_role_after_time():
+    """Mismo resultado 1-1-2 cuando el PDF pone el horario primero y el rol en la línea siguiente."""
+    text = """
+Lunes 9 febrero 	0h 	1h 	Total 	Firma
+10:00 - 16:00
+Manager
+16:00 - 20:00
+Camarero/a
+20:00 - 00:00
+Camarero/a
+20:00 - 01:00
+Camarero/a
+"""
+    blocks, _ = segment_by_days(text)
+    assert len(blocks) >= 1
+    entities_list = extract_entities_from_day_blocks(blocks, year_from_week=2026)
+    lucas = to_lucas_week(entities_list)
+    shifts = {s["shift_name"]: s for s in lucas[0]["shifts"]}
+    assert shifts["Mediodia"]["staff_floor"] == 1
+    assert shifts["Tarde"]["staff_floor"] == 1
+    assert shifts["Noche"]["staff_floor"] == 2
+
+
 if __name__ == "__main__":
     test_segment_by_days()
     test_entities_and_normalize()

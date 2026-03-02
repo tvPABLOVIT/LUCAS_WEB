@@ -294,6 +294,11 @@ def extract_entities_from_day_blocks(
                 i += 1
                 continue
             role = _find_role_line(i)
+            # Si el PDF pone horario antes que el rol (línea siguiente = rol), usarlo
+            if not role and i + 1 < len(lines):
+                next_ln = lines[i + 1].strip()
+                if next_ln and _looks_like_role(next_ln) and not _is_time_or_duration(next_ln):
+                    role = _extract_known_role(next_ln) or next_ln
             # Turno partido: una línea puede tener varios rangos (ej. "12:00 - 16:00 20:00 - 00:00")
             # = misma persona hace 2 turnos el mismo día; creamos un ParsedShift por cada rango
             emp_name = employee_at_line[i] if i < len(employee_at_line) else None
