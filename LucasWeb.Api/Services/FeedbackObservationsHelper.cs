@@ -12,7 +12,7 @@ public static class FeedbackObservationsHelper
     #region Frases por eje (variedad natural)
 
     private static readonly string[] VolumenBajo = {
-        "poca carga", "la carga fue baja", "volumen bajo", "poco movimiento", "trabajo tranquilo en cuanto a volumen"
+        "poca carga", "carga baja", "volumen bajo", "poco movimiento", "trabajo tranquilo en cuanto a volumen"
     };
     private static readonly string[] VolumenMedio = {
         "volumen normal", "carga media", "sala completa, volumen acorde", "nivel de trabajo habitual", "volumen acorde al día"
@@ -32,7 +32,7 @@ public static class FeedbackObservationsHelper
     };
 
     private static readonly string[] MargenBajo = {
-        "con margen", "siempre adelantados", "holgura suficiente", "se pudo ir adelantado", "con buen margen", "sin ir apurados"
+        "margen suficiente", "siempre adelantados", "holgura suficiente", "se pudo ir adelantado", "buen margen", "sin ir apurados"
     };
     private static readonly string[] MargenMedio = {
         "margen justo", "ajustado pero controlado", "ni holgura ni ahogo", "justo de tiempo", "margen suficiente pero justo"
@@ -62,7 +62,7 @@ public static class FeedbackObservationsHelper
     };
 
     private static readonly string[] Aperturas = {
-        "Fue un turno de ", "El turno tuvo ", "Volumen ", "En este turno, ", "Se trabajó con "
+        "Fue un turno de ", "En este turno ", "Se trabajó con ", "El turno tuvo ", "En volumen y ritmo, "
     };
 
     // Estructuras para combinar V+R+M: índice 0 = "[V] y [R], con [M].", 1 = "[V], [R] y [M].", etc.
@@ -113,7 +113,9 @@ public static class FeedbackObservationsHelper
                 parts.Add(fraseCocina);
         }
 
-        return parts.Count > 0 ? string.Join(" ", parts) : "";
+        if (parts.Count == 0) return "";
+        var joined = string.Join(" ", parts);
+        return NormalizeObservationText(joined);
     }
 
     private static int GetSeed(ShiftFeedback shift)
@@ -146,8 +148,30 @@ public static class FeedbackObservationsHelper
         var open = Aperturas[openingIdx];
         var (_, betweenVR, betweenRM, afterM) = Estructuras[structIdx];
 
-        var sala = open + vPhrase + betweenVR + rPhrase + betweenRM + mPhrase + afterM;
-        return Capitalize(sala);
+        // Evitar "con con" o "con sin": si el conector es ", con " y la frase de margen empieza por "con " o "sin ", ajustar
+        var mPhraseFinal = mPhrase;
+        var betweenRMFinal = betweenRM;
+        if (betweenRM.Contains("con", StringComparison.OrdinalIgnoreCase))
+        {
+            if (mPhrase.StartsWith("con ", StringComparison.OrdinalIgnoreCase))
+                mPhraseFinal = mPhrase.Length > 4 ? mPhrase[4..].TrimStart() : mPhrase; // quitar "con " inicial
+            else if (mPhrase.StartsWith("sin ", StringComparison.OrdinalIgnoreCase))
+                betweenRMFinal = " y "; // "..., y sin ir apurados."
+        }
+
+        var sala = open + vPhrase + betweenVR + rPhrase + betweenRMFinal + mPhraseFinal + afterM;
+        return NormalizeObservationText(Capitalize(sala));
+    }
+
+    /// <summary>Quita repeticiones y dobles espacios que puedan quedar al concatenar frases.</summary>
+    private static string NormalizeObservationText(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        var t = s;
+        while (t.Contains("  ", StringComparison.Ordinal)) t = t.Replace("  ", " ");
+        t = t.Replace(", con con ", ", con ", StringComparison.OrdinalIgnoreCase);
+        t = t.Replace("volumen volumen ", "volumen ", StringComparison.OrdinalIgnoreCase);
+        return t.Trim();
     }
 
     private static string Pick(string[] low, string[] mid, string[] high, int level, int seed)
