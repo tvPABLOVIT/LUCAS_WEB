@@ -25,7 +25,9 @@ python main.py documentacion/horas.pdf --csv
 
 ## Entrada
 
-- PDF semanal de horarios BETLEM: cabecera con rango de semana (ej. del 09/02/2026 al 15/02/2026), días (Lunes 9 febrero, …), columnas 0h–23h, Total, Firma, nombres en dos líneas, totales en formato `08h00`, bloque "Puestos:", "Equipos:", detalle de turnos con rol y rango `HH:MM - HH:MM` o "Descanso semanal (8h)", "Abs", etc.
+- PDF semanal de horarios BETLEM: cabecera con rango de semana (ej. del 09/02/2026 al 15/02/2026), días (Lunes 9 febrero, Lunes 2 marzo, …), columnas 0h–23h, Total, Firma, nombres en dos líneas, totales en formato `08h00`, bloque "Puestos:", "Equipos:", detalle de turnos con rol y rango `HH:MM - HH:MM` o "Descanso semanal (8h)", "Abs", etc.
+
+**Estructura por empleado (DayPlanning / cuadrante):** cada persona suele ocupar dos líneas: (1) `Nombre [Rol] [Rol] TotalH` (ej. "Jose Camarero/a 08h00" o "Santiago Adolfo Camarero/a Camarero/a 09h00") y (2) `APELLIDOS HH:MM - HH:MM [HH:MM - HH:MM]` con los rangos horarios. El **rol** que corresponde a esos horarios es el de la **línea anterior** (la del nombre). Solo se usa la línea siguiente como rol cuando la anterior no contiene un puesto conocido (layout alternativo "horario" + "Rol"). Para contar personal en cada turno (Mediodía/Tarde/Noche) solo se cuenta a quien trabaja **≥ 1h30** en esa ventana; no se usa medio punto por presencia corta, para evitar 1-2-2 cuando debe ser 1-1-2.
 
 ## Salida
 

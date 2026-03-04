@@ -293,14 +293,9 @@ def extract_entities_from_day_blocks(
             if not line or line.startswith("Notas") or re.match(r"^--\s*\d+ of \d+", line):
                 i += 1
                 continue
-            # Si la línea actual es solo horario y la siguiente es un rol, el rol que corresponde a este horario es el de abajo (evita asignar el rol de la línea anterior a este turno y dar 2-2-3 en vez de 1-1-2)
-            role = ""
-            if RE_TIME_RANGE.search(line) and not _looks_like_role(line) and i + 1 < len(lines):
-                next_ln = lines[i + 1].strip()
-                if next_ln and _looks_like_role(next_ln) and not _is_time_or_duration(next_ln):
-                    role = _extract_known_role(next_ln) or next_ln
-            if not role:
-                role = _find_role_line(i)
+            # En el PDF: cada empleado suele ser "Nombre Role TotalH" + "APELLIDOS HH:MM - HH:MM". El rol está en la línea ANTERIOR.
+            # Solo usar la línea siguiente como rol cuando la anterior no tiene rol (layout "horario\nrol").
+            role = _find_role_line(i)
             if not role and i + 1 < len(lines):
                 next_ln = lines[i + 1].strip()
                 if next_ln and _looks_like_role(next_ln) and not _is_time_or_duration(next_ln):

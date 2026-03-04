@@ -209,6 +209,7 @@ public class ImportController : ControllerBase
     /// <summary>
     /// Importa PDF de cuadrante BETLEM (horarios programados). Actualiza personal (sala/cocina) y horas programadas por turno (PlannedHours).
     /// Las horas reales y la facturación siguen viniendo del Excel.
+    /// El parser (LucasCuadranteParser) solo cuenta trabajo en nuestro establecimiento: excluye descansos/ausencias y "otro establecimiento" (ej. Chef Operativo - MOLINA). "Chef Operativo" sin " - NOMBRE" sí se cuenta.
     /// </summary>
     [HttpPost("cuadrante-pdf")]
     [RequestSizeLimit(10 * 1024 * 1024)]

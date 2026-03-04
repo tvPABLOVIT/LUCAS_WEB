@@ -119,6 +119,33 @@ Camarero/a
     assert shifts["Noche"]["staff_floor"] == 2
 
 
+def test_dayplanning_lunes_2_marzo_sala_1_1_2():
+    """
+    Estructura real DayPlanning.pdf: Lunes 2 marzo.
+    Jose Camarero 16:00-00:00 (Tarde+Noche), Santiago Camarero 11:00-16:00 y 19:00-23:00 (Mediodía+Noche).
+    Solo cuenta en un turno si hay >= 1h30, así Tarde debe ser 1 (solo Jose), no 2.
+    """
+    text = """
+Lunes 2 marzo 0h 1h 2h Total Firma
+Jose Camarero/a 08h00
+GARCIA DE LA VEGA 16:00 - 00:00
+Santiago Adolfo Camarero/a Camarero/a 09h00
+MEJIA PALACIO 11:00 - 16:00 19:00 - 23:00
+Ivan Segundo de cocina 09h00
+PELEGRINA IGLESIA 14:00 - 23:00
+Mizan Cocinero/a Cocinero/a 08h00
+SHEK 12:00 - 16:00 20:00 - 00:00
+"""
+    blocks, _ = segment_by_days(text)
+    assert len(blocks) >= 1
+    entities_list = extract_entities_from_day_blocks(blocks, year_from_week=2026)
+    lucas = to_lucas_week(entities_list)
+    shifts = {s["shift_name"]: s for s in lucas[0]["shifts"]}
+    assert shifts["Mediodia"]["staff_floor"] == 1
+    assert shifts["Tarde"]["staff_floor"] == 1
+    assert shifts["Noche"]["staff_floor"] == 2
+
+
 if __name__ == "__main__":
     test_segment_by_days()
     test_entities_and_normalize()

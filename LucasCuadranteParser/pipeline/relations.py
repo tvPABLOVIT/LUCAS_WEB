@@ -116,20 +116,16 @@ def apply_shift_rules(day_entities: DayEntities) -> List[ShiftAggregate]:
                 continue
             h = _hours_in_shift_window(ps, shift_name)
             hours_worked += h
-            if h > 0:
+            # Solo contar como 1 persona en el turno si trabaja al menos MIN_HOURS_IN_SHIFT (1h30).
+            # No usar 0.5 por presencia corta: evita 1-2-2 cuando debería ser 1-1-2 (ej. alguien con 1h en Tarde + otro con 4h).
+            if h >= config.MIN_HOURS_IN_SHIFT:
                 area = _role_to_area(ps.role)
-                if h >= config.MIN_HOURS_IN_SHIFT:
-                    if area == "sala":
-                        staff_floor += 1
-                    elif area == "cocina":
-                        staff_kitchen += 1
-                elif h >= 0.5 and area:
-                    if area == "sala":
-                        staff_floor += 0.5
-                    elif area == "cocina":
-                        staff_kitchen += 0.5
-        staff_floor_final = int(round(staff_floor))
-        staff_kitchen_final = int(round(staff_kitchen))
+                if area == "sala":
+                    staff_floor += 1
+                elif area == "cocina":
+                    staff_kitchen += 1
+        staff_floor_final = int(staff_floor)
+        staff_kitchen_final = int(staff_kitchen)
         result.append(
             ShiftAggregate(
                 shift_name=shift_name,

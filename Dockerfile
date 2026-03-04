@@ -30,9 +30,9 @@ RUN pip3 install --break-system-packages --no-cache-dir -r /LucasCuadranteParser
 RUN mkdir -p /app/data
 
 ENV ASPNETCORE_ENVIRONMENT=Production
-ENV ASPNETCORE_URLS=http://+:5261
+# Railway inyecta PORT (ej. 8080); Program.cs usa UseUrls con PORT
 ENV CuadranteParser__PythonPath=python3
 ENV CuadranteParser__ParserProjectPath=/LucasCuadranteParser
 
-EXPOSE 5261
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "LucasWeb.Api.dll"]

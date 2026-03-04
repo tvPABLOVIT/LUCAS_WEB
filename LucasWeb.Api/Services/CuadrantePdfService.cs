@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace LucasWeb.Api.Services;
 
-/// <summary>Invocación del parser Python LucasCuadranteParser para extraer datos del PDF de cuadrante.</summary>
+/// <summary>Invocación del parser Python LucasCuadranteParser para extraer datos del PDF de cuadrante. El parser devuelve por día: total_hours_worked y por turno (Mediodia, Tarde, Noche): staff_floor, staff_kitchen, hours_worked. Solo cuenta trabajo en BETLEM (excluye descansos y roles con " - ESTABLECIMIENTO", ej. Chef Operativo - MOLINA).</summary>
 public class CuadrantePdfService : ICuadrantePdfService
 {
     private readonly CuadranteParserOptions _options;

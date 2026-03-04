@@ -46,6 +46,11 @@ scripts/
 *.xls
 estimaciones/
 
+# Parser output (no necesario en imagen)
+LucasCuadranteParser/output_test/
+LucasCuadranteParser/output_dayplanning/
+LucasCuadranteParser/output_dayplanning_raw.txt
+
 # Credentials
 *credentials*.json
 *service-account*.json
