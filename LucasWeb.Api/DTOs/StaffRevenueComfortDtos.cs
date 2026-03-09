@@ -26,6 +26,19 @@ public class StaffRevenueComfortResult
 
     [JsonPropertyName("total_shifts_cocina")]
     public int TotalShiftsCocina { get; set; }
+
+    /// <summary>Límites por par sala-cocina (ej. "1-1", "2-1") para la predicción de personal. No para mostrar en el panel Sala.</summary>
+    [JsonPropertyName("comfort_limits_for_prediction")]
+    public List<StaffRevenueComfortLimitItemDto> ComfortLimitsForPrediction { get; set; } = new();
+}
+
+public class StaffRevenueComfortLimitItemDto
+{
+    [JsonPropertyName("schema")]
+    public string Schema { get; set; } = "";
+
+    [JsonPropertyName("comfort_limit_approx")]
+    public decimal? ComfortLimitApprox { get; set; }
 }
 
 public class StaffRevenueComfortSchemaDto

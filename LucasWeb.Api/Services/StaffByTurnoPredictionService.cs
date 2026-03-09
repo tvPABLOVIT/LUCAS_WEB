@@ -260,8 +260,16 @@ public class StaffByTurnoPredictionService
         var comfortByCocina = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         if (comfort != null)
         {
-            foreach (var s in comfort.Schemas.Where(x => x.ComfortLimitApprox.HasValue))
-                comfortBySchema[s.Schema] = s.ComfortLimitApprox!.Value;
+            if (comfort.ComfortLimitsForPrediction != null && comfort.ComfortLimitsForPrediction.Count > 0)
+            {
+                foreach (var s in comfort.ComfortLimitsForPrediction.Where(x => x.ComfortLimitApprox.HasValue))
+                    comfortBySchema[s.Schema] = s.ComfortLimitApprox!.Value;
+            }
+            else
+            {
+                foreach (var s in comfort.Schemas.Where(x => x.ComfortLimitApprox.HasValue))
+                    comfortBySchema[s.Schema] = s.ComfortLimitApprox!.Value;
+            }
             foreach (var c in comfort.CocinaSchemas.Where(x => x.ComfortLimitApprox.HasValue))
                 comfortByCocina[c.Schema] = c.ComfortLimitApprox!.Value;
         }

@@ -525,7 +525,11 @@
           var pred = data[0], settings = data[1], alertasResp = data[2], comfortResp = data[3], weatherImpact = data[4], accuracyHistory = data[5];
 
           var comfortBySchema = {}; var comfortByCocina = {};
-          if (comfortResp && comfortResp.schemas && Array.isArray(comfortResp.schemas)) comfortResp.schemas.forEach(function (s) { if (s && s.schema != null) comfortBySchema[s.schema] = s.comfort_limit_approx; });
+          if (comfortResp && comfortResp.comfort_limits_for_prediction && Array.isArray(comfortResp.comfort_limits_for_prediction)) {
+            comfortResp.comfort_limits_for_prediction.forEach(function (s) { if (s && s.schema != null) comfortBySchema[s.schema] = s.comfort_limit_approx; });
+          } else if (comfortResp && comfortResp.schemas && Array.isArray(comfortResp.schemas)) {
+            comfortResp.schemas.forEach(function (s) { if (s && s.schema != null) comfortBySchema[s.schema] = s.comfort_limit_approx; });
+          }
           if (comfortResp && comfortResp.cocina_schemas && Array.isArray(comfortResp.cocina_schemas)) comfortResp.cocina_schemas.forEach(function (s) { if (s && s.schema != null) comfortByCocina[s.schema] = s.comfort_limit_approx; });
 
           var planWs = pred && pred.weekStartMonday ? pred.weekStartMonday : ws;

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LucasWeb.Api.Services;
 
-/// <summary>Agregados por esquema de personal (sala-cocina) y banda de facturación por camarero para "límite cómodo". Bandas dinámicas por percentiles cuando hay suficientes datos.</summary>
+/// <summary>Límite cómodo: Sala agrupado solo por nº de personas en sala (1,2,3). Cocina por nº en cocina. Predicción usa límites por par sala-cocina.</summary>
 public class StaffRevenueComfortService : IStaffRevenueComfortService
 {
     private readonly AppDbContext _db;
@@ -13,7 +13,8 @@ public class StaffRevenueComfortService : IStaffRevenueComfortService
     private const int DifficultScoreMin = 4;
 
     private static readonly decimal[] FixedBandLimits = { 0, 400, 500, 600, 700, 800, 1000, 9999 };
-    private static readonly string[] AllowedSchemas = { "1-1", "1-2", "2-1", "2-2", "2-3", "3-2", "3-3" };
+    /// <summary>Pares sala-cocina solo para rellenar ComfortLimitsForPrediction (predicción).</summary>
+    private static readonly string[] SchemaKeysForPrediction = { "1-1", "1-2", "2-1", "2-2", "2-3", "3-2", "3-3" };
 
     private sealed record ShiftSalaRow(int StaffFloor, int StaffKitchen, decimal RevenuePerWaiterSala, decimal DifficultyScore);
 
@@ -55,17 +56,14 @@ public class StaffRevenueComfortService : IStaffRevenueComfortService
         for (var i = 0; i < bandLimitsSala.Length - 1; i++)
             bandsDefinition.Add(new StaffRevenueComfortBandDto { Min = bandLimitsSala[i], Max = bandLimitsSala[i + 1] == 9999 ? 9999 : bandLimitsSala[i + 1] });
 
-        var bySchemaDict = shifts.GroupBy(s => $"{s.StaffFloor}-{s.StaffKitchen}").ToDictionary(g => g.Key, g => g.ToList());
-
+        // Sala: agrupar solo por StaffFloor (1, 2, 3) — bloque independiente de cocina
+        var bySala = shifts.GroupBy(s => s.StaffFloor.ToString()).OrderBy(g => g.Key).ToList();
         var schemaDtos = new List<StaffRevenueComfortSchemaDto>();
-        foreach (var schemaKey in AllowedSchemas)
+        foreach (var grp in bySala)
         {
-            if (!bySchemaDict.TryGetValue(schemaKey, out var list)) list = new List<ShiftSalaRow>();
-            if (minShifts.HasValue && list.Count < minShifts.Value)
-            {
-                schemaDtos.Add(new StaffRevenueComfortSchemaDto { Schema = schemaKey, Bands = new List<StaffRevenueComfortBandItemDto>(), ComfortLimitApprox = null });
-                continue;
-            }
+            var schemaKey = grp.Key;
+            var list = grp.ToList();
+            if (minShifts.HasValue && list.Count < minShifts.Value) continue;
 
             var bandItems = new List<StaffRevenueComfortBandItemDto>();
             decimal? comfortLimitApprox = null;
@@ -90,6 +88,24 @@ public class StaffRevenueComfortService : IStaffRevenueComfortService
             }
 
             schemaDtos.Add(new StaffRevenueComfortSchemaDto { Schema = schemaKey, Bands = bandItems, ComfortLimitApprox = comfortLimitApprox });
+        }
+
+        // Límites por par sala-cocina para la predicción de personal (no para el panel Sala)
+        var bySchemaDict = shifts.GroupBy(s => $"{s.StaffFloor}-{s.StaffKitchen}").ToDictionary(g => g.Key, g => g.ToList());
+        var comfortLimitsForPrediction = new List<StaffRevenueComfortLimitItemDto>();
+        foreach (var schemaKey in SchemaKeysForPrediction)
+        {
+            if (!bySchemaDict.TryGetValue(schemaKey, out var list)) list = new List<ShiftSalaRow>();
+            if (minShifts.HasValue && list.Count < minShifts.Value) { comfortLimitsForPrediction.Add(new StaffRevenueComfortLimitItemDto { Schema = schemaKey, ComfortLimitApprox = null }); continue; }
+            decimal? limitApprox = null;
+            foreach (var (min, max) in bandLimitsSala.Zip(bandLimitsSala.Skip(1), (a, b) => (a, b)))
+            {
+                var inBand = list.Where(s => s.RevenuePerWaiterSala >= min && s.RevenuePerWaiterSala < max).ToList();
+                if (inBand.Count == 0) continue;
+                var avgDiff = (decimal)inBand.Average(s => s.DifficultyScore);
+                if (limitApprox == null && avgDiff >= DifficultyThreshold) { limitApprox = min; break; }
+            }
+            comfortLimitsForPrediction.Add(new StaffRevenueComfortLimitItemDto { Schema = schemaKey, ComfortLimitApprox = limitApprox });
         }
 
         var shiftsCocina = await _db.ShiftFeedbacks
@@ -144,7 +160,8 @@ public class StaffRevenueComfortService : IStaffRevenueComfortService
             DifficultyThreshold = DifficultyThreshold,
             BandsSource = bandsSource,
             TotalShiftsSala = shifts.Count,
-            TotalShiftsCocina = shiftsCocina.Count
+            TotalShiftsCocina = shiftsCocina.Count,
+            ComfortLimitsForPrediction = comfortLimitsForPrediction
         };
     }
 }

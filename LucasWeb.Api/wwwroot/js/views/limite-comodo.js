@@ -79,7 +79,7 @@
       if (hasSala) {
         var limitsSala = [];
         data.schemas.forEach(function (s) { if (s.comfort_limit_approx != null) limitsSala.push(Number(s.comfort_limit_approx)); });
-        var summarySala = limitsSala.length ? 'Con tus datos: hasta <strong>~' + (limitsSala.length === 1 ? limitsSala[0].toFixed(0) : Math.min.apply(null, limitsSala).toFixed(0) + '–' + Math.max.apply(null, limitsSala).toFixed(0)) + ' €</strong> por persona de sala suele ser cómodo (según esquema).' : '';
+        var summarySala = limitsSala.length ? 'Con tus datos: hasta <strong>~' + (limitsSala.length === 1 ? limitsSala[0].toFixed(0) : Math.min.apply(null, limitsSala).toFixed(0) + '–' + Math.max.apply(null, limitsSala).toFixed(0)) + ' €</strong> por persona de sala suele ser cómodo (según nº de personas en sala).' : '';
         colSala += '<p class="limite-comodo-explain">' + explainThreshold + '</p>';
         colSala += '<p class="limite-comodo-bands-source">' + explainBands + '</p>';
         if (totalSala > 0) colSala += '<p class="limite-comodo-total">Basado en <strong>' + totalSala + '</strong> turnos con feedback.</p>';
@@ -89,9 +89,8 @@
           var bands = schema.bands || [];
           if (bands.length === 0) return;
           colSala += '<div class="limite-comodo-schema">';
-          var parts = (schema.schema || '1-1').split('-');
-          var salaNum = parts[0] || '1', cocinaNum = parts[1] || '1';
-          colSala += '<h4>Con ' + salaNum + ' en sala, ' + cocinaNum + ' en cocina</h4>';
+          var salaNum = schema.schema || '1';
+          colSala += '<h4>Con ' + salaNum + ' en sala</h4>';
           if (schema.comfort_limit_approx != null) {
             colSala += '<p class="limite-comodo-approx" title="Primera banda donde la dificultad media ≥ ' + threshold + '">Límite cómodo aproximado: hasta ~' + Number(schema.comfort_limit_approx).toFixed(0) + ' € por personal de sala</p>';
           }
