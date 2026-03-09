@@ -7,19 +7,30 @@
   var Q3_OPTIONS = ['Siempre adelantado', 'Generalmente con margen', 'Justo', 'Poco margen', 'Ningún margen'];
   var Q4_OPTIONS = ['Muy fácil', 'Fácil', 'Normal', 'Difícil', 'Muy difícil'];
   var _dateSelectorBound = false;
+  /** Hora a partir de la cual se considera "nuevo día". Antes de las 05:00 se muestra por defecto el día anterior (cierre ~01:00). */
+  var ROLLOVER_HOUR = 5;
 
   function todayStr() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
+  /** Día por defecto en Feedback diario: entre 00:00 y las 05:00 se considera aún el día anterior (para no cargar el día siguiente tras el cierre). */
+  function defaultFeedbackDateStr() {
+    var d = new Date();
+    var h = d.getHours();
+    if (h < ROLLOVER_HOUR) {
+      d.setDate(d.getDate() - 1);
+    }
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
   function normalizeDateStr(str) {
-    if (!str || typeof str !== 'string') return todayStr();
+    if (!str || typeof str !== 'string') return defaultFeedbackDateStr();
     var s = str.trim();
     var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
     var d = new Date(s + (s.length === 10 ? 'T12:00:00' : ''));
     if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    return todayStr();
+    return defaultFeedbackDateStr();
   }
   function addDays(dateStr, delta) {
     var d = new Date(dateStr + 'T12:00:00');
@@ -29,7 +40,7 @@
   /** Selector dia a dia: un dia antes (flecha ◀). */
   function prevDay(dateStr) {
     var s = (normalizeDateStr(dateStr) || '').trim();
-    if (s.length < 10) return todayStr();
+    if (s.length < 10) return defaultFeedbackDateStr();
     var y = parseInt(s.substring(0, 4), 10);
     var m = parseInt(s.substring(5, 7), 10) - 1;
     var day = parseInt(s.substring(8, 10), 10);
@@ -39,7 +50,7 @@
   /** Selector dia a dia: un dia despues (flecha ▶). */
   function nextDay(dateStr) {
     var s = (normalizeDateStr(dateStr) || '').trim();
-    if (s.length < 10) return todayStr();
+    if (s.length < 10) return defaultFeedbackDateStr();
     var y = parseInt(s.substring(0, 4), 10);
     var m = parseInt(s.substring(5, 7), 10) - 1;
     var day = parseInt(s.substring(8, 10), 10);
@@ -179,7 +190,7 @@
     var rawDate = apiData.date || apiData.Date;
     return {
       id: apiData.id,
-      date: normalizeDateStr(rawDate || todayStr()),
+      date: normalizeDateStr(rawDate || defaultFeedbackDateStr()),
       total_revenue: apiData.total_revenue ?? apiData.TotalRevenue ?? 0,
       total_hours_worked: apiData.total_hours_worked ?? apiData.TotalHoursWorked ?? 0,
       staff_total: apiData.staff_total ?? apiData.StaffTotal ?? 0,
@@ -501,7 +512,7 @@
 
   function render(container) {
     _dateSelectorBound = false;
-    var dateStr = state.dayData ? state.dayData.date : todayStr();
+    var dateStr = state.dayData ? state.dayData.date : defaultFeedbackDateStr();
     var urlDate = getDateFromHash();
     if (urlDate) dateStr = normalizeDateStr(urlDate);
     state.activeShiftIndex = state.dayData ? state.activeShiftIndex : getShiftByCurrentTime();
@@ -566,7 +577,7 @@
       var prevBtn = document.getElementById('preguntas-prev');
       if (prevBtn) prevBtn.addEventListener('click', function () {
         collectFormFromShift(state.activeShiftIndex);
-        var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : todayStr());
+        var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : defaultFeedbackDateStr());
         var diaAnterior = prevDay(fechaActual);
         if (fechaInput) fechaInput.value = diaAnterior;
         updateDateSelector();
@@ -575,7 +586,7 @@
       var nextBtn = document.getElementById('preguntas-next');
       if (nextBtn) nextBtn.addEventListener('click', function () {
         collectFormFromShift(state.activeShiftIndex);
-        var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : todayStr());
+        var fechaActual = (fechaInput && fechaInput.value) ? fechaInput.value : (state.dayData ? state.dayData.date : defaultFeedbackDateStr());
         var diaSiguiente = nextDay(fechaActual);
         if (fechaInput) fechaInput.value = diaSiguiente;
         updateDateSelector();
@@ -796,10 +807,11 @@
   }
 
   function renderAndLoad(container) {
-    state.dayData = defaultDayData(todayStr());
+    var defaultDate = defaultFeedbackDateStr();
+    state.dayData = defaultDayData(defaultDate);
     state.activeShiftIndex = getShiftByCurrentTime();
     render(container);
-    loadDay(todayStr());
+    loadDay(defaultDate);
   }
 
   global.LUCAS_PREGUNTAS_VIEW = { render: render, renderAndLoad: renderAndLoad };

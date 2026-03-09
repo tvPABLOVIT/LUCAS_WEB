@@ -1,4 +1,4 @@
-# Guía paso a paso: desplegar Lucas/BETLEM en Railway
+image.png# Guía paso a paso: desplegar Lucas/BETLEM en Railway
 
 **Fecha:** 18/02/2026  
 **Objetivo:** Llevar la aplicación Lucas Web (BETLEM) a producción usando Railway como hosting.
@@ -201,6 +201,17 @@ Si ya tienes un dominio gestionado en **Cloudflare**, puedes apuntarlo a Railway
 1. Abre la URL generada (ej. `https://tu-servicio-xxxx.up.railway.app`).
 2. Prueba el **login** con el PIN configurado en `LUCAS_DEFAULT_PIN`.
 3. Si la API expone un endpoint de health (ej. `/api/health`), compruébalo también.
+
+---
+
+## Ver cambios en producción (frontend y API)
+
+Cada vez que haces **push** a la rama conectada en Railway, Railway vuelve a construir la imagen con el **Dockerfile** y despliega la nueva versión. El comando `dotnet publish` incluye todo el contenido de **`wwwroot`** (JS, CSS, HTML), por lo que:
+
+- **Cualquier cambio** en `LucasWeb.Api/wwwroot/` (p. ej. `js/views/preguntas.js`, `registro.js`, `dashboard.js`, `styles.css`) **se verá en Railway** en el siguiente deploy.
+- No hace falta ningún paso extra: solo **commit + push** a tu repo; Railway detecta el push y reconstruye.
+
+**Ejemplo:** La regla de “día por defecto” en **Feedback diario** y **Registro de ejecución** (entre 00:00 y 05:00 se muestra el día anterior para no cargar el día siguiente tras el cierre) está en esos JS. Tras subir los cambios y desplegar, esa lógica queda reflejada en Railway sin configuración adicional.
 
 ---
 

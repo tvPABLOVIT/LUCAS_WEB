@@ -8,18 +8,27 @@
   var Q3_OPTIONS = ['Siempre adelantado', 'Generalmente con margen', 'Justo', 'Poco margen', 'Ningún margen'];
   var Q4_OPTIONS = ['Muy fácil', 'Fácil', 'Normal', 'Difícil', 'Muy difícil'];
 
+  /** Hora a partir de la cual se considera "nuevo día". Antes de las 05:00 se muestra por defecto el día anterior (cierre ~01:00). */
+  var ROLLOVER_HOUR = 5;
+
   function todayStr() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
+  /** Día por defecto: entre 00:00 y las 05:00 se considera aún el día anterior (para no cargar el día siguiente tras el cierre). */
+  function defaultWorkingDateStr() {
+    var d = new Date();
+    if (d.getHours() < ROLLOVER_HOUR) d.setDate(d.getDate() - 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
   function normalizeDateStr(str) {
-    if (!str || typeof str !== 'string') return (str && String(str).trim()) || todayStr();
+    if (!str || typeof str !== 'string') return (str && String(str).trim()) || defaultWorkingDateStr();
     var s = str.trim();
     var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
     var d = new Date(s + (s.length === 10 ? 'T12:00:00' : ''));
     if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    return todayStr();
+    return defaultWorkingDateStr();
   }
   function addDays(dateStr, delta) {
     var d = new Date(dateStr + 'T12:00:00');
@@ -333,7 +342,7 @@
   }
 
   function render(container) {
-    var dateStr = state.dayData ? state.dayData.date : todayStr();
+    var dateStr = state.dayData ? state.dayData.date : defaultWorkingDateStr();
     var urlDate = new URLSearchParams(window.location.search).get('date');
     if (urlDate) dateStr = normalizeDateStr(urlDate);
     var weekNum = weekNumber(dateStr);
