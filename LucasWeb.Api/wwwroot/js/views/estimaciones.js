@@ -222,7 +222,7 @@
           var extremeHighByDow = weatherImpact.extremeTempHighByDow || [];
           var extremeLowByDow = weatherImpact.extremeTempLowByDow || [];
 
-          function getPct(obj) { return obj && (metric === 'productivity' ? obj.diffPctProductivity : obj.diffPctRevenue); }
+          function getPct(obj) { var m = state.weatherImpactMetric || 'revenue'; return obj ? (m === 'productivity' ? obj.diffPctProductivity : obj.diffPctRevenue) : null; }
           function cellHtml(rowIndex, arr) {
             var item = arr[rowIndex];
             if (!item) return '<td>—</td>';
@@ -236,15 +236,6 @@
             var cellContent = txt + ' <span class="estim-weather-cell-count" title="' + title + '">(' + n + ')</span>' + pocosDatos;
             return '<td class="estim-weather-cell' + cls + '">' + cellContent + '</td>';
           }
-          function resumenCell(obj) {
-            if (!obj) return '<td>—</td>';
-            var val = getPct(obj);
-            var txt = fmtPct(val);
-            var n = obj.count != null ? obj.count : 0;
-            var cls = cellClass(val);
-            return '<td class="estim-weather-cell estim-weather-cell-resumen' + cls + '">' + txt + (n ? ' <span class="estim-weather-cell-count">(' + n + ')</span>' : '') + '</td>';
-          }
-
           var agg = {
             rainy: weatherImpact.rainy,
             heavyRain: weatherImpact.heavyRain,
@@ -268,8 +259,6 @@
 
           var thead = '<thead><tr><th class="estim-weather-th-day">Día</th><th>Días lluviosos</th><th>Lluvia intensa</th><th>Viento fuerte</th><th>Más de ' + hotC + ' °C</th><th>Menos de ' + coldC + ' °C</th></tr></thead>';
           var tbody = '<tbody>';
-          tbody += '<tr class="estim-weather-row-resumen"><td class="estim-weather-td-day">Resumen</td>' +
-            resumenCell(agg.rainy) + resumenCell(agg.heavyRain) + resumenCell(agg.windy) + resumenCell(agg.extremeHigh) + resumenCell(agg.extremeLow) + '</tr>';
           var dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
           for (var r = 0; r < 7; r++) {
             var dowName = (rainyByDow[r] && rainyByDow[r].dowName) || (heavyRainByDow[r] && heavyRainByDow[r].dowName) || (windyByDow[r] && windyByDow[r].dowName) || (extremeHighByDow[r] && extremeHighByDow[r].dowName) || (extremeLowByDow[r] && extremeLowByDow[r].dowName) || dayNames[r];
