@@ -186,6 +186,7 @@
       }
       function renderWeatherImpact(weatherImpact) {
         if (!weatherImpactEl) return;
+        try {
         function fmtPct(x) { if (x == null || isNaN(Number(x))) return '—'; var n = Number(x); return (n > 0 ? '+' : '') + n.toFixed(0) + '%'; }
         function cellClass(val) {
           if (val == null || isNaN(Number(val))) return '';
@@ -315,6 +316,10 @@
             if (lastWeatherImpact) renderWeatherImpact(lastWeatherImpact);
           };
         });
+        } catch (e) {
+          if (typeof console !== 'undefined' && console.error) console.error('renderWeatherImpact:', e);
+          weatherImpactEl.innerHTML = '<div class="estim-weather-header"><h3 class="estim-weather-title">☁ Impacto del clima</h3></div><p class="dashboard-subtitle">Error al cargar el bloque. Revisa la consola.</p>';
+        }
       }
 
       function renderAlertas(alertasResp) {
