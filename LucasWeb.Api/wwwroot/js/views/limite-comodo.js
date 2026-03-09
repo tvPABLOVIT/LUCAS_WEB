@@ -17,13 +17,13 @@
       container.innerHTML =
         '<div class="card estim-card-compact limite-comodo-panel limite-comodo-panel-sala">' +
         '<h3>Límite cómodo – Sala</h3>' +
-        '<p class="limite-comodo-desc">Cuánta facturación por personal de sala en un turno suele ser cómoda. La dificultad media y el % de turnos difíciles indican a partir de qué facturación conviene añadir otro personal de sala.</p>' +
+        '<p class="limite-comodo-desc">Facturación por persona de sala en un turno a partir de la cual el equipo suele valorar el turno como más difícil (escala 1–5). Por debajo de ese valor se considera cómodo.</p>' +
         '<p id="limite-comodo-status-sala" class="limite-comodo-status">Cargando…</p>' +
         '<div id="limite-comodo-content-sala"></div>' +
         '</div>' +
         '<div class="card estim-card-compact limite-comodo-panel limite-comodo-panel-cocina">' +
         '<h3>Límite cómodo – Cocina</h3>' +
-        '<p class="limite-comodo-desc">Cuánta facturación por personal de cocina en un turno suele ser cómoda. La dificultad media y el % de turnos difíciles indican a partir de qué facturación conviene añadir otro personal de cocina.</p>' +
+        '<p class="limite-comodo-desc">Facturación por persona de cocina en un turno a partir de la cual el equipo suele valorar el turno como más difícil (escala 1–5). Por debajo de ese valor se considera cómodo.</p>' +
         '<p id="limite-comodo-status-cocina" class="limite-comodo-status">Cargando…</p>' +
         '<div id="limite-comodo-content-cocina"></div>' +
         '</div>';
@@ -62,6 +62,12 @@
       if (!data) return;
       var hasSala = data.schemas && data.schemas.length > 0;
       var hasCocina = data.cocina_schemas && data.cocina_schemas.length > 0;
+      var threshold = data.difficulty_threshold != null ? Number(data.difficulty_threshold) : 3.5;
+      var bandsSource = data.bands_source || 'fixed';
+      var totalSala = data.total_shifts_sala != null ? data.total_shifts_sala : 0;
+      var totalCocina = data.total_shifts_cocina != null ? data.total_shifts_cocina : 0;
+      var explainThreshold = 'Se considera por encima del límite cómodo cuando la <strong>dificultad media</strong> de los turnos en esa banda es ≥ ' + threshold + ' (escala 1–5). Por encima de ese rango de facturación por persona, el turno suele sentirse más difícil.';
+      var explainBands = bandsSource === 'dynamic' ? 'Bandas calculadas a partir de tus datos (percentiles).' : 'Bandas por defecto (pocos datos para calcular bandas propias).';
       var emptySala = '<p class="limite-comodo-empty">Aún no hay suficientes turnos con feedback y personal de sala. Guarda turnos con facturación, personal sala y preguntas V, R, M, D en <a href="#registro">Registro de ejecución</a>.</p>';
       var emptyCocina = '<p class="limite-comodo-empty">Aún no hay suficientes turnos con feedback y personal de cocina. Guarda turnos con facturación, personal cocina y pregunta Q5 en <a href="#registro">Registro de ejecución</a>.</p>';
       if (statusSalaEl) statusSalaEl.textContent = '';
@@ -71,6 +77,13 @@
       var colSala = '';
       var colCocina = '';
       if (hasSala) {
+        var limitsSala = [];
+        data.schemas.forEach(function (s) { if (s.comfort_limit_approx != null) limitsSala.push(Number(s.comfort_limit_approx)); });
+        var summarySala = limitsSala.length ? 'Con tus datos: hasta <strong>~' + (limitsSala.length === 1 ? limitsSala[0].toFixed(0) : Math.min.apply(null, limitsSala).toFixed(0) + '–' + Math.max.apply(null, limitsSala).toFixed(0)) + ' €</strong> por persona de sala suele ser cómodo (según esquema).' : '';
+        colSala += '<p class="limite-comodo-explain">' + explainThreshold + '</p>';
+        colSala += '<p class="limite-comodo-bands-source">' + explainBands + '</p>';
+        if (totalSala > 0) colSala += '<p class="limite-comodo-total">Basado en <strong>' + totalSala + '</strong> turnos con feedback.</p>';
+        if (summarySala) colSala += '<p class="limite-comodo-summary">' + summarySala + '</p>';
         if (!twoPanels) colSala += '<h3 class="limite-comodo-section-title">Sala (facturación por cada personal de sala)</h3>';
         data.schemas.forEach(function (schema) {
           var bands = schema.bands || [];
@@ -78,17 +91,26 @@
           colSala += '<div class="limite-comodo-schema">';
           colSala += '<h4>Esquema ' + schema.schema + ' (sala-cocina)</h4>';
           if (schema.comfort_limit_approx != null) {
-            colSala += '<p class="limite-comodo-approx" title="Aproximación: primera banda donde la dificultad media ≥ 3.5">Límite cómodo aproximado: hasta ~' + Number(schema.comfort_limit_approx).toFixed(0) + ' € por personal de sala</p>';
+            colSala += '<p class="limite-comodo-approx" title="Primera banda donde la dificultad media ≥ ' + threshold + '">Límite cómodo aproximado: hasta ~' + Number(schema.comfort_limit_approx).toFixed(0) + ' € por personal de sala</p>';
           }
-          colSala += '<table class="limite-comodo-table"><thead><tr><th>Facturación €/personal sala</th><th>Turnos</th><th>Dificultad media</th><th>% difíciles (≥4)</th></tr></thead><tbody>';
+          colSala += '<table class="limite-comodo-table"><thead><tr><th>Facturación €/persona sala</th><th>Turnos</th><th>Dificultad media</th><th>% turnos difíciles (≥4)</th></tr></thead><tbody>';
           bands.forEach(function (b) {
             var range = b.max >= 9999 ? (b.min + '+') : (b.min + '–' + b.max);
-            colSala += '<tr><td>' + range + '</td><td>' + b.count + '</td><td>' + (b.avg_difficulty != null ? Number(b.avg_difficulty).toFixed(1) : '—') + '</td><td>' + (b.pct_difficult != null ? Number(b.pct_difficult).toFixed(0) + '%' : '—') + '</td></tr>';
+            var pct = b.pct_difficult != null ? Number(b.pct_difficult).toFixed(0) + '%' : '—';
+            var trTitle = b.pct_difficult != null && b.pct_difficult >= 30 ? ' title="Por encima de esta banda, más del 30% de los turnos fueron valorados como difíciles"' : '';
+            colSala += '<tr' + trTitle + '><td>' + range + '</td><td>' + b.count + '</td><td>' + (b.avg_difficulty != null ? Number(b.avg_difficulty).toFixed(1) : '—') + '</td><td>' + pct + '</td></tr>';
           });
           colSala += '</tbody></table></div>';
         });
       }
       if (hasCocina) {
+        var limitsCocina = [];
+        data.cocina_schemas.forEach(function (s) { if (s.comfort_limit_approx != null) limitsCocina.push(Number(s.comfort_limit_approx)); });
+        var summaryCocina = limitsCocina.length ? 'Con tus datos: hasta <strong>~' + (limitsCocina.length === 1 ? limitsCocina[0].toFixed(0) : Math.min.apply(null, limitsCocina).toFixed(0) + '–' + Math.max.apply(null, limitsCocina).toFixed(0)) + ' €</strong> por persona de cocina suele ser cómodo (según nº de cocina).' : '';
+        colCocina += '<p class="limite-comodo-explain">' + explainThreshold + '</p>';
+        colCocina += '<p class="limite-comodo-bands-source">' + explainBands + '</p>';
+        if (totalCocina > 0) colCocina += '<p class="limite-comodo-total">Basado en <strong>' + totalCocina + '</strong> turnos con feedback.</p>';
+        if (summaryCocina) colCocina += '<p class="limite-comodo-summary">' + summaryCocina + '</p>';
         if (!twoPanels) colCocina += '<h3 class="limite-comodo-section-title">Cocina (facturación por cada personal de cocina)</h3>';
         data.cocina_schemas.forEach(function (schema) {
           var bands = schema.bands || [];
@@ -96,12 +118,14 @@
           colCocina += '<div class="limite-comodo-schema">';
           colCocina += '<h4>Cocina: ' + schema.schema + ' personal</h4>';
           if (schema.comfort_limit_approx != null) {
-            colCocina += '<p class="limite-comodo-approx" title="Aproximación: primera banda donde la dificultad media cocina ≥ 3.5">Límite cómodo aproximado: hasta ~' + Number(schema.comfort_limit_approx).toFixed(0) + ' € por personal de cocina</p>';
+            colCocina += '<p class="limite-comodo-approx" title="Primera banda donde la dificultad media cocina ≥ ' + threshold + '">Límite cómodo aproximado: hasta ~' + Number(schema.comfort_limit_approx).toFixed(0) + ' € por personal de cocina</p>';
           }
-          colCocina += '<table class="limite-comodo-table"><thead><tr><th>Facturación €/personal cocina</th><th>Turnos</th><th>Dificultad media cocina</th><th>% difíciles (≥4)</th></tr></thead><tbody>';
+          colCocina += '<table class="limite-comodo-table"><thead><tr><th>Facturación €/persona cocina</th><th>Turnos</th><th>Dificultad media</th><th>% turnos difíciles (≥4)</th></tr></thead><tbody>';
           bands.forEach(function (b) {
             var range = b.max >= 9999 ? (b.min + '+') : (b.min + '–' + b.max);
-            colCocina += '<tr><td>' + range + '</td><td>' + b.count + '</td><td>' + (b.avg_difficulty != null ? Number(b.avg_difficulty).toFixed(1) : '—') + '</td><td>' + (b.pct_difficult != null ? Number(b.pct_difficult).toFixed(0) + '%' : '—') + '</td></tr>';
+            var pct = b.pct_difficult != null ? Number(b.pct_difficult).toFixed(0) + '%' : '—';
+            var trTitle = b.pct_difficult != null && b.pct_difficult >= 30 ? ' title="Por encima de esta banda, más del 30% de los turnos fueron valorados como difíciles en cocina"' : '';
+            colCocina += '<tr' + trTitle + '><td>' + range + '</td><td>' + b.count + '</td><td>' + (b.avg_difficulty != null ? Number(b.avg_difficulty).toFixed(1) : '—') + '</td><td>' + pct + '</td></tr>';
           });
           colCocina += '</tbody></table></div>';
         });

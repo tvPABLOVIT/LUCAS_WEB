@@ -434,7 +434,7 @@
         }
         if (pred && pred.isSavedPrediction) setSourceBadge('Guardada', 'saved');
         else if (pred && (pred.dailyPredictionsJson || predRevenue != null)) setSourceBadge('En vivo', 'live');
-        predEl.innerHTML = '<h3>Predicción</h3>' + (parrafo ? '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado">' + parrafo + '</p></div>' : '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado estim-parrafo--muted">Sin datos de predicción.</p></div>');
+        predEl.innerHTML = '<h3>Predicción</h3>' + (parrafo ? '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado">' + parrafo + '</p></div>' : '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado estim-parrafo--muted">Sin datos de predicción.</p></div>') + '<p class="estim-pred-comfort-hint">La recomendación de personal (Sala / Cocina) en cada día usa los <strong>límites cómodos</strong> calculados con tu histórico para no superar una facturación por persona que suele sentirse difícil. Los ves más abajo en esta misma página.</p>';
 
         var days = (pred && pred.dailyPredictionsJson) ? (function () { try { return JSON.parse(pred.dailyPredictionsJson); } catch (e) { return null; } })() : null;
         if (!daysCardsEl) return;

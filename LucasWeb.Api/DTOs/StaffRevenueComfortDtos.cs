@@ -14,6 +14,18 @@ public class StaffRevenueComfortResult
 
     [JsonPropertyName("bands")]
     public List<StaffRevenueComfortBandDto> BandsDefinition { get; set; } = new();
+
+    [JsonPropertyName("difficulty_threshold")]
+    public decimal DifficultyThreshold { get; set; } = 3.5m;
+
+    [JsonPropertyName("bands_source")]
+    public string BandsSource { get; set; } = "fixed";
+
+    [JsonPropertyName("total_shifts_sala")]
+    public int TotalShiftsSala { get; set; }
+
+    [JsonPropertyName("total_shifts_cocina")]
+    public int TotalShiftsCocina { get; set; }
 }
 
 public class StaffRevenueComfortSchemaDto
