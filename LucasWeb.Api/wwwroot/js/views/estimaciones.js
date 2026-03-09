@@ -41,7 +41,6 @@
       '<div id="estim-actions" class="card estim-card-compact"></div>' +
       '<div id="estim-weather-impact" class="card estim-card-compact"></div>' +
       '</div>' +
-      '<div id="estim-limite-comodo" class="estim-limite-comodo-row"></div>' +
       '</div>';
 
     var weekInput = document.getElementById('estim-week-start');
@@ -55,7 +54,6 @@
     var alertasEl = document.getElementById('estim-alertas');
     var weatherImpactEl = document.getElementById('estim-weather-impact');
     var actionsEl = document.getElementById('estim-actions');
-    var limiteEl = document.getElementById('estim-limite-comodo');
     var accuracyHistoryEl = document.getElementById('estim-accuracy-history');
     function totalToCocinaSala(n) {
       if (n <= 0) return { sala: 0, cocina: 0 };
@@ -434,7 +432,7 @@
         }
         if (pred && pred.isSavedPrediction) setSourceBadge('Guardada', 'saved');
         else if (pred && (pred.dailyPredictionsJson || predRevenue != null)) setSourceBadge('En vivo', 'live');
-        predEl.innerHTML = '<h3>Predicción</h3>' + (parrafo ? '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado">' + parrafo + '</p></div>' : '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado estim-parrafo--muted">Sin datos de predicción.</p></div>') + '<p class="estim-pred-comfort-hint">La recomendación de personal (Sala / Cocina) en cada día usa los <strong>límites cómodos</strong> calculados con tu histórico para no superar una facturación por persona que suele sentirse difícil. Los ves más abajo en esta misma página.</p>';
+        predEl.innerHTML = '<h3>Predicción</h3>' + (parrafo ? '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado">' + parrafo + '</p></div>' : '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado estim-parrafo--muted">Sin datos de predicción.</p></div>');
 
         var days = (pred && pred.dailyPredictionsJson) ? (function () { try { return JSON.parse(pred.dailyPredictionsJson); } catch (e) { return null; } })() : null;
         if (!daysCardsEl) return;
@@ -501,7 +499,6 @@
         if (accuracyHistoryEl) accuracyHistoryEl.innerHTML = mode === 'plan' ? '<p class="loading">Cargando historial…</p>' : '';
         if (weatherImpactEl) weatherImpactEl.innerHTML = '<p class="loading">Cargando impacto del clima…</p>';
         if (actionsEl) actionsEl.innerHTML = '<p class="loading">Cargando acciones…</p>';
-        if (limiteEl && global.LUCAS_LIMITE_COMODO_VIEW) global.LUCAS_LIMITE_COMODO_VIEW.render(limiteEl, { embedded: true });
       }
 
       setLoading();
@@ -518,19 +515,12 @@
           auth.fetchWithAuth('/api/predictions/next-week').then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
           auth.fetchWithAuth('/api/settings').then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
           auth.fetchWithAuth('/api/estimaciones/alertas').then(function (r) { return safeJson(r, { alertas: [] }); }).catch(function () { return { alertas: [] }; }),
-          auth.fetchWithAuth('/api/analytics/staff-revenue-comfort?minShifts=1').then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
           auth.fetchWithAuth('/api/analytics/weather-impact?groupBy=day').then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
           auth.fetchWithAuth('/api/predictions/accuracy-history?limit=20').then(function (r) { return safeJson(r, { weeks: [] }); }).catch(function () { return { weeks: [] }; })
         ]).then(function (data) {
-          var pred = data[0], settings = data[1], alertasResp = data[2], comfortResp = data[3], weatherImpact = data[4], accuracyHistory = data[5];
+          var pred = data[0], settings = data[1], alertasResp = data[2], weatherImpact = data[3], accuracyHistory = data[4];
 
           var comfortBySchema = {}; var comfortByCocina = {};
-          if (comfortResp && comfortResp.comfort_limits_for_prediction && Array.isArray(comfortResp.comfort_limits_for_prediction)) {
-            comfortResp.comfort_limits_for_prediction.forEach(function (s) { if (s && s.schema != null) comfortBySchema[s.schema] = s.comfort_limit_approx; });
-          } else if (comfortResp && comfortResp.schemas && Array.isArray(comfortResp.schemas)) {
-            comfortResp.schemas.forEach(function (s) { if (s && s.schema != null) comfortBySchema[s.schema] = s.comfort_limit_approx; });
-          }
-          if (comfortResp && comfortResp.cocina_schemas && Array.isArray(comfortResp.cocina_schemas)) comfortResp.cocina_schemas.forEach(function (s) { if (s && s.schema != null) comfortByCocina[s.schema] = s.comfort_limit_approx; });
 
           var planWs = pred && pred.weekStartMonday ? pred.weekStartMonday : ws;
           state.planWeekStart = planWs;

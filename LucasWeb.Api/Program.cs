@@ -44,7 +44,6 @@ builder.Services.AddHostedService<AuthTokenCleanupHostedService>();
 builder.Services.AddScoped<IHolidaysService, NagerHolidaysService>();
 builder.Services.AddScoped<IEventsService, EventsService>();
 builder.Services.AddScoped<IDetectedPatternsService, DetectedPatternsService>();
-builder.Services.AddScoped<IStaffRevenueComfortService, StaffRevenueComfortService>();
 builder.Services.AddScoped<IEvaluatePredictionsService, EvaluatePredictionsService>();
 builder.Services.AddScoped<IGoogleSheetSyncService, GoogleSheetSyncService>();
 builder.Services.AddScoped<PredictionEnrichmentService>();

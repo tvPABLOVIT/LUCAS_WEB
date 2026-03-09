@@ -1,5 +1,4 @@
 using LucasWeb.Api.Data;
-using LucasWeb.Api.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Text.Json;
@@ -10,7 +9,7 @@ namespace LucasWeb.Api.Services;
 /// Calcula el personal necesario (sala y cocina) por turno para cubrir la predicción de facturación.
 /// La productividad ideal (50 €/h) es por todo el equipo completo (sala + cocina): 50 € por hora del conjunto.
 /// total_people = Ceiling(revenue_turno / (50 * horas_turno)) es el tamaño del equipo (sala+cocina) en ese turno.
-/// Se ejecuta después del enriquecimiento; usa ratio histórico (DOW+turno) y límites cómodos. Rellena staffSala y staffCocina por día.
+/// Se ejecuta después del enriquecimiento; usa ratio histórico (DOW+turno) y límite por defecto (350 €/persona). Rellena staffSala y staffCocina por día.
 /// </summary>
 public class StaffByTurnoPredictionService
 {
@@ -211,7 +210,6 @@ public class StaffByTurnoPredictionService
         string? dailyPredictionsJson,
         decimal productividadEurHora,
         decimal horasPorTurno,
-        StaffRevenueComfortResult? comfort,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(dailyPredictionsJson)) return dailyPredictionsJson;
@@ -219,7 +217,7 @@ public class StaffByTurnoPredictionService
         try { list = JsonSerializer.Deserialize<List<JsonElement>>(dailyPredictionsJson); } catch { return dailyPredictionsJson; }
         if (list == null || list.Count == 0) return dailyPredictionsJson;
         var days = list.Select(JsonElementToDict).ToList();
-        await FillStaffRecommendationsAsync(weekStartMonday, days, productividadEurHora, horasPorTurno, comfort, cancellationToken);
+        await FillStaffRecommendationsAsync(weekStartMonday, days, productividadEurHora, horasPorTurno, cancellationToken);
         return JsonSerializer.Serialize(days);
     }
 
@@ -241,13 +239,12 @@ public class StaffByTurnoPredictionService
         return d;
     }
 
-    /// <summary>Rellena en cada día del listado los campos staffSalaMed/Tar/Noc y staffCocinaMed/Tar/Noc (y opcionalmente staffSource).</summary>
+    /// <summary>Rellena en cada día del listado los campos staffSalaMed/Tar/Noc y staffCocinaMed/Tar/Noc (y opcionalmente staffSource). Usa límite por defecto (350 €/persona) para elegir esquema.</summary>
     public async Task FillStaffRecommendationsAsync(
         DateTime weekStartMonday,
         IList<Dictionary<string, object?>> days,
         decimal productividadEurHora,
         decimal horasPorTurno,
-        StaffRevenueComfortResult? comfort,
         CancellationToken cancellationToken = default)
     {
         if (days == null || days.Count == 0) return;
@@ -258,21 +255,6 @@ public class StaffByTurnoPredictionService
 
         var comfortBySchema = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         var comfortByCocina = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        if (comfort != null)
-        {
-            if (comfort.ComfortLimitsForPrediction != null && comfort.ComfortLimitsForPrediction.Count > 0)
-            {
-                foreach (var s in comfort.ComfortLimitsForPrediction.Where(x => x.ComfortLimitApprox.HasValue))
-                    comfortBySchema[s.Schema] = s.ComfortLimitApprox!.Value;
-            }
-            else
-            {
-                foreach (var s in comfort.Schemas.Where(x => x.ComfortLimitApprox.HasValue))
-                    comfortBySchema[s.Schema] = s.ComfortLimitApprox!.Value;
-            }
-            foreach (var c in comfort.CocinaSchemas.Where(x => x.ComfortLimitApprox.HasValue))
-                comfortByCocina[c.Schema] = c.ComfortLimitApprox!.Value;
-        }
 
         foreach (var day in days)
         {

@@ -13,23 +13,10 @@ namespace LucasWeb.Api.Controllers;
 public class AnalyticsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly IStaffRevenueComfortService _staffComfort;
 
-    public AnalyticsController(AppDbContext db, IStaffRevenueComfortService staffComfort)
+    public AnalyticsController(AppDbContext db)
     {
         _db = db;
-        _staffComfort = staffComfort;
-    }
-
-    /// <summary>
-    /// Agregados por esquema de personal (sala-cocina) y banda de facturación por camarero.
-    /// Sirve para ver "límite cómodo" por esquema (ej. 1-1) y cuándo conviene añadir personal.
-    /// </summary>
-    [HttpGet("staff-revenue-comfort")]
-    public async Task<IActionResult> GetStaffRevenueComfort([FromQuery] int? minShifts, CancellationToken cancellationToken)
-    {
-        var result = await _staffComfort.GetAggregatesAsync(minShifts, cancellationToken);
-        return Ok(result);
     }
 
     /// <summary>

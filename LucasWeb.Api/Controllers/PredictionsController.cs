@@ -18,15 +18,13 @@ public class PredictionsController : ControllerBase
     private readonly NextWeekPredictionService _livePrediction;
     private readonly PredictionEnrichmentService _enrichment;
     private readonly StaffByTurnoPredictionService _staffByTurno;
-    private readonly IStaffRevenueComfortService _staffComfort;
 
-    public PredictionsController(AppDbContext db, NextWeekPredictionService livePrediction, PredictionEnrichmentService enrichment, StaffByTurnoPredictionService staffByTurno, IStaffRevenueComfortService staffComfort)
+    public PredictionsController(AppDbContext db, NextWeekPredictionService livePrediction, PredictionEnrichmentService enrichment, StaffByTurnoPredictionService staffByTurno)
     {
         _db = db;
         _livePrediction = livePrediction;
         _enrichment = enrichment;
         _staffByTurno = staffByTurno;
-        _staffComfort = staffComfort;
     }
 
     /// <summary>Historial de precisión: últimas N semanas evaluadas (predicción vs real) para ver evolución del error y sesgo.</summary>
@@ -136,8 +134,7 @@ public class PredictionsController : ControllerBase
         var horas = 4m;
         if (prodSetting != null && decimal.TryParse(prodSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var pp)) prod = pp;
         if (horasSetting != null && decimal.TryParse(horasSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var hh)) horas = hh;
-        var comfort = await _staffComfort.GetAggregatesAsync(3);
-            dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(monday, dailyJson, prod, horas, comfort) ?? dailyJson;
+            dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(monday, dailyJson, prod, horas) ?? dailyJson;
 
         return Ok(new
         {
@@ -224,8 +221,7 @@ public class PredictionsController : ControllerBase
             var horas = 4m;
             if (prodSetting != null && decimal.TryParse(prodSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var pp)) prod = pp;
             if (horasSetting != null && decimal.TryParse(horasSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var hh)) horas = hh;
-            var comfort = await _staffComfort.GetAggregatesAsync(3);
-            dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(nextMonday, dailyJson, prod, horas, comfort) ?? dailyJson;
+            dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(nextMonday, dailyJson, prod, horas) ?? dailyJson;
         }
         return Ok(new
         {
@@ -265,8 +261,7 @@ public class PredictionsController : ControllerBase
         var horas = 4m;
         if (prodSetting != null && decimal.TryParse(prodSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var pp)) prod = pp;
         if (horasSetting != null && decimal.TryParse(horasSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var hh)) horas = hh;
-        var comfort = await _staffComfort.GetAggregatesAsync(3);
-        dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(nextMonday, dailyJson, prod, horas, comfort) ?? dailyJson;
+        dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(nextMonday, dailyJson, prod, horas) ?? dailyJson;
 
         decimal totalRevenue = 0;
         try
