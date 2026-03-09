@@ -1,38 +1,20 @@
+# Dockerfile ligero para Railway: solo API (.NET). La imagen pesa mucho menos y el deploy suele completar.
+# Import de PDF de cuadrante NO funcionará (falta Python/parser). Si lo necesitas, usa Dockerfile.full en Settings → Build.
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Restore
 COPY LucasWeb.Api/LucasWeb.Api.csproj LucasWeb.Api/
 RUN dotnet restore LucasWeb.Api/LucasWeb.Api.csproj
 
-# Build & publish
 COPY LucasWeb.Api/ LucasWeb.Api/
 RUN dotnet publish LucasWeb.Api/LucasWeb.Api.csproj -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-# PDF parser dependencies (Python)
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 python3-pip python3-full python-is-python3 \
-  && rm -rf /var/lib/apt/lists/* \
-  && python3 --version \
-  && pip3 --version
-
 COPY --from=build /app/publish .
-
-# Include the parser project inside the image
-# Exclude cache and test files
-COPY LucasCuadranteParser/ /LucasCuadranteParser/
-RUN rm -rf /LucasCuadranteParser/.pytest_cache /LucasCuadranteParser/__pycache__ /LucasCuadranteParser/*/__pycache__ 2>/dev/null || true
-RUN pip3 install --break-system-packages --no-cache-dir -r /LucasCuadranteParser/requirements.txt
-
 RUN mkdir -p /app/data
 
 ENV ASPNETCORE_ENVIRONMENT=Production
-# Railway inyecta PORT (ej. 8080); Program.cs usa UseUrls con PORT
-ENV CuadranteParser__PythonPath=python3
-ENV CuadranteParser__ParserProjectPath=/LucasCuadranteParser
-
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "LucasWeb.Api.dll"]

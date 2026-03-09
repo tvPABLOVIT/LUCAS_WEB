@@ -242,3 +242,18 @@ Cada vez que haces **push** a la rama conectada en Railway, Railway vuelve a con
 - **Error de PIN o login:** Comprueba que `LUCAS_DEFAULT_PIN` está definida y sin espacios.
 - **Datos perdidos tras redeploy:** Asegúrate de tener un volumen montado en `/app/data`.
 - **CORS:** Si accedes desde otro dominio, configura `Lucas__AllowedOrigins` con las URLs permitidas.
+
+### Dockerfile ligero por defecto
+
+En la **raíz del repo** el **Dockerfile** es una versión **ligera** (solo API .NET, sin Python ni LucasCuadranteParser). Así la imagen es mucho más pequeña y el deploy en Railway suele completar sin quedarse en "Publishing image...".
+
+- **Import de Excel:** funciona igual.
+- **Import de PDF de cuadrante:** no funcionará (falta el parser Python). Si en producción necesitas subir PDFs de cuadrante, en Railway → servicio → **Settings** → **Build** → **Dockerfile Path** pon `Dockerfile.full` y vuelve a desplegar (la imagen pesará más y el deploy puede tardar más).
+
+### El deploy se queda en "Build - Publishing image..."
+
+Si el despliegue lleva muchos minutos (p. ej. >15–20) atascado en **Publishing image**:
+
+1. **Cancelar y volver a desplegar:** En Railway → Deployments → el deploy en curso → **Cancel** (o los tres puntos). Luego **Redeploy** del último deploy que sí terminó (el que está ACTIVE), o haz un **push vacío** (`git commit --allow-empty -m "Redeploy" && git push origin main`) para lanzar uno nuevo. A veces es un fallo transitorio de red o de la plataforma.
+2. **Comprobar qué Dockerfile usa Railway:** En el servicio → **Settings** → **Build**. Si está configurado el Dockerfile de la **raíz** del repo, la imagen incluye .NET + Python + LucasCuadranteParser y pesa más; subirla puede tardar. Si no necesitas el parser en producción, puedes indicar como Dockerfile `LucasWeb.Api/Dockerfile` (solo API, imagen más ligera) y Root Directory `LucasWeb.Api` (o el path que use tu proyecto).
+3. **Paciencia:** Con imagen grande, "Publishing image" puede tardar 10–20 minutos. Si tras 25–30 min sigue igual, cancela y redeploy.
