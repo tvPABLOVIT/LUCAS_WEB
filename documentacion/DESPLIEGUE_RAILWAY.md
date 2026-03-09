@@ -243,12 +243,9 @@ Cada vez que haces **push** a la rama conectada en Railway, Railway vuelve a con
 - **Datos perdidos tras redeploy:** Asegúrate de tener un volumen montado en `/app/data`.
 - **CORS:** Si accedes desde otro dominio, configura `Lucas__AllowedOrigins` con las URLs permitidas.
 
-### Dockerfile ligero por defecto
+### Dockerfile por defecto (completo, con Python)
 
-En la **raíz del repo** el **Dockerfile** es una versión **ligera** (solo API .NET, sin Python ni LucasCuadranteParser). Así la imagen es mucho más pequeña y el deploy en Railway suele completar sin quedarse en "Publishing image...".
-
-- **Import de Excel:** funciona igual.
-- **Import de PDF de cuadrante:** no funcionará (falta el parser Python). Si en producción necesitas subir PDFs de cuadrante, en Railway → servicio → **Settings** → **Build** → **Dockerfile Path** pon `Dockerfile.full` y vuelve a desplegar (la imagen pesará más y el deploy puede tardar más).
+El **Dockerfile** en la raíz incluye la API .NET + Python + LucasCuadranteParser, para que el **import de PDF de cuadrante** funcione en producción. La imagen pesa más y el paso "Publishing image" puede tardar 10–20 minutos; si falla o se queda colgado, ver la sección siguiente.
 
 ### El deploy se queda en "Build - Publishing image..."
 
