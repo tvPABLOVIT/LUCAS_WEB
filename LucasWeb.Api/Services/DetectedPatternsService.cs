@@ -54,12 +54,15 @@ public class DetectedPatternsService : IDetectedPatternsService
         var days = await _db.ExecutionDays
             .AsNoTracking()
             .Where(e => !e.IsFeedbackOnly && e.TotalRevenue > 0 && e.TotalHoursWorked > 0)
-            .Select(e => new { e.Date, e.TotalRevenue, e.WeatherCode, e.IsHoliday, e.WeatherTemp })
+            .Select(e => new { e.Date, e.TotalRevenue, e.WeatherCode, e.IsHoliday, e.WeatherTemp, e.WeatherPrecipMm, e.WeatherTempMax, e.WeatherTempMin })
             .ToListAsync();
         if (days.Count < 10) return;
 
         var dayNames = new[] { "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo" };
         var dow = (DateTime d) => (int)d.DayOfWeek == 0 ? 6 : (int)d.DayOfWeek - 1;
+        const decimal rainyPrecipMm = WeatherImpactHelper.DefaultRainyPrecipMm;
+        const decimal coldC = WeatherImpactHelper.DefaultColdC;
+        const decimal hotC = WeatherImpactHelper.DefaultHotC;
 
         for (int i = 0; i < 7; i++)
         {
@@ -72,22 +75,21 @@ public class DetectedPatternsService : IDetectedPatternsService
             await SavePatternAsync("Estacional", dayNames[i], JsonSerializer.Serialize(new { avg_revenue = avg, std_dev = (double)std, count = list.Count }), conf);
         }
 
-        var overallAvg = (decimal)days.Average(d => (double)d.TotalRevenue);
-
-        var rainy = days.Where(d => d.WeatherCode.HasValue && IsRainCode(d.WeatherCode.Value)).ToList();
-        var sunny = days.Where(d => d.WeatherCode.HasValue && (d.WeatherCode.Value == 0 || d.WeatherCode.Value == 1 || d.WeatherCode.Value == 2)).ToList();
-        if (rainy.Count >= MinSamplesPerGroup && sunny.Count >= MinSamplesPerGroup)
+        // Lluvia: mismo criterio que API (código WMO o precip ≥ 0,5 mm). Baseline "dry" normalizado por DOW.
+        var rainy = days.Where(d => (d.WeatherCode.HasValue && WeatherImpactHelper.IsRainCode(d.WeatherCode.Value)) || (d.WeatherPrecipMm.HasValue && d.WeatherPrecipMm.Value >= rainyPrecipMm)).ToList();
+        var dry = days.Where(d => !((d.WeatherCode.HasValue && WeatherImpactHelper.IsRainCode(d.WeatherCode.Value)) || (d.WeatherPrecipMm.HasValue && d.WeatherPrecipMm.Value >= rainyPrecipMm))).ToList();
+        if (rainy.Count >= MinSamplesPerGroup && dry.Count >= MinSamplesPerGroup)
         {
             var avgRainy = (decimal)rainy.Average(d => (double)d.TotalRevenue);
-            var avgSunny = (decimal)sunny.Average(d => (double)d.TotalRevenue);
-            if (avgSunny > 0)
+            decimal? expectedDry = ExpectedRevenueByDow(dry, rainy, d => d.Date, d => d.TotalRevenue, dow);
+            if (expectedDry.HasValue && expectedDry.Value > 0)
             {
-                var pctDiff = (avgRainy - avgSunny) / avgSunny * 100;
+                var pctDiff = (avgRainy - expectedDry.Value) / expectedDry.Value * 100;
                 if (Math.Abs(pctDiff) >= MinPctDiffThreshold)
                 {
                     var rainFactor = 1 + Math.Clamp(pctDiff / 100m, -0.2m, 0.2m);
-                    var conf = Math.Min(90m, 50 + Math.Min(rainy.Count, sunny.Count));
-                    await SavePatternAsync("Impacto clima lluvioso", null, JsonSerializer.Serialize(new { pct_diff = pctDiff, rainFactor, avg_rainy = avgRainy, avg_sunny = avgSunny, count_rainy = rainy.Count, count_sunny = sunny.Count }), conf);
+                    var conf = Math.Min(90m, 50 + Math.Min(rainy.Count, dry.Count));
+                    await SavePatternAsync("Impacto clima lluvioso", null, JsonSerializer.Serialize(new { pct_diff = pctDiff, rainFactor, avg_rainy = avgRainy, expected_baseline = expectedDry, count_rainy = rainy.Count, count_dry = dry.Count, normalized_by_dow = true }), conf);
                 }
             }
         }
@@ -110,24 +112,47 @@ public class DetectedPatternsService : IDetectedPatternsService
             }
         }
 
-        var extreme = days.Where(d => !d.WeatherTemp.HasValue || d.WeatherTemp < 5 || d.WeatherTemp > 30).ToList();
-        var mild = days.Where(d => d.WeatherTemp.HasValue && d.WeatherTemp >= 15 && d.WeatherTemp <= 25).ToList();
-        if (extreme.Count >= MinSamplesPerGroup && mild.Count >= MinSamplesPerGroup)
+        // Temperatura: mismos umbrales que API (< 5 °C o > 30 °C = extrema). Baseline "no extrema" normalizado por DOW.
+        var extreme = days.Where(d =>
+            (d.WeatherTempMax.HasValue && d.WeatherTempMax.Value > hotC) ||
+            (d.WeatherTempMin.HasValue && d.WeatherTempMin.Value < coldC) ||
+            (d.WeatherTemp.HasValue && (d.WeatherTemp.Value < coldC || d.WeatherTemp.Value > hotC))).ToList();
+        var notExtreme = days.Where(d => !(
+            (d.WeatherTempMax.HasValue && d.WeatherTempMax.Value > hotC) ||
+            (d.WeatherTempMin.HasValue && d.WeatherTempMin.Value < coldC) ||
+            (d.WeatherTemp.HasValue && (d.WeatherTemp.Value < coldC || d.WeatherTemp.Value > hotC)))).ToList();
+        if (extreme.Count >= MinSamplesPerGroup && notExtreme.Count >= MinSamplesPerGroup)
         {
             var avgExt = (decimal)extreme.Average(d => (double)d.TotalRevenue);
-            var avgMild = (decimal)mild.Average(d => (double)d.TotalRevenue);
-            if (avgMild > 0)
+            decimal? expectedMild = ExpectedRevenueByDow(notExtreme, extreme, d => d.Date, d => d.TotalRevenue, dow);
+            if (expectedMild.HasValue && expectedMild.Value > 0)
             {
-                var pctDiff = (avgExt - avgMild) / avgMild * 100;
+                var pctDiff = (avgExt - expectedMild.Value) / expectedMild.Value * 100;
                 if (Math.Abs(pctDiff) >= MinPctDiffThreshold)
                 {
                     var tempFactor = 1 + Math.Clamp(pctDiff / 100m, -0.2m, 0.2m);
-                    var conf = Math.Min(90m, 50 + Math.Min(extreme.Count, mild.Count));
-                    await SavePatternAsync("Impacto temperatura", null, JsonSerializer.Serialize(new { pct_diff = pctDiff, tempFactor, count_extreme = extreme.Count, count_mild = mild.Count }), conf);
+                    var conf = Math.Min(90m, 50 + Math.Min(extreme.Count, notExtreme.Count));
+                    await SavePatternAsync("Impacto temperatura", null, JsonSerializer.Serialize(new { pct_diff = pctDiff, tempFactor, count_extreme = extreme.Count, count_not_extreme = notExtreme.Count, normalized_by_dow = true }), conf);
                 }
             }
         }
     }
 
-    private static bool IsRainCode(int code) => code is >= 51 and <= 67 or >= 71 and <= 77 or >= 80 and <= 82 or 95 or 96;
+    /// <summary>Expected revenue del grupo "baseline" ponderado por la distribución DOW del grupo "target" (misma lógica que AnalyticsController Metrics).</summary>
+    private static decimal? ExpectedRevenueByDow<T>(List<T> baseline, List<T> target, Func<T, DateTime> getDate, Func<T, decimal> getRevenue, Func<DateTime, int> dow)
+    {
+        var baselineByDow = baseline.GroupBy(d => dow(getDate(d))).ToDictionary(g => g.Key, g => g.ToList());
+        var targetCountByDow = target.GroupBy(d => dow(getDate(d))).ToDictionary(g => g.Key, g => g.Count());
+        decimal sumRev = 0;
+        var sumW = 0;
+        foreach (var kv in targetCountByDow)
+        {
+            if (!baselineByDow.TryGetValue(kv.Key, out var list) || list.Count == 0) continue;
+            var avgBaseline = list.Average(x => (double)getRevenue(x));
+            sumRev += (decimal)avgBaseline * kv.Value;
+            sumW += kv.Value;
+        }
+        if (sumW == 0) return null;
+        return Math.Round(sumRev / sumW, 2);
+    }
 }

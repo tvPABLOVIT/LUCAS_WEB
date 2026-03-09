@@ -7,7 +7,7 @@
   function addDays(ymd, delta) { var d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() + delta); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function render(container) {
     var weekStart = getWeekStart(new Date());
-    var state = { mode: 'plan', histWeekStart: weekStart, planWeekStart: null };
+    var state = { mode: 'plan', histWeekStart: weekStart, planWeekStart: null, weatherImpactDays: 180, weatherImpactGroupBy: 'day' };
 
     container.innerHTML =
       '<div class="estimaciones-view">' +
@@ -174,6 +174,15 @@
         sourceBadgeEl.classList.toggle('estim-source-badge--saved', mod === 'saved');
         sourceBadgeEl.classList.toggle('estim-source-badge--live', mod === 'live');
       }
+      function buildWeatherImpactUrl() {
+        var days = state.weatherImpactDays != null ? state.weatherImpactDays : 180;
+        var gb = state.weatherImpactGroupBy || 'day';
+        return '/api/analytics/weather-impact?groupBy=' + encodeURIComponent(gb) + '&days=' + days;
+      }
+      function loadWeatherImpact(cb) {
+        auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return (r && r.ok ? r.json() : Promise.resolve(null)).catch(function () { return null; }); })
+          .then(function (data) { renderWeatherImpact(data); if (typeof cb === 'function') cb(); });
+      }
       function renderWeatherImpact(weatherImpact) {
         if (!weatherImpactEl) return;
         function fmtPct2(x) { if (x == null || isNaN(Number(x))) return '—'; var n = Number(x); return (n > 0 ? '+' : '') + n.toFixed(0) + '%'; }
@@ -182,14 +191,15 @@
           var n = Number(val);
           return n > 0 ? ' estim-weather-delta--up' : (n < 0 ? ' estim-weather-delta--down' : '');
         }
-        function line(title, obj) {
+        function line(title, obj, totalSamples) {
           if (!obj) return '<div class="estim-weather-line"><span class="label">' + title + '</span> —</div>';
           var pctRev = fmtPct2(obj.diffPctRevenue);
           var pctProd = fmtPct2(obj.diffPctProductivity);
           var revClass = deltaClass(obj.diffPctRevenue);
           var prodClass = deltaClass(obj.diffPctProductivity);
+          var lowRef = (obj.baselineMatchedCount != null && obj.count != null && obj.baselineMatchedCount < obj.count) ? ' <span class="estim-weather-low-ref" title="Pocas muestras de referencia para algunos días de la semana">(ref. limitada)</span>' : '';
           return '<div class="estim-weather-line"><span class="label">' + title + '</span> ' +
-            (obj.count != null ? (obj.count + ' muestras') : '—') +
+            (obj.count != null ? (obj.count + ' muestras') : '—') + lowRef +
             ' · Δ fact: <strong class="estim-weather-delta' + revClass + '">' + pctRev + '</strong>' +
             ' · Δ prod: <strong class="estim-weather-delta' + prodClass + '">' + pctProd + '</strong>' +
             '</div>';
@@ -197,27 +207,55 @@
         if (!weatherImpact || !weatherImpact.sampleCount || weatherImpact.sampleCount < 10) {
           weatherImpactEl.innerHTML =
             '<h3>Impacto del clima (histórico)</h3>' +
-            '<p class="dashboard-subtitle">Aún no hay suficientes datos con clima guardado para calcular impacto.</p>' +
+            '<p class="dashboard-subtitle">Aún no hay suficientes datos con clima guardado para calcular impacto (mín. 10 días con facturación).</p>' +
             '<button type="button" class="btn-primary btn-sm estim-weather-backfill-btn">Backfill clima (180 días)</button>' +
             '<div id="estim-weather-backfill-status" class="estim-weather-backfill-status"></div>';
         } else {
           var cov = weatherImpact.coverage || null;
+          var th = weatherImpact.thresholdsUsed || {};
+          var fromTo = (weatherImpact.from && weatherImpact.to) ? (weatherImpact.from + ' – ' + weatherImpact.to) : '';
+          var legend = 'Lluvia: ≥' + (th.rainyPrecipMm != null ? Number(th.rainyPrecipMm) : 0.5) + ' mm · Lluvia intensa: ≥' + (th.heavyRainMm != null ? Number(th.heavyRainMm) : 5) + ' mm · Viento: ≥' + (th.windyKmh != null ? Number(th.windyKmh) : 35) + ' km/h · Temp. extrema: &lt;' + (th.coldC != null ? Number(th.coldC) : 5) + ' °C o &gt;' + (th.hotC != null ? Number(th.hotC) : 30) + ' °C';
+          var covLine = '';
+          if (cov) {
+            var cAny = cov.withAnyWeather != null ? Number(cov.withAnyWeather) : 0;
+            var cCode = cov.withCode != null ? Number(cov.withCode) : 0;
+            var cTemp = cov.withTemp != null ? Number(cov.withTemp) : 0;
+            var cPrecip = cov.withPrecip != null ? Number(cov.withPrecip) : 0;
+            var cWind = cov.withWind != null ? Number(cov.withWind) : 0;
+            covLine = '<p class="estim-weather-coverage">Datos con clima: <strong>' + cAny + '</strong> registros (código: ' + cCode + ', temp: ' + cTemp + ', precip: ' + cPrecip + ', viento: ' + cWind + ')</p>';
+          }
           var covHint = '';
           if (cov && cov.withAnyWeather != null && Number(cov.withAnyWeather) < 10) {
             covHint = '<p class="dashboard-subtitle estim-weather-alert"><strong>Faltan datos de clima en el histórico</strong> (solo ' + Number(cov.withAnyWeather) + ' registros con clima).</p>' +
               '<button type="button" class="btn-primary btn-sm estim-weather-backfill-btn">Backfill clima (180 días)</button>' +
               '<div id="estim-weather-backfill-status" class="estim-weather-backfill-status"></div>';
           }
+          var groupLabel = (weatherImpact.groupBy === 'shift') ? 'turno' : 'día';
+          var selectors = '<div class="estim-weather-selectors">' +
+            '<span class="estim-weather-selector-label">Ventana:</span> <select id="estim-weather-days" class="estim-weather-select">' +
+            [30, 90, 180].map(function (d) { return '<option value="' + d + '"' + (state.weatherImpactDays === d ? ' selected' : '') + '>' + d + ' días</option>'; }).join('') + '</select>' +
+            ' <span class="estim-weather-selector-label">Agrupar por:</span> <select id="estim-weather-groupby" class="estim-weather-select">' +
+            '<option value="day"' + (state.weatherImpactGroupBy === 'day' ? ' selected' : '') + '>Día</option>' +
+            '<option value="shift"' + (state.weatherImpactGroupBy === 'shift' ? ' selected' : '') + '>Turno</option></select></div>';
           weatherImpactEl.innerHTML =
             '<h3>Impacto del clima (histórico)</h3>' +
-            '<p class="dashboard-subtitle">Comparación de facturación/productividad vs días sin esa condición (últimos meses).</p>' +
+            (fromTo ? '<p class="estim-weather-range">' + fromTo + '</p>' : '') +
+            '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's con facturación.</p>' +
+            '<p class="estim-weather-legend" title="Umbrales usados para clasificar">' + legend + '</p>' +
+            covLine +
             covHint +
+            selectors +
+            '<p class="dashboard-subtitle">Comparación vs días/turnos sin esa condición (normalizado por día de la semana).</p>' +
             '<div class="estim-weather-lines">' +
-            line('Días lluviosos', weatherImpact.rainy) +
-            line('Lluvia intensa', weatherImpact.heavyRain) +
-            line('Viento fuerte', weatherImpact.windy) +
-            line('Temperatura extrema', weatherImpact.extremeTemp) +
+            line('Días lluviosos', weatherImpact.rainy, weatherImpact.sampleCount) +
+            line('Lluvia intensa', weatherImpact.heavyRain, weatherImpact.sampleCount) +
+            line('Viento fuerte', weatherImpact.windy, weatherImpact.sampleCount) +
+            line('Temperatura extrema', weatherImpact.extremeTemp, weatherImpact.sampleCount) +
             '</div>';
+          var daysSel = document.getElementById('estim-weather-days');
+          var groupBySel = document.getElementById('estim-weather-groupby');
+          if (daysSel) daysSel.onchange = function () { state.weatherImpactDays = parseInt(daysSel.value, 10); loadWeatherImpact(); };
+          if (groupBySel) groupBySel.onchange = function () { state.weatherImpactGroupBy = groupBySel.value; loadWeatherImpact(); };
         }
         weatherImpactEl.querySelectorAll('.estim-weather-backfill-btn').forEach(function (btn) {
           btn.onclick = function () {
@@ -515,7 +553,7 @@
           auth.fetchWithAuth('/api/predictions/next-week').then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
           auth.fetchWithAuth('/api/settings').then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
           auth.fetchWithAuth('/api/estimaciones/alertas').then(function (r) { return safeJson(r, { alertas: [] }); }).catch(function () { return { alertas: [] }; }),
-          auth.fetchWithAuth('/api/analytics/weather-impact?groupBy=day').then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
+          auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
           auth.fetchWithAuth('/api/predictions/accuracy-history?limit=20').then(function (r) { return safeJson(r, { weeks: [] }); }).catch(function () { return { weeks: [] }; })
         ]).then(function (data) {
           var pred = data[0], settings = data[1], alertasResp = data[2], weatherImpact = data[3], accuracyHistory = data[4];
@@ -547,7 +585,7 @@
       Promise.all([
         auth.fetchWithAuth('/api/dashboard/week?weekStart=' + ws).then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
         auth.fetchWithAuth('/api/predictions/by-week?weekStart=' + ws).then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
-        auth.fetchWithAuth('/api/analytics/weather-impact?groupBy=day').then(function (r) { return safeJson(r, null); }).catch(function () { return null; })
+        auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return safeJson(r, null); }).catch(function () { return null; })
       ]).then(function (data) {
         var dash = data[0], predHist = data[1], weatherImpact = data[2];
 

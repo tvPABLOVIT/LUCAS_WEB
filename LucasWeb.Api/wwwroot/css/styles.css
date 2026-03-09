@@ -310,6 +310,14 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-weather-backfill-btn { margin-bottom: 0.35rem; }
 .estim-weather-backfill-status { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
 .estim-weather-backfill-status:empty { display: none; }
+.estim-weather-range { font-size: 0.9rem; color: var(--text-muted); margin: 0 0 0.25rem; }
+.estim-weather-baseline { font-size: 0.875rem; color: var(--text); margin: 0 0 0.35rem; }
+.estim-weather-legend { font-size: 0.78rem; color: var(--text-muted); margin: 0 0 0.5rem; line-height: 1.35; }
+.estim-weather-coverage { font-size: 0.82rem; color: var(--text-muted); margin: 0 0 0.5rem; }
+.estim-weather-selectors { margin: 0.5rem 0 0.75rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.estim-weather-selector-label { font-size: 0.85rem; color: var(--text-muted); }
+.estim-weather-select { font-size: 0.875rem; padding: 0.25rem 0.5rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.estim-weather-low-ref { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
 .estim-mode-toggle { display: flex; gap: 0.4rem; margin-right: 0.75rem; flex-wrap: wrap; }
 .estim-mode-btn { font-size: 0.85rem; padding: 0.35rem 0.6rem; border-radius: 999px; border: 1px solid var(--border); background: rgba(139,148,158,0.08); color: var(--text-muted); cursor: pointer; }
 .estim-mode-btn--active { background: rgba(88,166,255,0.15); border-color: rgba(88,166,255,0.35); color: var(--text); }

@@ -31,11 +31,17 @@ public class AnalyticsController : ControllerBase
         [FromQuery] decimal heavyRainMm = 5m,
         [FromQuery] decimal windyKmh = 35m,
         [FromQuery] decimal coldC = 5m,
-        [FromQuery] decimal hotC = 30m)
+        [FromQuery] decimal hotC = 30m,
+        [FromQuery(Name = "days")] int? windowDays = null)
     {
+        rainyPrecipMm = rainyPrecipMm > 0 ? rainyPrecipMm : WeatherImpactHelper.DefaultRainyPrecipMm;
+        heavyRainMm = heavyRainMm > 0 ? heavyRainMm : WeatherImpactHelper.DefaultHeavyRainMm;
+        windyKmh = windyKmh > 0 ? windyKmh : WeatherImpactHelper.DefaultWindyKmh;
+        coldC = coldC < hotC ? coldC : WeatherImpactHelper.DefaultColdC;
+        hotC = hotC > coldC ? hotC : WeatherImpactHelper.DefaultHotC;
         var inv = CultureInfo.InvariantCulture;
         var end = DateTime.UtcNow.Date;
-        var start = end.AddDays(-180);
+        var start = end.AddDays(-(windowDays.HasValue && windowDays.Value > 0 ? Math.Clamp(windowDays.Value, 1, 3650) : 180));
         if (!string.IsNullOrWhiteSpace(to) && DateTime.TryParse(to, inv, DateTimeStyles.None, out var t)) end = t.Date;
         if (!string.IsNullOrWhiteSpace(from) && DateTime.TryParse(from, inv, DateTimeStyles.None, out var f)) start = f.Date;
         if (start > end) (start, end) = (end, start);
@@ -78,14 +84,14 @@ public class AnalyticsController : ControllerBase
                     ShiftName = (x.ShiftName ?? "").Trim(),
                     Revenue = x.Revenue,
                     Productivity = x.Hours > 0 ? x.Revenue / x.Hours : 0,
-                    IsRainy = (x.Code.HasValue && IsRainCode(x.Code.Value)) || (x.Precip.HasValue && x.Precip.Value >= rainyPrecipMm),
+                    IsRainy = (x.Code.HasValue && WeatherImpactHelper.IsRainCode(x.Code.Value)) || (x.Precip.HasValue && x.Precip.Value >= rainyPrecipMm),
                     IsHeavyRain = x.Precip.HasValue && x.Precip.Value >= heavyRainMm,
                     IsWindy = x.Wind.HasValue && x.Wind.Value >= windyKmh,
                     IsExtremeTemp = x.Temp.HasValue && (x.Temp.Value < coldC || x.Temp.Value > hotC)
                 })
                 .ToList();
 
-            return Ok(BuildImpactPayload(samples, start, end, "shift", coverage));
+            return Ok(BuildImpactPayload(samples, start, end, "shift", coverage, rainyPrecipMm, heavyRainMm, windyKmh, coldC, hotC));
         }
 
         // day (default)
@@ -125,7 +131,7 @@ public class AnalyticsController : ControllerBase
                     Dow = x.Date.DayOfWeek,
                     Revenue = x.TotalRevenue,
                     Productivity = x.TotalHoursWorked > 0 ? x.TotalRevenue / x.TotalHoursWorked : 0,
-                    IsRainy = (x.WeatherCode.HasValue && IsRainCode(x.WeatherCode.Value)) || (x.WeatherPrecipMm.HasValue && x.WeatherPrecipMm.Value >= rainyPrecipMm),
+                    IsRainy = (x.WeatherCode.HasValue && WeatherImpactHelper.IsRainCode(x.WeatherCode.Value)) || (x.WeatherPrecipMm.HasValue && x.WeatherPrecipMm.Value >= rainyPrecipMm),
                     IsHeavyRain = x.WeatherPrecipMm.HasValue && x.WeatherPrecipMm.Value >= heavyRainMm,
                     IsWindy = x.WeatherWindMaxKmh.HasValue && x.WeatherWindMaxKmh.Value >= windyKmh,
                     IsExtremeTemp = isExtreme
@@ -133,7 +139,7 @@ public class AnalyticsController : ControllerBase
             })
             .ToList();
 
-        return Ok(BuildImpactPayload(daySamples, start, end, "day", dayCoverage));
+        return Ok(BuildImpactPayload(daySamples, start, end, "day", dayCoverage, rainyPrecipMm, heavyRainMm, windyKmh, coldC, hotC));
     }
 
     private sealed class Sample
@@ -148,7 +154,8 @@ public class AnalyticsController : ControllerBase
         public bool IsExtremeTemp { get; set; }
     }
 
-    private static object BuildImpactPayload(List<Sample> samples, DateTime start, DateTime end, string groupBy, object? coverage)
+    private static object BuildImpactPayload(List<Sample> samples, DateTime start, DateTime end, string groupBy, object? coverage,
+        decimal rainyPrecipMm, decimal heavyRainMm, decimal windyKmh, decimal coldC, decimal hotC)
     {
         var baseSet = samples;
         var rainy = samples.Where(s => s.IsRainy).ToList();
@@ -161,6 +168,15 @@ public class AnalyticsController : ControllerBase
             ? (s => $"{(int)s.Dow}|{(s.ShiftName ?? "").Trim().ToLowerInvariant()}")
             : (s => $"{(int)s.Dow}");
 
+        var thresholdsUsed = new
+        {
+            rainyPrecipMm,
+            heavyRainMm,
+            windyKmh,
+            coldC,
+            hotC
+        };
+
         return new
         {
             groupBy,
@@ -168,6 +184,7 @@ public class AnalyticsController : ControllerBase
             to = end.ToString("yyyy-MM-dd"),
             sampleCount = baseSet.Count,
             coverage,
+            thresholdsUsed,
             rainy = Metrics(rainy, dry, keySelector),
             heavyRain = Metrics(heavy, dry, keySelector),
             windy = Metrics(windy, samples.Where(s => !s.IsWindy).ToList(), keySelector),
@@ -250,5 +267,4 @@ public class AnalyticsController : ControllerBase
         return Math.Round((sorted[mid - 1] + sorted[mid]) / 2m, 2);
     }
 
-    private static bool IsRainCode(int code) => code is >= 51 and <= 67 or >= 71 and <= 77 or >= 80 and <= 82 or 95 or 96;
 }
