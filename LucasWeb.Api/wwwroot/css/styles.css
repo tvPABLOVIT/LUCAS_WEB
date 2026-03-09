@@ -323,10 +323,10 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-weather-selector-label { font-size: 0.85rem; color: var(--text-muted); }
 .estim-weather-select { font-size: 0.875rem; padding: 0.25rem 0.5rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg); color: var(--text); }
 .estim-weather-low-ref { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
-.estim-weather-layout { display: flex; gap: 1.25rem; align-items: flex-start; margin-top: 0.5rem; flex-wrap: wrap; }
-.estim-weather-table-col { flex: 1; min-width: 0; }
+.estim-weather-top-row { display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; }
+.estim-weather-left-col { flex: 1; min-width: 0; }
 .estim-weather-chart-col { flex: 0 0 auto; min-width: 200px; }
-.estim-weather-table-wrap { overflow-x: auto; margin-top: 0; }
+.estim-weather-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
 .estim-weather-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .estim-weather-table th, .estim-weather-table td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
 .estim-weather-table th { font-weight: 600; color: var(--text); background: rgba(0,0,0,0.03); }

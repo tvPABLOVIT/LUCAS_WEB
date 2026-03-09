@@ -270,7 +270,8 @@
 
           var leyenda = 'Umbrales: lluvia intensa ≥ ' + rainyMm + ' mm, viento ≥ ' + windKmh + ' km/h, calor &gt; ' + hotC + ' °C, frío &lt; ' + coldC + ' °C.';
           var metricLabel = metric === 'productivity' ? 'Productividad' : 'Facturación';
-          weatherImpactEl.innerHTML =
+          var chartBlock = '<div class="estim-weather-chart-col"><div class="estim-weather-chart-title">Resumen por condición (promedio)</div>' + barChartHtml + '</div>';
+          var leftBlock =
             '<div class="estim-weather-header">' +
             '<h3 class="estim-weather-title">☁ Impacto del clima</h3>' +
             '<span class="estim-weather-badge">Por día de la semana</span></div>' +
@@ -282,11 +283,9 @@
             (fromTo ? '<p class="estim-weather-range">' + fromTo + '</p>' : '') +
             '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's. Mostrando: <strong>' + metricLabel + '</strong>. Cada fila compara ese día con el mismo día sin esa condición.</p>' +
             covHint +
-            '<div class="estim-weather-layout">' +
-            '<div class="estim-weather-table-col"><div class="estim-weather-table-wrap"><table class="estim-weather-table">' + thead + tbody + '</table></div></div>' +
-            '<div class="estim-weather-chart-col"><div class="estim-weather-chart-title">Resumen por condición (promedio)</div>' + barChartHtml + '</div>' +
-            '</div>' +
+            '<div class="estim-weather-table-wrap"><table class="estim-weather-table">' + thead + tbody + '</table></div>' +
             '<p class="estim-weather-explicacion">Un % negativo indica que la facturación (o productividad) fue menor en días con esa condición respecto al mismo día de la semana sin ella.</p>';
+          weatherImpactEl.innerHTML = '<div class="estim-weather-top-row">' + '<div class="estim-weather-left-col">' + leftBlock + '</div>' + chartBlock + '</div>';
         }
 
         weatherImpactEl.querySelectorAll('.estim-weather-backfill-btn').forEach(function (btn) {
