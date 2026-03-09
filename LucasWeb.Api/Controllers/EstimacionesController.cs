@@ -201,12 +201,14 @@ public class EstimacionesController : ControllerBase
                 alertas.Add(new AlertaItem("climaViento", "Viento", txt + ".", ordenAlto, null, "El viento reduce confort exterior y puede afectar demanda.", windy.Select(x => x.Date.ToString("yyyy-MM-dd")).ToList()));
             }
 
-            var extremeTempDays = weatherList.Where(w => (w.TempMax.HasValue && w.TempMax.Value > 30) || (w.TempMin.HasValue && w.TempMin.Value < 5)).ToList();
+            var hotC = WeatherImpactHelper.DefaultHotC;
+            var coldC = WeatherImpactHelper.DefaultColdC;
+            var extremeTempDays = weatherList.Where(w => (w.TempMax.HasValue && w.TempMax.Value > hotC) || (w.TempMin.HasValue && w.TempMin.Value < coldC)).ToList();
             if (extremeTempDays.Count >= 2)
             {
-                var calor = extremeTempDays.Count(w => w.TempMax.HasValue && w.TempMax.Value > 30);
-                var frio = extremeTempDays.Count(w => w.TempMin.HasValue && w.TempMin.Value < 5);
-                var tempTexto = calor >= 2 ? "Ola de calor prevista (" + calor + " días con máx > 30 °C)." : (frio >= 2 ? "Ola de frío prevista (" + frio + " días con mín < 5 °C)." : "Temperaturas extremas previstas (" + extremeTempDays.Count + " días).");
+                var calor = extremeTempDays.Count(w => w.TempMax.HasValue && w.TempMax.Value > hotC);
+                var frio = extremeTempDays.Count(w => w.TempMin.HasValue && w.TempMin.Value < coldC);
+                var tempTexto = calor >= 2 ? "Ola de calor prevista (" + calor + " días con más de " + hotC.ToString("F0", inv) + " °C)." : (frio >= 2 ? "Ola de frío prevista (" + frio + " días con menos de " + coldC.ToString("F0", inv) + " °C)." : "Temperaturas extremas previstas (" + extremeTempDays.Count + " días).");
                 alertas.Add(new AlertaItem("temperatura", "Temperatura", tempTexto, ordenAlto, null, "Anticipar terraza, climatización y demanda.", extremeTempDays.Select(x => x.Date.ToString("yyyy-MM-dd")).ToList()));
             }
         }

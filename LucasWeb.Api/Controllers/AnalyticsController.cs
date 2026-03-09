@@ -87,7 +87,8 @@ public class AnalyticsController : ControllerBase
                     IsRainy = (x.Code.HasValue && WeatherImpactHelper.IsRainCode(x.Code.Value)) || (x.Precip.HasValue && x.Precip.Value >= rainyPrecipMm),
                     IsHeavyRain = x.Precip.HasValue && x.Precip.Value >= heavyRainMm,
                     IsWindy = x.Wind.HasValue && x.Wind.Value >= windyKmh,
-                    IsExtremeTemp = x.Temp.HasValue && (x.Temp.Value < coldC || x.Temp.Value > hotC)
+                    IsExtremeTempHigh = x.Temp.HasValue && x.Temp.Value > hotC,
+                    IsExtremeTempLow = x.Temp.HasValue && x.Temp.Value < coldC
                 })
                 .ToList();
 
@@ -122,20 +123,16 @@ public class AnalyticsController : ControllerBase
 
         var daySamples = days
             .Where(x => x.TotalRevenue > 0 && x.TotalHoursWorked > 0)
-            .Select(x =>
+            .Select(x => new Sample
             {
-                var isExtreme = (x.WeatherTempMax.HasValue && x.WeatherTempMax.Value > hotC) ||
-                                (x.WeatherTempMin.HasValue && x.WeatherTempMin.Value < coldC);
-                return new Sample
-                {
-                    Dow = x.Date.DayOfWeek,
-                    Revenue = x.TotalRevenue,
-                    Productivity = x.TotalHoursWorked > 0 ? x.TotalRevenue / x.TotalHoursWorked : 0,
-                    IsRainy = (x.WeatherCode.HasValue && WeatherImpactHelper.IsRainCode(x.WeatherCode.Value)) || (x.WeatherPrecipMm.HasValue && x.WeatherPrecipMm.Value >= rainyPrecipMm),
-                    IsHeavyRain = x.WeatherPrecipMm.HasValue && x.WeatherPrecipMm.Value >= heavyRainMm,
-                    IsWindy = x.WeatherWindMaxKmh.HasValue && x.WeatherWindMaxKmh.Value >= windyKmh,
-                    IsExtremeTemp = isExtreme
-                };
+                Dow = x.Date.DayOfWeek,
+                Revenue = x.TotalRevenue,
+                Productivity = x.TotalHoursWorked > 0 ? x.TotalRevenue / x.TotalHoursWorked : 0,
+                IsRainy = (x.WeatherCode.HasValue && WeatherImpactHelper.IsRainCode(x.WeatherCode.Value)) || (x.WeatherPrecipMm.HasValue && x.WeatherPrecipMm.Value >= rainyPrecipMm),
+                IsHeavyRain = x.WeatherPrecipMm.HasValue && x.WeatherPrecipMm.Value >= heavyRainMm,
+                IsWindy = x.WeatherWindMaxKmh.HasValue && x.WeatherWindMaxKmh.Value >= windyKmh,
+                IsExtremeTempHigh = x.WeatherTempMax.HasValue && x.WeatherTempMax.Value > hotC,
+                IsExtremeTempLow = x.WeatherTempMin.HasValue && x.WeatherTempMin.Value < coldC
             })
             .ToList();
 
@@ -151,8 +148,11 @@ public class AnalyticsController : ControllerBase
         public bool IsRainy { get; set; }
         public bool IsHeavyRain { get; set; }
         public bool IsWindy { get; set; }
-        public bool IsExtremeTemp { get; set; }
+        public bool IsExtremeTempHigh { get; set; }
+        public bool IsExtremeTempLow { get; set; }
     }
+
+    private static readonly (int Dow, string Name)[] DowOrder = { (1, "Lunes"), (2, "Martes"), (3, "Miércoles"), (4, "Jueves"), (5, "Viernes"), (6, "Sábado"), (0, "Domingo") };
 
     private static object BuildImpactPayload(List<Sample> samples, DateTime start, DateTime end, string groupBy, object? coverage,
         decimal rainyPrecipMm, decimal heavyRainMm, decimal windyKmh, decimal coldC, decimal hotC)
@@ -162,7 +162,10 @@ public class AnalyticsController : ControllerBase
         var dry = samples.Where(s => !s.IsRainy).ToList();
         var heavy = samples.Where(s => s.IsHeavyRain).ToList();
         var windy = samples.Where(s => s.IsWindy).ToList();
-        var extreme = samples.Where(s => s.IsExtremeTemp).ToList();
+        var extremeHigh = samples.Where(s => s.IsExtremeTempHigh).ToList();
+        var extremeLow = samples.Where(s => s.IsExtremeTempLow).ToList();
+        var notExtremeHigh = samples.Where(s => !s.IsExtremeTempHigh).ToList();
+        var notExtremeLow = samples.Where(s => !s.IsExtremeTempLow).ToList();
 
         Func<Sample, string> keySelector = groupBy == "shift"
             ? (s => $"{(int)s.Dow}|{(s.ShiftName ?? "").Trim().ToLowerInvariant()}")
@@ -188,8 +191,38 @@ public class AnalyticsController : ControllerBase
             rainy = Metrics(rainy, dry, keySelector),
             heavyRain = Metrics(heavy, dry, keySelector),
             windy = Metrics(windy, samples.Where(s => !s.IsWindy).ToList(), keySelector),
-            extremeTemp = Metrics(extreme, samples.Where(s => !s.IsExtremeTemp).ToList(), keySelector)
+            extremeTempHigh = Metrics(extremeHigh, notExtremeHigh, keySelector),
+            extremeTempLow = Metrics(extremeLow, notExtremeLow, keySelector),
+            rainyByDow = MetricsByDow(rainy, dry),
+            heavyRainByDow = MetricsByDow(heavy, dry),
+            windyByDow = MetricsByDow(windy, samples.Where(s => !s.IsWindy).ToList()),
+            extremeTempHighByDow = MetricsByDow(extremeHigh, notExtremeHigh),
+            extremeTempLowByDow = MetricsByDow(extremeLow, notExtremeLow)
         };
+    }
+
+    /// <summary>Impacto por día de la semana: cada DOW se compara solo con el mismo DOW (lunes con lunes, etc.).</summary>
+    private static List<object> MetricsByDow(List<Sample> group, List<Sample> baseline)
+    {
+        var result = new List<object>();
+        foreach (var (dow, name) in DowOrder)
+        {
+            var g = group.Where(s => (int)s.Dow == dow).ToList();
+            var b = baseline.Where(s => (int)s.Dow == dow).ToList();
+            decimal? diffRev = null;
+            decimal? diffProd = null;
+            if (g.Count > 0 && b.Count > 0)
+            {
+                var avgG = g.Average(x => x.Revenue);
+                var avgB = b.Average(x => x.Revenue);
+                if (avgB > 0) diffRev = Math.Round((avgG - avgB) / avgB * 100m, 1);
+                var avgGp = g.Average(x => x.Productivity);
+                var avgBp = b.Average(x => x.Productivity);
+                if (avgBp > 0) diffProd = Math.Round((avgGp - avgBp) / avgBp * 100m, 1);
+            }
+            result.Add(new { dow, dowName = name, count = g.Count, baselineCount = b.Count, diffPctRevenue = diffRev, diffPctProductivity = diffProd });
+        }
+        return result;
     }
 
     private static object Metrics(List<Sample> group, List<Sample> baseline, Func<Sample, string> keySelector)

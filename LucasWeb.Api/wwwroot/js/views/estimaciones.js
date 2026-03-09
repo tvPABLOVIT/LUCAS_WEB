@@ -185,24 +185,11 @@
       }
       function renderWeatherImpact(weatherImpact) {
         if (!weatherImpactEl) return;
-        function fmtPct2(x) { if (x == null || isNaN(Number(x))) return '—'; var n = Number(x); return (n > 0 ? '+' : '') + n.toFixed(0) + '%'; }
-        function deltaClass(val) {
+        function fmtPct(x) { if (x == null || isNaN(Number(x))) return '—'; var n = Number(x); return (n > 0 ? '+' : '') + n.toFixed(0) + '%'; }
+        function cellClass(val) {
           if (val == null || isNaN(Number(val))) return '';
           var n = Number(val);
           return n > 0 ? ' estim-weather-delta--up' : (n < 0 ? ' estim-weather-delta--down' : '');
-        }
-        function line(title, obj, totalSamples) {
-          if (!obj) return '<div class="estim-weather-line"><span class="label">' + title + '</span> —</div>';
-          var pctRev = fmtPct2(obj.diffPctRevenue);
-          var pctProd = fmtPct2(obj.diffPctProductivity);
-          var revClass = deltaClass(obj.diffPctRevenue);
-          var prodClass = deltaClass(obj.diffPctProductivity);
-          var lowRef = (obj.baselineMatchedCount != null && obj.count != null && obj.baselineMatchedCount < obj.count) ? ' <span class="estim-weather-low-ref" title="Pocas muestras de referencia para algunos días de la semana">(ref. limitada)</span>' : '';
-          return '<div class="estim-weather-line"><span class="label">' + title + '</span> ' +
-            (obj.count != null ? (obj.count + ' muestras') : '—') + lowRef +
-            ' · Δ fact: <strong class="estim-weather-delta' + revClass + '">' + pctRev + '</strong>' +
-            ' · Δ prod: <strong class="estim-weather-delta' + prodClass + '">' + pctProd + '</strong>' +
-            '</div>';
         }
         if (!weatherImpact || !weatherImpact.sampleCount || weatherImpact.sampleCount < 10) {
           weatherImpactEl.innerHTML =
@@ -218,22 +205,43 @@
               '<button type="button" class="btn-primary btn-sm estim-weather-backfill-btn">Backfill clima (180 días)</button>' +
               '<div id="estim-weather-backfill-status" class="estim-weather-backfill-status"></div>';
           }
+          var th = weatherImpact.thresholdsUsed || {};
+          var hotC = th.hotC != null ? Number(th.hotC) : 30;
+          var coldC = th.coldC != null ? Number(th.coldC) : 5;
           var groupLabel = (weatherImpact.groupBy === 'shift') ? 'turno' : 'día';
           var fromTo = (weatherImpact.from && weatherImpact.to) ? (weatherImpact.from + ' – ' + weatherImpact.to) : '';
+          var rainyByDow = weatherImpact.rainyByDow || [];
+          var heavyRainByDow = weatherImpact.heavyRainByDow || [];
+          var windyByDow = weatherImpact.windyByDow || [];
+          var extremeHighByDow = weatherImpact.extremeTempHighByDow || [];
+          var extremeLowByDow = weatherImpact.extremeTempLowByDow || [];
+          function cellHtml(rowIndex, arr) {
+            var item = arr[rowIndex];
+            if (!item) return '<td>—</td>';
+            var rev = item.diffPctRevenue;
+            var txt = fmtPct(rev);
+            var title = (item.count != null ? item.count + ' muestras' : '') + (item.baselineCount != null ? ' · ref: ' + item.baselineCount : '');
+            var cls = cellClass(rev);
+            return '<td class="estim-weather-cell' + cls + '"' + (title ? ' title="' + title + '"' : '') + '>' + txt + '</td>';
+          }
+          var thead = '<thead><tr><th class="estim-weather-th-day">Día</th><th>Días lluviosos</th><th>Lluvia intensa</th><th>Viento fuerte</th><th>Más de ' + hotC + ' °C</th><th>Menos de ' + coldC + ' °C</th></tr></thead>';
+          var tbody = '<tbody>';
+          var dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+          for (var r = 0; r < 7; r++) {
+            var dowName = (rainyByDow[r] && rainyByDow[r].dowName) || (heavyRainByDow[r] && heavyRainByDow[r].dowName) || (windyByDow[r] && windyByDow[r].dowName) || (extremeHighByDow[r] && extremeHighByDow[r].dowName) || (extremeLowByDow[r] && extremeLowByDow[r].dowName) || dayNames[r];
+            tbody += '<tr><td class="estim-weather-td-day">' + dowName + '</td>';
+            tbody += cellHtml(r, rainyByDow) + cellHtml(r, heavyRainByDow) + cellHtml(r, windyByDow) + cellHtml(r, extremeHighByDow) + cellHtml(r, extremeLowByDow);
+            tbody += '</tr>';
+          }
+          tbody += '</tbody>';
           weatherImpactEl.innerHTML =
             '<div class="estim-weather-header">' +
             '<h3 class="estim-weather-title">☁ Impacto del clima</h3>' +
-            '<span class="estim-weather-badge">Ventana configurable</span></div>' +
+            '<span class="estim-weather-badge">Por día de la semana</span></div>' +
             (fromTo ? '<p class="estim-weather-range">' + fromTo + '</p>' : '') +
-            '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's con facturación.</p>' +
+            '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's con facturación. Cada fila compara ese día con el mismo día sin esa condición (lunes con lunes, martes con martes…).</p>' +
             covHint +
-            '<p class="dashboard-subtitle">Comparación vs días/turnos sin esa condición (normalizado por día de la semana).</p>' +
-            '<div class="estim-weather-lines">' +
-            line('Días lluviosos', weatherImpact.rainy, weatherImpact.sampleCount) +
-            line('Lluvia intensa', weatherImpact.heavyRain, weatherImpact.sampleCount) +
-            line('Viento fuerte', weatherImpact.windy, weatherImpact.sampleCount) +
-            line('Temperatura extrema', weatherImpact.extremeTemp, weatherImpact.sampleCount) +
-            '</div>';
+            '<div class="estim-weather-table-wrap"><table class="estim-weather-table">' + thead + tbody + '</table></div>';
         }
         weatherImpactEl.querySelectorAll('.estim-weather-backfill-btn').forEach(function (btn) {
           btn.onclick = function () {
