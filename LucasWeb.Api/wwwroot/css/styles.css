@@ -300,6 +300,11 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-day-contexto-body { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.15rem; }
 .estim-alertas-subtitle { margin-top: 0; margin-bottom: 0.75rem; }
 .estim-alertas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+/* Bloque impacto del clima: tarjeta destacada */
+.estim-weather-impact-card { border-left: 4px solid #42a5f5; background: linear-gradient(135deg, rgba(66, 165, 245, 0.06) 0%, transparent 50%); }
+.estim-weather-header { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.estim-weather-title { margin: 0; font-size: 1.12rem; font-weight: 700; color: var(--text); }
+.estim-weather-badge { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(66, 165, 245, 0.2); color: #42a5f5; }
 .estim-weather-line { font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem; }
 .estim-weather-line .label { color: var(--text); font-weight: 600; margin-right: 0.25rem; }
 .estim-weather-lines { margin-top: 0.5rem; }

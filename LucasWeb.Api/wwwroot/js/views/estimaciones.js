@@ -39,7 +39,7 @@
       '<div id="estim-accuracy-history" class="card"></div>' +
       '<div class="estim-actions-weather-row">' +
       '<div id="estim-actions" class="card estim-card-compact"></div>' +
-      '<div id="estim-weather-impact" class="card estim-card-compact"></div>' +
+      '<div id="estim-weather-impact" class="card estim-card-compact estim-weather-impact-card"></div>' +
       '</div>' +
       '</div>';
 
@@ -206,7 +206,7 @@
         }
         if (!weatherImpact || !weatherImpact.sampleCount || weatherImpact.sampleCount < 10) {
           weatherImpactEl.innerHTML =
-            '<h3>Impacto del clima (histórico)</h3>' +
+            '<div class="estim-weather-header"><h3 class="estim-weather-title">☁ Impacto del clima</h3></div>' +
             '<p class="dashboard-subtitle">Aún no hay suficientes datos con clima guardado para calcular impacto (mín. 10 días con facturación).</p>' +
             '<button type="button" class="btn-primary btn-sm estim-weather-backfill-btn">Backfill clima (180 días)</button>' +
             '<div id="estim-weather-backfill-status" class="estim-weather-backfill-status"></div>';
@@ -238,7 +238,9 @@
             '<option value="day"' + (state.weatherImpactGroupBy === 'day' ? ' selected' : '') + '>Día</option>' +
             '<option value="shift"' + (state.weatherImpactGroupBy === 'shift' ? ' selected' : '') + '>Turno</option></select></div>';
           weatherImpactEl.innerHTML =
-            '<h3>Impacto del clima (histórico)</h3>' +
+            '<div class="estim-weather-header">' +
+            '<h3 class="estim-weather-title">☁ Impacto del clima</h3>' +
+            '<span class="estim-weather-badge">Ventana configurable</span></div>' +
             (fromTo ? '<p class="estim-weather-range">' + fromTo + '</p>' : '') +
             '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's con facturación.</p>' +
             '<p class="estim-weather-legend" title="Umbrales usados para clasificar">' + legend + '</p>' +
