@@ -7,7 +7,8 @@
   function addDays(ymd, delta) { var d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() + delta); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function render(container) {
     var weekStart = getWeekStart(new Date());
-    var state = { mode: 'plan', histWeekStart: weekStart, planWeekStart: null, weatherImpactDays: 180, weatherImpactGroupBy: 'day' };
+    var state = { mode: 'plan', histWeekStart: weekStart, planWeekStart: null, weatherImpactDays: 180, weatherImpactGroupBy: 'day', weatherImpactMetric: 'revenue' };
+    var lastWeatherImpact = null;
 
     container.innerHTML =
       '<div class="estimaciones-view">' +
@@ -181,7 +182,7 @@
       }
       function loadWeatherImpact(cb) {
         auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return (r && r.ok ? r.json() : Promise.resolve(null)).catch(function () { return null; }); })
-          .then(function (data) { renderWeatherImpact(data); if (typeof cb === 'function') cb(); });
+          .then(function (data) { lastWeatherImpact = data; renderWeatherImpact(data); if (typeof cb === 'function') cb(); });
       }
       function renderWeatherImpact(weatherImpact) {
         if (!weatherImpactEl) return;
@@ -191,6 +192,9 @@
           var n = Number(val);
           return n > 0 ? ' estim-weather-delta--up' : (n < 0 ? ' estim-weather-delta--down' : '');
         }
+        var metric = state.weatherImpactMetric || 'revenue';
+        var daysOpt = state.weatherImpactDays || 180;
+
         if (!weatherImpact || !weatherImpact.sampleCount || weatherImpact.sampleCount < 10) {
           weatherImpactEl.innerHTML =
             '<div class="estim-weather-header"><h3 class="estim-weather-title">☁ Impacto del clima</h3></div>' +
@@ -208,6 +212,8 @@
           var th = weatherImpact.thresholdsUsed || {};
           var hotC = th.hotC != null ? Number(th.hotC) : 30;
           var coldC = th.coldC != null ? Number(th.coldC) : 5;
+          var rainyMm = th.heavyRainMm != null ? Number(th.heavyRainMm) : 5;
+          var windKmh = th.windyKmh != null ? Number(th.windyKmh) : 35;
           var groupLabel = (weatherImpact.groupBy === 'shift') ? 'turno' : 'día';
           var fromTo = (weatherImpact.from && weatherImpact.to) ? (weatherImpact.from + ' – ' + weatherImpact.to) : '';
           var rainyByDow = weatherImpact.rainyByDow || [];
@@ -215,17 +221,55 @@
           var windyByDow = weatherImpact.windyByDow || [];
           var extremeHighByDow = weatherImpact.extremeTempHighByDow || [];
           var extremeLowByDow = weatherImpact.extremeTempLowByDow || [];
+
+          function getPct(obj) { return obj && (metric === 'productivity' ? obj.diffPctProductivity : obj.diffPctRevenue); }
           function cellHtml(rowIndex, arr) {
             var item = arr[rowIndex];
             if (!item) return '<td>—</td>';
-            var rev = item.diffPctRevenue;
-            var txt = fmtPct(rev);
-            var title = (item.count != null ? item.count + ' muestras' : '') + (item.baselineCount != null ? ' · ref: ' + item.baselineCount : '');
-            var cls = cellClass(rev);
-            return '<td class="estim-weather-cell' + cls + '"' + (title ? ' title="' + title + '"' : '') + '>' + txt + '</td>';
+            var val = getPct(item);
+            var txt = fmtPct(val);
+            var n = item.count != null ? item.count : 0;
+            var countLabel = n + ' día' + (n !== 1 ? 's' : '');
+            var title = countLabel + (item.baselineCount != null ? ' con esta condición · ' + item.baselineCount + ' de referencia' : '');
+            var cls = cellClass(val);
+            var pocosDatos = n > 0 && n < 5 ? ' <span class="estim-weather-pocos-datos" title="Menos de 5 días: resultado poco representativo">⚠</span>' : '';
+            var cellContent = txt + ' <span class="estim-weather-cell-count" title="' + title + '">(' + n + ')</span>' + pocosDatos;
+            return '<td class="estim-weather-cell' + cls + '">' + cellContent + '</td>';
           }
+          function resumenCell(obj) {
+            if (!obj) return '<td>—</td>';
+            var val = getPct(obj);
+            var txt = fmtPct(val);
+            var n = obj.count != null ? obj.count : 0;
+            var cls = cellClass(val);
+            return '<td class="estim-weather-cell estim-weather-cell-resumen' + cls + '">' + txt + (n ? ' <span class="estim-weather-cell-count">(' + n + ')</span>' : '') + '</td>';
+          }
+
+          var agg = {
+            rainy: weatherImpact.rainy,
+            heavyRain: weatherImpact.heavyRain,
+            windy: weatherImpact.windy,
+            extremeHigh: weatherImpact.extremeTempHigh,
+            extremeLow: weatherImpact.extremeTempLow
+          };
+          var condLabels = ['Días lluviosos', 'Lluvia intensa', 'Viento fuerte', 'Más de ' + hotC + ' °C', 'Menos de ' + coldC + ' °C'];
+          var condKeys = ['rainy', 'heavyRain', 'windy', 'extremeHigh', 'extremeLow'];
+          var barChartHtml = '<div class="estim-weather-bars">';
+          condKeys.forEach(function (k, i) {
+            var o = agg[k];
+            var pct = o ? getPct(o) : null;
+            var num = (pct != null && !isNaN(Number(pct))) ? Number(pct) : 0;
+            var width = Math.min(100, Math.abs(num) * 2);
+            var barCls = num > 0 ? 'estim-weather-bar--up' : (num < 0 ? 'estim-weather-bar--down' : '');
+            var pctCls = num > 0 ? ' estim-weather-delta--up' : (num < 0 ? ' estim-weather-delta--down' : '');
+            barChartHtml += '<div class="estim-weather-bar-row"><span class="estim-weather-bar-label">' + condLabels[i] + '</span><div class="estim-weather-bar-track"><div class="estim-weather-bar-fill ' + barCls + '" style="width:' + width + '%"></div></div><span class="estim-weather-bar-pct' + pctCls + '">' + fmtPct(pct) + '</span></div>';
+          });
+          barChartHtml += '</div>';
+
           var thead = '<thead><tr><th class="estim-weather-th-day">Día</th><th>Días lluviosos</th><th>Lluvia intensa</th><th>Viento fuerte</th><th>Más de ' + hotC + ' °C</th><th>Menos de ' + coldC + ' °C</th></tr></thead>';
           var tbody = '<tbody>';
+          tbody += '<tr class="estim-weather-row-resumen"><td class="estim-weather-td-day">Resumen</td>' +
+            resumenCell(agg.rainy) + resumenCell(agg.heavyRain) + resumenCell(agg.windy) + resumenCell(agg.extremeHigh) + resumenCell(agg.extremeLow) + '</tr>';
           var dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
           for (var r = 0; r < 7; r++) {
             var dowName = (rainyByDow[r] && rainyByDow[r].dowName) || (heavyRainByDow[r] && heavyRainByDow[r].dowName) || (windyByDow[r] && windyByDow[r].dowName) || (extremeHighByDow[r] && extremeHighByDow[r].dowName) || (extremeLowByDow[r] && extremeLowByDow[r].dowName) || dayNames[r];
@@ -234,15 +278,27 @@
             tbody += '</tr>';
           }
           tbody += '</tbody>';
+
+          var leyenda = 'Umbrales: lluvia intensa ≥ ' + rainyMm + ' mm, viento ≥ ' + windKmh + ' km/h, calor &gt; ' + hotC + ' °C, frío &lt; ' + coldC + ' °C.';
+          var metricLabel = metric === 'productivity' ? 'Productividad' : 'Facturación';
           weatherImpactEl.innerHTML =
             '<div class="estim-weather-header">' +
             '<h3 class="estim-weather-title">☁ Impacto del clima</h3>' +
             '<span class="estim-weather-badge">Por día de la semana</span></div>' +
+            '<p class="estim-weather-leyenda">' + leyenda + '</p>' +
+            '<div class="estim-weather-selectors">' +
+            '<label class="estim-weather-selector-label">Ventana: <select id="estim-weather-days" class="estim-weather-select"><option value="90"' + (daysOpt === 90 ? ' selected' : '') + '>90 días</option><option value="180"' + (daysOpt === 180 ? ' selected' : '') + '>180 días</option><option value="365"' + (daysOpt === 365 ? ' selected' : '') + '>365 días</option></select></label>' +
+            '<span class="estim-weather-metric-toggle" role="tablist"><button type="button" class="estim-weather-metric-btn' + (metric === 'revenue' ? ' estim-weather-metric-btn--active' : '') + '" data-metric="revenue">Facturación</button><button type="button" class="estim-weather-metric-btn' + (metric === 'productivity' ? ' estim-weather-metric-btn--active' : '') + '" data-metric="productivity">Productividad</button></span>' +
+            '</div>' +
             (fromTo ? '<p class="estim-weather-range">' + fromTo + '</p>' : '') +
-            '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's con facturación. Cada fila compara ese día con el mismo día sin esa condición (lunes con lunes, martes con martes…).</p>' +
+            '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's. Mostrando: <strong>' + metricLabel + '</strong>. Cada fila compara ese día con el mismo día sin esa condición.</p>' +
             covHint +
-            '<div class="estim-weather-table-wrap"><table class="estim-weather-table">' + thead + tbody + '</table></div>';
+            '<div class="estim-weather-chart-title">Resumen por condición (promedio)</div>' +
+            barChartHtml +
+            '<div class="estim-weather-table-wrap"><table class="estim-weather-table">' + thead + tbody + '</table></div>' +
+            '<p class="estim-weather-explicacion">Un % negativo indica que la facturación (o productividad) fue menor en días con esa condición respecto al mismo día de la semana sin ella.</p>';
         }
+
         weatherImpactEl.querySelectorAll('.estim-weather-backfill-btn').forEach(function (btn) {
           btn.onclick = function () {
             var statusEl = document.getElementById('estim-weather-backfill-status');
@@ -251,6 +307,23 @@
               .then(function (r) { return (r && r.ok ? r.json() : Promise.resolve(null)).then(function (d) { return d; }).catch(function () { return null; }); })
               .then(function (res) { if (statusEl) statusEl.textContent = (res && res.message ? res.message : 'Backfill completado.'); load(); })
               .catch(function () { if (statusEl) statusEl.textContent = 'Error en backfill.'; });
+          };
+        });
+
+        var daysSel = document.getElementById('estim-weather-days');
+        if (daysSel) {
+          daysSel.onchange = function () {
+            state.weatherImpactDays = parseInt(daysSel.value, 10);
+            load();
+          };
+        }
+        weatherImpactEl.querySelectorAll('.estim-weather-metric-btn').forEach(function (btn) {
+          btn.onclick = function () {
+            var m = btn.getAttribute('data-metric');
+            if (!m) return;
+            state.weatherImpactMetric = m;
+            weatherImpactEl.querySelectorAll('.estim-weather-metric-btn').forEach(function (b) { b.classList.toggle('estim-weather-metric-btn--active', b.getAttribute('data-metric') === m); });
+            if (lastWeatherImpact) renderWeatherImpact(lastWeatherImpact);
           };
         });
       }
