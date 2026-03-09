@@ -89,7 +89,9 @@
           var bands = schema.bands || [];
           if (bands.length === 0) return;
           colSala += '<div class="limite-comodo-schema">';
-          colSala += '<h4>Esquema ' + schema.schema + ' (sala-cocina)</h4>';
+          var parts = (schema.schema || '1-1').split('-');
+          var salaNum = parts[0] || '1', cocinaNum = parts[1] || '1';
+          colSala += '<h4>Con ' + salaNum + ' en sala, ' + cocinaNum + ' en cocina</h4>';
           if (schema.comfort_limit_approx != null) {
             colSala += '<p class="limite-comodo-approx" title="Primera banda donde la dificultad media ≥ ' + threshold + '">Límite cómodo aproximado: hasta ~' + Number(schema.comfort_limit_approx).toFixed(0) + ' € por personal de sala</p>';
           }
