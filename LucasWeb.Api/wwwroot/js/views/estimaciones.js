@@ -212,18 +212,6 @@
             '<div id="estim-weather-backfill-status" class="estim-weather-backfill-status"></div>';
         } else {
           var cov = weatherImpact.coverage || null;
-          var th = weatherImpact.thresholdsUsed || {};
-          var fromTo = (weatherImpact.from && weatherImpact.to) ? (weatherImpact.from + ' – ' + weatherImpact.to) : '';
-          var legend = 'Lluvia: ≥' + (th.rainyPrecipMm != null ? Number(th.rainyPrecipMm) : 0.5) + ' mm · Lluvia intensa: ≥' + (th.heavyRainMm != null ? Number(th.heavyRainMm) : 5) + ' mm · Viento: ≥' + (th.windyKmh != null ? Number(th.windyKmh) : 35) + ' km/h · Temp. extrema: &lt;' + (th.coldC != null ? Number(th.coldC) : 5) + ' °C o &gt;' + (th.hotC != null ? Number(th.hotC) : 30) + ' °C';
-          var covLine = '';
-          if (cov) {
-            var cAny = cov.withAnyWeather != null ? Number(cov.withAnyWeather) : 0;
-            var cCode = cov.withCode != null ? Number(cov.withCode) : 0;
-            var cTemp = cov.withTemp != null ? Number(cov.withTemp) : 0;
-            var cPrecip = cov.withPrecip != null ? Number(cov.withPrecip) : 0;
-            var cWind = cov.withWind != null ? Number(cov.withWind) : 0;
-            covLine = '<p class="estim-weather-coverage">Datos con clima: <strong>' + cAny + '</strong> registros (código: ' + cCode + ', temp: ' + cTemp + ', precip: ' + cPrecip + ', viento: ' + cWind + ')</p>';
-          }
           var covHint = '';
           if (cov && cov.withAnyWeather != null && Number(cov.withAnyWeather) < 10) {
             covHint = '<p class="dashboard-subtitle estim-weather-alert"><strong>Faltan datos de clima en el histórico</strong> (solo ' + Number(cov.withAnyWeather) + ' registros con clima).</p>' +
@@ -231,22 +219,14 @@
               '<div id="estim-weather-backfill-status" class="estim-weather-backfill-status"></div>';
           }
           var groupLabel = (weatherImpact.groupBy === 'shift') ? 'turno' : 'día';
-          var selectors = '<div class="estim-weather-selectors">' +
-            '<span class="estim-weather-selector-label">Ventana:</span> <select id="estim-weather-days" class="estim-weather-select">' +
-            [30, 90, 180].map(function (d) { return '<option value="' + d + '"' + (state.weatherImpactDays === d ? ' selected' : '') + '>' + d + ' días</option>'; }).join('') + '</select>' +
-            ' <span class="estim-weather-selector-label">Agrupar por:</span> <select id="estim-weather-groupby" class="estim-weather-select">' +
-            '<option value="day"' + (state.weatherImpactGroupBy === 'day' ? ' selected' : '') + '>Día</option>' +
-            '<option value="shift"' + (state.weatherImpactGroupBy === 'shift' ? ' selected' : '') + '>Turno</option></select></div>';
+          var fromTo = (weatherImpact.from && weatherImpact.to) ? (weatherImpact.from + ' – ' + weatherImpact.to) : '';
           weatherImpactEl.innerHTML =
             '<div class="estim-weather-header">' +
             '<h3 class="estim-weather-title">☁ Impacto del clima</h3>' +
             '<span class="estim-weather-badge">Ventana configurable</span></div>' +
             (fromTo ? '<p class="estim-weather-range">' + fromTo + '</p>' : '') +
             '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's con facturación.</p>' +
-            '<p class="estim-weather-legend" title="Umbrales usados para clasificar">' + legend + '</p>' +
-            covLine +
             covHint +
-            selectors +
             '<p class="dashboard-subtitle">Comparación vs días/turnos sin esa condición (normalizado por día de la semana).</p>' +
             '<div class="estim-weather-lines">' +
             line('Días lluviosos', weatherImpact.rainy, weatherImpact.sampleCount) +
@@ -254,10 +234,6 @@
             line('Viento fuerte', weatherImpact.windy, weatherImpact.sampleCount) +
             line('Temperatura extrema', weatherImpact.extremeTemp, weatherImpact.sampleCount) +
             '</div>';
-          var daysSel = document.getElementById('estim-weather-days');
-          var groupBySel = document.getElementById('estim-weather-groupby');
-          if (daysSel) daysSel.onchange = function () { state.weatherImpactDays = parseInt(daysSel.value, 10); loadWeatherImpact(); };
-          if (groupBySel) groupBySel.onchange = function () { state.weatherImpactGroupBy = groupBySel.value; loadWeatherImpact(); };
         }
         weatherImpactEl.querySelectorAll('.estim-weather-backfill-btn').forEach(function (btn) {
           btn.onclick = function () {
