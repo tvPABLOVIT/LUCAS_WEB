@@ -323,7 +323,10 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-weather-selector-label { font-size: 0.85rem; color: var(--text-muted); }
 .estim-weather-select { font-size: 0.875rem; padding: 0.25rem 0.5rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg); color: var(--text); }
 .estim-weather-low-ref { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
-.estim-weather-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
+.estim-weather-layout { display: flex; gap: 1.25rem; align-items: flex-start; margin-top: 0.5rem; flex-wrap: wrap; }
+.estim-weather-table-col { flex: 1; min-width: 0; }
+.estim-weather-chart-col { flex: 0 0 auto; min-width: 200px; }
+.estim-weather-table-wrap { overflow-x: auto; margin-top: 0; }
 .estim-weather-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .estim-weather-table th, .estim-weather-table td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
 .estim-weather-table th { font-weight: 600; color: var(--text); background: rgba(0,0,0,0.03); }
@@ -339,7 +342,8 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-weather-pocos-datos { font-size: 0.75em; opacity: 0.85; margin-left: 0.15rem; }
 .estim-weather-row-resumen { background: rgba(0,0,0,0.04); font-weight: 600; }
 .estim-weather-cell-resumen { font-weight: 600; }
-.estim-weather-chart-title { font-size: 0.85rem; font-weight: 600; color: var(--text); margin: 0.75rem 0 0.35rem; }
+.estim-weather-chart-title { font-size: 0.85rem; font-weight: 600; color: var(--text); margin: 0 0 0.35rem; }
+.estim-weather-chart-col .estim-weather-bars { margin-bottom: 0; }
 .estim-weather-bars { margin-bottom: 0.75rem; }
 .estim-weather-bar-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; font-size: 0.8rem; }
 .estim-weather-bar-label { min-width: 8rem; color: var(--text-muted); }

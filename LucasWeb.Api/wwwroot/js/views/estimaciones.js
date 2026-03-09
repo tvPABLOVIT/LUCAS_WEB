@@ -282,9 +282,10 @@
             (fromTo ? '<p class="estim-weather-range">' + fromTo + '</p>' : '') +
             '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's. Mostrando: <strong>' + metricLabel + '</strong>. Cada fila compara ese día con el mismo día sin esa condición.</p>' +
             covHint +
-            '<div class="estim-weather-chart-title">Resumen por condición (promedio)</div>' +
-            barChartHtml +
-            '<div class="estim-weather-table-wrap"><table class="estim-weather-table">' + thead + tbody + '</table></div>' +
+            '<div class="estim-weather-layout">' +
+            '<div class="estim-weather-table-col"><div class="estim-weather-table-wrap"><table class="estim-weather-table">' + thead + tbody + '</table></div></div>' +
+            '<div class="estim-weather-chart-col"><div class="estim-weather-chart-title">Resumen por condición (promedio)</div>' + barChartHtml + '</div>' +
+            '</div>' +
             '<p class="estim-weather-explicacion">Un % negativo indica que la facturación (o productividad) fue menor en días con esa condición respecto al mismo día de la semana sin ella.</p>';
         }
 
