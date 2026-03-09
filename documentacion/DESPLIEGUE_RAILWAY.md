@@ -204,12 +204,24 @@ Si ya tienes un dominio gestionado en **Cloudflare**, puedes apuntarlo a Railway
 
 ---
 
+## Regla de trabajo: todos los cambios deben verse en Railway
+
+**Para que cualquier cambio en la app se vea en producción, hay que subirlo al repo:**
+
+1. **Commit** de los archivos modificados (solo los del cambio, sin temporales ni cache).
+2. **Push a la rama que Railway tiene conectada** (normalmente `main`): `git push origin main`
+
+Railway reconstruye y redespliega automáticamente tras cada push. Si no haces push, los cambios **no** se reflejan en Railway.
+
+---
+
 ## Ver cambios en producción (frontend y API)
 
 Cada vez que haces **push** a la rama conectada en Railway, Railway vuelve a construir la imagen con el **Dockerfile** y despliega la nueva versión. El comando `dotnet publish` incluye todo el contenido de **`wwwroot`** (JS, CSS, HTML), por lo que:
 
 - **Cualquier cambio** en `LucasWeb.Api/wwwroot/` (p. ej. `js/views/preguntas.js`, `registro.js`, `dashboard.js`, `styles.css`) **se verá en Railway** en el siguiente deploy.
-- No hace falta ningún paso extra: solo **commit + push** a tu repo; Railway detecta el push y reconstruye.
+- Cambios en **backend** (Controllers, Services, DTOs, Program.cs, etc.) también se incluyen en la build y se desplegarán tras el push.
+- No hace falta ningún paso extra en el panel de Railway: solo **commit + push** al repo; Railway detecta el push y reconstruye.
 
 **Ejemplo:** La regla de “día por defecto” en **Feedback diario** y **Registro de ejecución** (entre 00:00 y 05:00 se muestra el día anterior para no cargar el día siguiente tras el cierre) está en esos JS. Tras subir los cambios y desplegar, esa lógica queda reflejada en Railway sin configuración adicional.
 

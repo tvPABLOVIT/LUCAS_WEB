@@ -1,0 +1,20 @@
+---
+description: Tras cambios en la app desplegada, commit y push a main para que Railway refleje los cambios
+globs: LucasWeb.Api/**/*
+alwaysApply: false
+---
+
+# Reflejar cambios en Railway
+
+La aplicación se despliega en **Railway** desde el repositorio conectado (rama `main`). Para que **todos los cambios** se vean en producción:
+
+1. **Después de modificar** cualquier archivo que afecte al despliegue (backend en `LucasWeb.Api/`, frontend en `LucasWeb.Api/wwwroot/`, estilos, configuración del proyecto, Dockerfile, etc.):
+   - Añadir los archivos modificados con `git add` (solo los relevantes al cambio, sin __pycache__, PDFs temporales, etc.).
+   - Hacer **commit** con un mensaje claro.
+   - Hacer **push** a `origin main`: `git push origin main`.
+
+2. **Railway** detecta el push y vuelve a construir y desplegar automáticamente. No hace falta ningún paso extra en el panel de Railway.
+
+3. Si el usuario pide explícitamente que los cambios se vean en Railway, o dice "que se vea en railway" / "reflejado en railway", **siempre** ejecutar commit y push de los archivos afectados tras aplicar los cambios.
+
+Ver también: `documentacion/DESPLIEGUE_RAILWAY.md` (sección "Ver cambios en producción").
