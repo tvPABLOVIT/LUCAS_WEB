@@ -259,6 +259,18 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 }
 .success-msg { color: var(--success); margin-top: 0.5rem; }
 .error-msg.hidden { display: none; }
+
+/* Vista Estimaciones: espaciado unificado y orden */
+.estimaciones-view { display: flex; flex-direction: column; gap: 0; }
+.estimaciones-view .dashboard-title-row { margin-bottom: 1.25rem; align-items: flex-start; }
+.estimaciones-view .dashboard-week-bar.estimaciones-week-bar { flex: 1 1 auto; min-width: 200px; }
+.estimaciones-view .kpi-grid#estim-kpis { margin-bottom: 1.25rem; }
+.estimaciones-view .card { margin-bottom: 1.25rem; }
+.estimaciones-view .estim-days-cards { margin-bottom: 1.25rem; }
+.estimaciones-view .estim-actions-weather-row { margin-bottom: 1.25rem; }
+.estimaciones-view .estim-limite-comodo-row { margin-bottom: 0; }
+.estim-accuracy-table-wrap { overflow-x: auto; margin-top: 0.75rem; border-radius: var(--radius); border: 1px solid var(--border); }
+.estim-accuracy-table-wrap .config-table { margin: 0; }
 .estim-parrafo { line-height: 1.5; margin: 0.5rem 0; max-width: 60em; }
 .estim-parrafo--centrado { text-align: center; margin-left: auto; margin-right: auto; }
 .estim-parrafo--muted { color: var(--text-muted); font-size: 0.95rem; }
@@ -268,7 +280,7 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-pred-badge--live { background: rgba(139, 148, 158, 0.2); color: var(--text-muted); }
 #estim-guardar-pred { margin-top: 0.25rem; }
 .estim-semana-anterior { font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem; }
-.estim-days-cards { margin-bottom: 1rem; }
+.estim-days-cards { margin-bottom: 1.25rem; }
 .estim-days-cards h3 { font-size: 1rem; margin: 0 0 0.75rem; color: var(--text-muted); }
 .estim-days-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
 .estim-days-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
@@ -288,7 +300,7 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-day-contexto-wrap { margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
 .estim-day-contexto-body { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.15rem; }
 .estim-alertas-subtitle { margin-top: 0; margin-bottom: 0.75rem; }
-.estim-alertas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem; }
+.estim-alertas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
 .estim-weather-line { font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem; }
 .estim-weather-line .label { color: var(--text); font-weight: 600; margin-right: 0.25rem; }
 .estim-weather-lines { margin-top: 0.5rem; }
@@ -312,10 +324,10 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-comp-item .value, .estim-dq-item .value { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-top: 0.25rem; }
 .estim-comp-item .sub { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem; }
 /* Acciones + Impacto clima en fila (2 columnas en desktop) */
-.estim-actions-weather-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+.estim-actions-weather-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
 @media (max-width: 900px) { .estim-actions-weather-row { grid-template-columns: 1fr; } }
 .estim-actions-weather-row .card { margin-bottom: 0; }
-.estim-card-compact { padding: 1rem 1.25rem; }
+.estim-card-compact { padding: 1.25rem; }
 .estim-card-compact h3 { margin: 0 0 0.35rem; font-size: 1.05rem; }
 .estim-card-compact .dashboard-subtitle { margin: 0 0 0.75rem; font-size: 0.875rem; }
 .estim-actions-subtitle { margin-bottom: 0.6rem; }
@@ -363,7 +375,7 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-alerta-card--aviso { border-left-color: #e67e22; background: rgba(230, 126, 34, 0.08); }
 .estim-alertas-section-title { font-size: 1rem; font-weight: 600; color: var(--text); margin: 1rem 0 0.25rem 0; }
 .estim-alertas-section-title:first-of-type { margin-top: 0.5rem; }
-.estim-alertas-meta { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.5rem; }
+.estim-alertas-meta { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.75rem; }
 .estim-alertas-meta .estim-alerta-card { padding: 0.5rem 0.75rem; font-size: 0.9rem; }
 .estim-alertas-meta .estim-alerta-titulo { font-size: 0.9rem; }
 
@@ -453,7 +465,7 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .registro-reparto-hint { font-size: 0.85rem; color: var(--text-muted); margin: 0.5rem 0 0; }
 .registro-comfort-hint { font-size: 0.85rem; color: var(--text-muted); margin: 0.35rem 0 0; }
 /* Límite cómodo: dos bloques lado a lado (Sala | Cocina) en Estimaciones — compactos */
-.estim-limite-comodo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; align-items: start; }
+.estim-limite-comodo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0; align-items: start; }
 @media (max-width: 900px) { .estim-limite-comodo-row { grid-template-columns: 1fr; } }
 .estim-limite-comodo-row .card { margin-bottom: 0; }
 .limite-comodo-panel { padding: 0.75rem 1rem; }

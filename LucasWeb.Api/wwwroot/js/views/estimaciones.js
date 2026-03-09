@@ -10,12 +10,13 @@
     var state = { mode: 'plan', histWeekStart: weekStart, planWeekStart: null };
 
     container.innerHTML =
-      '<div class="dashboard-title-row">' +
+      '<div class="estimaciones-view">' +
+      '<div class="dashboard-title-row estimaciones-title-row">' +
       '<div class="dashboard-title-block">' +
       '<h2 class="view-title">Estimaciones</h2>' +
       '<p id="estim-subtitle" class="dashboard-subtitle">Planificación: predicción y plan para la semana siguiente</p>' +
       '</div>' +
-      '<div class="dashboard-week-bar">' +
+      '<div class="dashboard-week-bar estimaciones-week-bar">' +
       '<div class="estim-mode-toggle" role="tablist" aria-label="Modo Estimaciones">' +
       '<button type="button" id="estim-mode-plan" class="estim-mode-btn estim-mode-btn--active" role="tab" aria-selected="true">Planificación (semana siguiente)</button>' +
       '<button type="button" id="estim-mode-hist" class="estim-mode-btn" role="tab" aria-selected="false">Histórico (semana seleccionada)</button>' +
@@ -40,7 +41,8 @@
       '<div id="estim-actions" class="card estim-card-compact"></div>' +
       '<div id="estim-weather-impact" class="card estim-card-compact"></div>' +
       '</div>' +
-      '<div id="estim-limite-comodo" class="estim-limite-comodo-row"></div>';
+      '<div id="estim-limite-comodo" class="estim-limite-comodo-row"></div>' +
+      '</div>';
 
     var weekInput = document.getElementById('estim-week-start');
     var weekRangeEl = document.getElementById('estim-week-range');
@@ -432,7 +434,7 @@
         }
         if (pred && pred.isSavedPrediction) setSourceBadge('Guardada', 'saved');
         else if (pred && (pred.dailyPredictionsJson || predRevenue != null)) setSourceBadge('En vivo', 'live');
-        predEl.innerHTML = parrafo ? '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado">' + parrafo + '</p></div>' : '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado estim-parrafo--muted">Sin datos de predicción.</p></div>';
+        predEl.innerHTML = '<h3>Predicción</h3>' + (parrafo ? '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado">' + parrafo + '</p></div>' : '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado estim-parrafo--muted">Sin datos de predicción.</p></div>');
 
         var days = (pred && pred.dailyPredictionsJson) ? (function () { try { return JSON.parse(pred.dailyPredictionsJson); } catch (e) { return null; } })() : null;
         if (!daysCardsEl) return;
@@ -493,7 +495,7 @@
         }
         setSourceBadge('', '');
         kpisEl.innerHTML = '<p class="loading">Cargando…</p>';
-        predEl.innerHTML = '<p class="loading">Cargando…</p>';
+        predEl.innerHTML = '<h3>Predicción</h3><p class="loading">Cargando…</p>';
         if (daysCardsEl) daysCardsEl.innerHTML = '';
         if (alertasEl) alertasEl.innerHTML = mode === 'plan' ? '<p class="loading">Cargando alertas…</p>' : '';
         if (accuracyHistoryEl) accuracyHistoryEl.innerHTML = mode === 'plan' ? '<p class="loading">Cargando historial…</p>' : '';
