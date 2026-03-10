@@ -392,10 +392,10 @@
             var val = getPct(item);
             var txt = fmtPct(val);
             var n = item.count != null ? item.count : 0;
-            var ref = item.baselineCount != null ? item.baselineCount : null;
+            var total = (weatherImpact && weatherImpact.sampleCount != null) ? Number(weatherImpact.sampleCount) : 0;
             var countLabel = n + ' día' + (n !== 1 ? 's' : '');
-            var title = countLabel + (ref != null ? ' con esta condición · ' + ref + ' de referencia' : '');
-            var countText = ref != null ? '(' + n + ' vs ' + ref + ')' : '(' + n + ')';
+            var title = countLabel + ' con esta condición · ' + total + ' días en total en la muestra';
+            var countText = total > 0 ? '(' + n + ' vs ' + total + ')' : '(' + n + ')';
             var cls = cellClass(val);
             var pocosDatos = n > 0 && n < 5 ? ' <span class="estim-weather-pocos-datos" title="Menos de 5 días: resultado poco representativo">⚠</span>' : '';
             var cellContent = txt + ' <span class="estim-weather-cell-count" title="' + title + '">' + countText + '</span>' + pocosDatos;
