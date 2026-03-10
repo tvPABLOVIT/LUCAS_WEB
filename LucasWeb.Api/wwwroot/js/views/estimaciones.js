@@ -10,7 +10,7 @@
     var now = new Date();
     var state = {
       mode: 'plan', histWeekStart: weekStart, planWeekStart: null,
-      weatherImpactPeriodType: 'month',
+      weatherImpactPeriodType: 'last60',
       weatherImpactYear: now.getFullYear(),
       weatherImpactMonth: now.getMonth() + 1,
       weatherImpactQuarter: Math.floor(now.getMonth() / 3) + 1,
@@ -186,7 +186,7 @@
         sourceBadgeEl.classList.toggle('estim-source-badge--live', mod === 'live');
       }
       function getWeatherImpactFromTo() {
-        var type = state.weatherImpactPeriodType || 'month';
+        var type = state.weatherImpactPeriodType || 'last60';
         var now = new Date();
         var from, to;
         if (type === 'last60') {
@@ -258,7 +258,7 @@
           return n > 0 ? ' estim-weather-delta--up' : (n < 0 ? ' estim-weather-delta--down' : '');
         }
         var metric = state.weatherImpactMetric || 'revenue';
-        var periodType = state.weatherImpactPeriodType || 'month';
+        var periodType = state.weatherImpactPeriodType || 'last60';
         var yearMin = 2020;
         var yearMax = new Date().getFullYear();
         var periodYear = state.weatherImpactYear != null ? Number(state.weatherImpactYear) : yearMax;
@@ -356,7 +356,7 @@
               .then(function (data) { lastWeatherImpact = data; renderWeatherImpact(data); });
           }
           var ptSel = document.getElementById('estim-weather-period-type');
-          if (ptSel) ptSel.onchange = function () { state.weatherImpactPeriodType = ptSel.value || 'month'; refetchWeatherImpactNoData(); };
+          if (ptSel) ptSel.onchange = function () { state.weatherImpactPeriodType = ptSel.value || 'last60'; refetchWeatherImpactNoData(); };
           var ySel = document.getElementById('estim-weather-year');
           if (ySel) ySel.onchange = function () { state.weatherImpactYear = parseInt(ySel.value, 10); refetchWeatherImpactNoData(); };
           var mSel = document.getElementById('estim-weather-month');
@@ -481,7 +481,7 @@
         var periodTypeSel = document.getElementById('estim-weather-period-type');
         if (periodTypeSel) {
           periodTypeSel.onchange = function () {
-            state.weatherImpactPeriodType = periodTypeSel.value || 'month';
+            state.weatherImpactPeriodType = periodTypeSel.value || 'last60';
             refetchWeatherImpact();
           };
         }
