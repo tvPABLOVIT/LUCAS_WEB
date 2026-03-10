@@ -385,7 +385,8 @@
           var extremeHighByDow = Array.isArray(weatherImpact.extremeTempHighByDow) ? weatherImpact.extremeTempHighByDow : [];
           var extremeLowByDow = Array.isArray(weatherImpact.extremeTempLowByDow) ? weatherImpact.extremeTempLowByDow : [];
 
-          function getPct(obj) { var m = state.weatherImpactMetric || 'revenue'; return obj ? (m === 'productivity' ? obj.diffPctProductivity : obj.diffPctRevenue) : null; }
+          var currentMetric = state.weatherImpactMetric || 'revenue';
+          function getPct(obj) { return obj ? (currentMetric === 'productivity' ? obj.diffPctProductivity : obj.diffPctRevenue) : null; }
           function cellHtml(rowIndex, arr) {
             var item = arr[rowIndex];
             if (!item) return '<td>—</td>';
