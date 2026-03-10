@@ -7,8 +7,18 @@
   function addDays(ymd, delta) { var d = new Date(ymd + 'T12:00:00'); d.setDate(d.getDate() + delta); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function render(container) {
     var weekStart = getWeekStart(new Date());
-    var state = { mode: 'plan', histWeekStart: weekStart, planWeekStart: null, weatherImpactDays: 180, weatherImpactGroupBy: 'day', weatherImpactMetric: 'revenue' };
+    var now = new Date();
+    var state = {
+      mode: 'plan', histWeekStart: weekStart, planWeekStart: null,
+      weatherImpactPeriodType: 'month',
+      weatherImpactYear: now.getFullYear(),
+      weatherImpactMonth: now.getMonth() + 1,
+      weatherImpactQuarter: Math.floor(now.getMonth() / 3) + 1,
+      weatherImpactGroupBy: 'day', weatherImpactMetric: 'revenue',
+      weatherImpactThresholds: null
+    };
     var lastWeatherImpact = null;
+    var weatherDataRange = null;
 
     container.innerHTML =
       '<div class="estimaciones-view">' +
@@ -175,10 +185,62 @@
         sourceBadgeEl.classList.toggle('estim-source-badge--saved', mod === 'saved');
         sourceBadgeEl.classList.toggle('estim-source-badge--live', mod === 'live');
       }
+      function getWeatherImpactFromTo() {
+        var type = state.weatherImpactPeriodType || 'month';
+        var now = new Date();
+        var from, to;
+        if (type === 'last60') {
+          var end = new Date(now);
+          end.setDate(end.getDate() - 1);
+          var start = new Date(end);
+          start.setDate(start.getDate() - 59);
+          from = start.getFullYear() + '-' + String(start.getMonth() + 1).padStart(2, '0') + '-' + String(start.getDate()).padStart(2, '0');
+          to = end.getFullYear() + '-' + String(end.getMonth() + 1).padStart(2, '0') + '-' + String(end.getDate()).padStart(2, '0');
+          return { from: from, to: to };
+        }
+        var y = state.weatherImpactYear != null ? Number(state.weatherImpactYear) : now.getFullYear();
+        if (isNaN(y) || y < 2020 || y > now.getFullYear()) y = now.getFullYear();
+        if (type === 'month') {
+          var m = state.weatherImpactMonth != null ? Math.min(12, Math.max(1, Number(state.weatherImpactMonth))) : 1;
+          from = y + '-' + String(m).padStart(2, '0') + '-01';
+          var lastDay = new Date(y, m, 0).getDate();
+          to = y + '-' + String(m).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+        } else if (type === 'quarter') {
+          var q = state.weatherImpactQuarter != null ? Math.min(4, Math.max(1, Number(state.weatherImpactQuarter))) : 1;
+          var startMonth = (q - 1) * 3 + 1;
+          var endMonth = q * 3;
+          from = y + '-' + String(startMonth).padStart(2, '0') + '-01';
+          var endDay = new Date(y, endMonth, 0).getDate();
+          to = y + '-' + String(endMonth).padStart(2, '0') + '-' + String(endDay).padStart(2, '0');
+        } else {
+          from = y + '-01-01';
+          to = y + '-12-31';
+        }
+        return { from: from, to: to };
+      }
       function buildWeatherImpactUrl() {
-        var days = state.weatherImpactDays != null ? state.weatherImpactDays : 180;
+        var range = getWeatherImpactFromTo();
         var gb = state.weatherImpactGroupBy || 'day';
-        return '/api/analytics/weather-impact?groupBy=' + encodeURIComponent(gb) + '&days=' + days;
+        var url = '/api/analytics/weather-impact?groupBy=' + encodeURIComponent(gb) + '&from=' + encodeURIComponent(range.from) + '&to=' + encodeURIComponent(range.to);
+        var th = state.weatherImpactThresholds;
+        if (th) {
+          if (th.rainyPrecipMm != null && th.rainyPrecipMm !== '') url += '&rainyPrecipMm=' + encodeURIComponent(th.rainyPrecipMm);
+          if (th.heavyRainMm != null && th.heavyRainMm !== '') url += '&heavyRainMm=' + encodeURIComponent(th.heavyRainMm);
+          if (th.windyKmh != null && th.windyKmh !== '') url += '&windyKmh=' + encodeURIComponent(th.windyKmh);
+          if (th.coldC != null && th.coldC !== '') url += '&coldC=' + encodeURIComponent(th.coldC);
+          if (th.hotC != null && th.hotC !== '') url += '&hotC=' + encodeURIComponent(th.hotC);
+        }
+        return url;
+      }
+      function applySettingsToWeatherThresholds(settings) {
+        if (!settings) return;
+        state.weatherImpactThresholds = {
+          rainyPrecipMm: (settings.WeatherImpactRainyPrecipMm != null && settings.WeatherImpactRainyPrecipMm !== '') ? parseFloat(settings.WeatherImpactRainyPrecipMm) : null,
+          heavyRainMm: (settings.WeatherImpactHeavyRainMm != null && settings.WeatherImpactHeavyRainMm !== '') ? parseFloat(settings.WeatherImpactHeavyRainMm) : null,
+          windyKmh: (settings.WeatherImpactWindyKmh != null && settings.WeatherImpactWindyKmh !== '') ? parseFloat(settings.WeatherImpactWindyKmh) : null,
+          coldC: (settings.WeatherImpactColdC != null && settings.WeatherImpactColdC !== '') ? parseFloat(settings.WeatherImpactColdC) : null,
+          hotC: (settings.WeatherImpactHotC != null && settings.WeatherImpactHotC !== '') ? parseFloat(settings.WeatherImpactHotC) : null
+        };
       }
       function loadWeatherImpact(cb) {
         auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return (r && r.ok ? r.json() : Promise.resolve(null)).catch(function () { return null; }); })
@@ -187,6 +249,8 @@
       function renderWeatherImpact(weatherImpact) {
         if (!weatherImpactEl) return;
         try {
+        if (weatherImpact && typeof weatherImpact !== 'object') weatherImpact = null;
+        var sampleCount = (weatherImpact && weatherImpact.sampleCount != null) ? Number(weatherImpact.sampleCount) : 0;
         function fmtPct(x) { if (x == null || isNaN(Number(x))) return '—'; var n = Number(x); return (n > 0 ? '+' : '') + n.toFixed(0) + '%'; }
         function cellClass(val) {
           if (val == null || isNaN(Number(val))) return '';
@@ -194,14 +258,111 @@
           return n > 0 ? ' estim-weather-delta--up' : (n < 0 ? ' estim-weather-delta--down' : '');
         }
         var metric = state.weatherImpactMetric || 'revenue';
-        var daysOpt = state.weatherImpactDays || 180;
+        var periodType = state.weatherImpactPeriodType || 'month';
+        var yearMin = 2020;
+        var yearMax = new Date().getFullYear();
+        var periodYear = state.weatherImpactYear != null ? Number(state.weatherImpactYear) : yearMax;
+        if (isNaN(periodYear) || periodYear < yearMin || periodYear > yearMax) { periodYear = yearMax; state.weatherImpactYear = yearMax; }
+        var periodMonth = Math.min(12, Math.max(1, state.weatherImpactMonth != null ? state.weatherImpactMonth : 1));
+        var periodQuarter = Math.min(4, Math.max(1, state.weatherImpactQuarter != null ? state.weatherImpactQuarter : 1));
+        var monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        var quarterLabels = ['T1 (Ene–Mar)', 'T2 (Abr–Jun)', 'T3 (Jul–Sep)', 'T4 (Oct–Dic)'];
+        var dataMin = weatherDataRange && weatherDataRange.minDate ? weatherDataRange.minDate : null;
+        var dataMax = weatherDataRange && weatherDataRange.maxDate ? weatherDataRange.maxDate : null;
+        function periodHasData(type, year, monthOrQuarter) {
+          if (!dataMin || !dataMax) return true;
+          var periodStart, periodEnd;
+          function pad2(n) { return String(n).padStart(2, '0'); }
+          if (type === 'month') {
+            var m = monthOrQuarter;
+            periodStart = year + '-' + pad2(m) + '-01';
+            var lastD = new Date(year, m, 0).getDate();
+            periodEnd = year + '-' + pad2(m) + '-' + pad2(lastD);
+          } else if (type === 'quarter') {
+            var q = monthOrQuarter;
+            var startM = (q - 1) * 3 + 1, endM = q * 3;
+            periodStart = year + '-' + pad2(startM) + '-01';
+            var endLastD = new Date(year, endM, 0).getDate();
+            periodEnd = year + '-' + pad2(endM) + '-' + pad2(endLastD);
+          } else {
+            periodStart = year + '-01-01';
+            periodEnd = year + '-12-31';
+          }
+          return periodStart <= dataMax && periodEnd >= dataMin;
+        }
+        var validYears = [];
+        for (var yr = yearMax; yr >= yearMin; yr--) {
+          if (periodHasData('year', yr)) validYears.push(yr);
+        }
+        var validMonths = [];
+        for (var m = 1; m <= 12; m++) {
+          if (periodHasData('month', periodYear, m)) validMonths.push(m);
+        }
+        var validQuarters = [];
+        for (var q = 1; q <= 4; q++) {
+          if (periodHasData('quarter', periodYear, q)) validQuarters.push(q);
+        }
+        var snapped = false;
+        if (validYears.length > 0) {
+          if (validYears.indexOf(periodYear) === -1) {
+            state.weatherImpactYear = periodYear = validYears[0];
+            snapped = true;
+          }
+          if (periodType === 'month' && validMonths.length > 0 && validMonths.indexOf(periodMonth) === -1) {
+            state.weatherImpactMonth = periodMonth = validMonths[0];
+            snapped = true;
+          }
+          if (periodType === 'quarter' && validQuarters.length > 0 && validQuarters.indexOf(periodQuarter) === -1) {
+            state.weatherImpactQuarter = periodQuarter = validQuarters[0];
+            snapped = true;
+          }
+        }
+        var yearOpts = (validYears.length > 0 ? validYears : (function () { var a = []; for (var y = yearMax; y >= yearMin; y--) a.push(y); return a; })()).map(function (yr) {
+          return '<option value="' + yr + '"' + (periodYear === yr ? ' selected' : '') + '>' + yr + '</option>';
+        }).join('');
+        var monthOpts = (validMonths.length > 0 ? validMonths : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).map(function (m) {
+          return '<option value="' + m + '"' + (periodMonth === m ? ' selected' : '') + '>' + monthNames[m - 1] + '</option>';
+        }).join('');
+        var quarterOpts = (validQuarters.length > 0 ? validQuarters : [1, 2, 3, 4]).map(function (q) {
+          return '<option value="' + q + '"' + (periodQuarter === q ? ' selected' : '') + '>' + quarterLabels[q - 1] + '</option>';
+        }).join('');
 
-        if (!weatherImpact || !weatherImpact.sampleCount || weatherImpact.sampleCount < 10) {
+        if (!weatherImpact || sampleCount < 10) {
+          if (snapped && validYears.length > 0) {
+            auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return (r && r.ok ? r.json() : Promise.resolve(null)).catch(function () { return null; }); })
+              .then(function (data) { lastWeatherImpact = data; renderWeatherImpact(data); });
+            return;
+          }
+          var periodLabelNoData = periodType === 'last60' ? 'Últimos 60 días' : (periodType === 'month' ? (monthNames[periodMonth - 1] + ' ' + periodYear) : (periodType === 'quarter' ? ('T' + periodQuarter + ' ' + periodYear) : ('' + periodYear)));
+          var periodSelectorsNoData =
+            '<label class="estim-weather-selector-label">Período: <select id="estim-weather-period-type" class="estim-weather-select"><option value="last60"' + (periodType === 'last60' ? ' selected' : '') + '>Últimos 60 días</option><option value="month"' + (periodType === 'month' ? ' selected' : '') + '>Mes</option><option value="quarter"' + (periodType === 'quarter' ? ' selected' : '') + '>Trimestre</option><option value="year"' + (periodType === 'year' ? ' selected' : '') + '>Anual</option></select></label>' +
+            '<label class="estim-weather-selector-label estim-weather-period-year" id="estim-weather-year-wrap"><span>Año:</span> <select id="estim-weather-year" class="estim-weather-select">' + yearOpts + '</select></label>' +
+            '<label class="estim-weather-selector-label estim-weather-period-month" id="estim-weather-month-wrap"><span>Mes:</span> <select id="estim-weather-month" class="estim-weather-select">' + monthOpts + '</select></label>' +
+            '<label class="estim-weather-selector-label estim-weather-period-quarter" id="estim-weather-quarter-wrap"><span>Trimestre:</span> <select id="estim-weather-quarter" class="estim-weather-select">' + quarterOpts + '</select></label>';
           weatherImpactEl.innerHTML =
             '<div class="estim-weather-header"><h3 class="estim-weather-title">☁ Impacto del clima</h3></div>' +
-            '<p class="dashboard-subtitle">Aún no hay suficientes datos con clima guardado para calcular impacto (mín. 10 días con facturación).</p>' +
+            '<p class="dashboard-subtitle">Para el período <strong>' + periodLabelNoData + '</strong> no hay suficientes datos (mín. 10 días con facturación). Cambia el período a continuación o ejecuta backfill.</p>' +
+            '<div class="estim-weather-selectors">' + periodSelectorsNoData + '</div>' +
             '<button type="button" class="btn-primary btn-sm estim-weather-backfill-btn">Backfill clima (180 días)</button>' +
             '<div id="estim-weather-backfill-status" class="estim-weather-backfill-status"></div>';
+          var yearWrapNd = document.getElementById('estim-weather-year-wrap');
+          var monthWrapNd = document.getElementById('estim-weather-month-wrap');
+          var quarterWrapNd = document.getElementById('estim-weather-quarter-wrap');
+          if (yearWrapNd) yearWrapNd.style.display = periodType === 'last60' ? 'none' : '';
+          if (monthWrapNd) monthWrapNd.style.display = periodType === 'month' ? '' : 'none';
+          if (quarterWrapNd) quarterWrapNd.style.display = periodType === 'quarter' ? '' : 'none';
+          function refetchWeatherImpactNoData() {
+            auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return (r && r.ok ? r.json() : Promise.resolve(null)).catch(function () { return null; }); })
+              .then(function (data) { lastWeatherImpact = data; renderWeatherImpact(data); });
+          }
+          var ptSel = document.getElementById('estim-weather-period-type');
+          if (ptSel) ptSel.onchange = function () { state.weatherImpactPeriodType = ptSel.value || 'month'; refetchWeatherImpactNoData(); };
+          var ySel = document.getElementById('estim-weather-year');
+          if (ySel) ySel.onchange = function () { state.weatherImpactYear = parseInt(ySel.value, 10); refetchWeatherImpactNoData(); };
+          var mSel = document.getElementById('estim-weather-month');
+          if (mSel) mSel.onchange = function () { state.weatherImpactMonth = parseInt(mSel.value, 10); refetchWeatherImpactNoData(); };
+          var qSel = document.getElementById('estim-weather-quarter');
+          if (qSel) qSel.onchange = function () { state.weatherImpactQuarter = parseInt(qSel.value, 10); refetchWeatherImpactNoData(); };
         } else {
           var cov = weatherImpact.coverage || null;
           var covHint = '';
@@ -213,15 +374,16 @@
           var th = weatherImpact.thresholdsUsed || {};
           var hotC = th.hotC != null ? Number(th.hotC) : 30;
           var coldC = th.coldC != null ? Number(th.coldC) : 5;
+          var rainyPrecipMm = th.rainyPrecipMm != null ? Number(th.rainyPrecipMm) : 0.5;
           var rainyMm = th.heavyRainMm != null ? Number(th.heavyRainMm) : 5;
           var windKmh = th.windyKmh != null ? Number(th.windyKmh) : 35;
           var groupLabel = (weatherImpact.groupBy === 'shift') ? 'turno' : 'día';
           var fromTo = (weatherImpact.from && weatherImpact.to) ? (weatherImpact.from + ' – ' + weatherImpact.to) : '';
-          var rainyByDow = weatherImpact.rainyByDow || [];
-          var heavyRainByDow = weatherImpact.heavyRainByDow || [];
-          var windyByDow = weatherImpact.windyByDow || [];
-          var extremeHighByDow = weatherImpact.extremeTempHighByDow || [];
-          var extremeLowByDow = weatherImpact.extremeTempLowByDow || [];
+          var rainyByDow = Array.isArray(weatherImpact.rainyByDow) ? weatherImpact.rainyByDow : [];
+          var heavyRainByDow = Array.isArray(weatherImpact.heavyRainByDow) ? weatherImpact.heavyRainByDow : [];
+          var windyByDow = Array.isArray(weatherImpact.windyByDow) ? weatherImpact.windyByDow : [];
+          var extremeHighByDow = Array.isArray(weatherImpact.extremeTempHighByDow) ? weatherImpact.extremeTempHighByDow : [];
+          var extremeLowByDow = Array.isArray(weatherImpact.extremeTempLowByDow) ? weatherImpact.extremeTempLowByDow : [];
 
           function getPct(obj) { var m = state.weatherImpactMetric || 'revenue'; return obj ? (m === 'productivity' ? obj.diffPctProductivity : obj.diffPctRevenue) : null; }
           function cellHtml(rowIndex, arr) {
@@ -230,11 +392,13 @@
             var val = getPct(item);
             var txt = fmtPct(val);
             var n = item.count != null ? item.count : 0;
+            var ref = item.baselineCount != null ? item.baselineCount : null;
             var countLabel = n + ' día' + (n !== 1 ? 's' : '');
-            var title = countLabel + (item.baselineCount != null ? ' con esta condición · ' + item.baselineCount + ' de referencia' : '');
+            var title = countLabel + (ref != null ? ' con esta condición · ' + ref + ' de referencia' : '');
+            var countText = ref != null ? '(' + n + ' vs ' + ref + ')' : '(' + n + ')';
             var cls = cellClass(val);
             var pocosDatos = n > 0 && n < 5 ? ' <span class="estim-weather-pocos-datos" title="Menos de 5 días: resultado poco representativo">⚠</span>' : '';
-            var cellContent = txt + ' <span class="estim-weather-cell-count" title="' + title + '">(' + n + ')</span>' + pocosDatos;
+            var cellContent = txt + ' <span class="estim-weather-cell-count" title="' + title + '">' + countText + '</span>' + pocosDatos;
             return '<td class="estim-weather-cell' + cls + '">' + cellContent + '</td>';
           }
           var agg = {
@@ -269,24 +433,34 @@
           }
           tbody += '</tbody>';
 
-          var leyenda = 'Umbrales: lluvia intensa ≥ ' + rainyMm + ' mm, viento ≥ ' + windKmh + ' km/h, calor &gt; ' + hotC + ' °C, frío &lt; ' + coldC + ' °C.';
           var metricLabel = metric === 'productivity' ? 'Productividad' : 'Facturación';
           var chartBlock = '<div class="estim-weather-chart-col"><div class="estim-weather-chart-title">Resumen por condición (promedio)</div>' + barChartHtml + '</div>';
-          var leftBlock =
+          var periodSelectors =
+            '<label class="estim-weather-selector-label">Período: <select id="estim-weather-period-type" class="estim-weather-select"><option value="last60"' + (periodType === 'last60' ? ' selected' : '') + '>Últimos 60 días</option><option value="month"' + (periodType === 'month' ? ' selected' : '') + '>Mes</option><option value="quarter"' + (periodType === 'quarter' ? ' selected' : '') + '>Trimestre</option><option value="year"' + (periodType === 'year' ? ' selected' : '') + '>Anual</option></select></label>' +
+            '<label class="estim-weather-selector-label estim-weather-period-year" id="estim-weather-year-wrap">Año: <select id="estim-weather-year" class="estim-weather-select">' + yearOpts + '</select></label>' +
+            '<label class="estim-weather-selector-label estim-weather-period-month" id="estim-weather-month-wrap">Mes: <select id="estim-weather-month" class="estim-weather-select">' + monthOpts + '</select></label>' +
+            '<label class="estim-weather-selector-label estim-weather-period-quarter" id="estim-weather-quarter-wrap">Trimestre: <select id="estim-weather-quarter" class="estim-weather-select">' + quarterOpts + '</select></label>';
+          var periodLabelText = periodType === 'last60' ? 'Últimos 60 días' : (periodType === 'month' ? (monthNames[periodMonth - 1] + ' ' + periodYear) : (periodType === 'quarter' ? ('T' + periodQuarter + ' ' + periodYear) : ('' + periodYear)));
+          var headerBlock =
             '<div class="estim-weather-header">' +
             '<h3 class="estim-weather-title">☁ Impacto del clima</h3>' +
             '<span class="estim-weather-badge">Por día de la semana</span></div>' +
-            '<p class="estim-weather-leyenda">' + leyenda + '</p>' +
             '<div class="estim-weather-selectors">' +
-            '<label class="estim-weather-selector-label">Ventana: <select id="estim-weather-days" class="estim-weather-select"><option value="90"' + (daysOpt === 90 ? ' selected' : '') + '>90 días</option><option value="180"' + (daysOpt === 180 ? ' selected' : '') + '>180 días</option><option value="365"' + (daysOpt === 365 ? ' selected' : '') + '>365 días</option></select></label>' +
+            periodSelectors +
             '<span class="estim-weather-metric-toggle" role="tablist"><button type="button" class="estim-weather-metric-btn' + (metric === 'revenue' ? ' estim-weather-metric-btn--active' : '') + '" data-metric="revenue">Facturación</button><button type="button" class="estim-weather-metric-btn' + (metric === 'productivity' ? ' estim-weather-metric-btn--active' : '') + '" data-metric="productivity">Productividad</button></span>' +
             '</div>' +
-            (fromTo ? '<p class="estim-weather-range">' + fromTo + '</p>' : '') +
-            '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's. Mostrando: <strong>' + metricLabel + '</strong>. Cada fila compara ese día con el mismo día sin esa condición.</p>' +
-            covHint +
+            '<p class="estim-weather-range">' + periodLabelText + (fromTo ? ' · ' + fromTo : '') + '</p>' +
+            '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's del período seleccionado. Mostrando: <strong>' + metricLabel + '</strong>.</p>' +
+            covHint;
+          weatherImpactEl.innerHTML =
+            '<div class="estim-weather-body">' +
+            '<div class="estim-weather-top-section">' +
+            '<div class="estim-weather-header-zone">' + headerBlock + '</div>' +
+            '<div class="estim-weather-summary-above-table">' + chartBlock + '</div>' +
+            '</div>' +
             '<div class="estim-weather-table-wrap"><table class="estim-weather-table">' + thead + tbody + '</table></div>' +
-            '<p class="estim-weather-explicacion">Un % negativo indica que la facturación (o productividad) fue menor en días con esa condición respecto al mismo día de la semana sin ella.</p>';
-          weatherImpactEl.innerHTML = '<div class="estim-weather-top-row">' + '<div class="estim-weather-left-col">' + leftBlock + '</div>' + chartBlock + '</div>';
+            '<p class="estim-weather-explicacion">Un % negativo indica que la facturación (o productividad) fue menor en días con esa condición respecto al mismo día de la semana sin ella.</p>' +
+            '</div>';
         }
 
         weatherImpactEl.querySelectorAll('.estim-weather-backfill-btn').forEach(function (btn) {
@@ -300,13 +474,44 @@
           };
         });
 
-        var daysSel = document.getElementById('estim-weather-days');
-        if (daysSel) {
-          daysSel.onchange = function () {
-            state.weatherImpactDays = parseInt(daysSel.value, 10);
-            load();
+        function refetchWeatherImpact() {
+          auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return (r && r.ok ? r.json() : Promise.resolve(null)).catch(function () { return null; }); })
+            .then(function (data) { lastWeatherImpact = data; renderWeatherImpact(data); });
+        }
+        var periodTypeSel = document.getElementById('estim-weather-period-type');
+        if (periodTypeSel) {
+          periodTypeSel.onchange = function () {
+            state.weatherImpactPeriodType = periodTypeSel.value || 'month';
+            refetchWeatherImpact();
           };
         }
+        var yearSel = document.getElementById('estim-weather-year');
+        if (yearSel) {
+          yearSel.onchange = function () {
+            state.weatherImpactYear = parseInt(yearSel.value, 10);
+            refetchWeatherImpact();
+          };
+        }
+        var monthSel = document.getElementById('estim-weather-month');
+        if (monthSel) {
+          monthSel.onchange = function () {
+            state.weatherImpactMonth = parseInt(monthSel.value, 10);
+            refetchWeatherImpact();
+          };
+        }
+        var quarterSel = document.getElementById('estim-weather-quarter');
+        if (quarterSel) {
+          quarterSel.onchange = function () {
+            state.weatherImpactQuarter = parseInt(quarterSel.value, 10);
+            refetchWeatherImpact();
+          };
+        }
+        var yearWrap = document.getElementById('estim-weather-year-wrap');
+        var monthWrap = document.getElementById('estim-weather-month-wrap');
+        var quarterWrap = document.getElementById('estim-weather-quarter-wrap');
+        if (yearWrap) yearWrap.style.display = periodType === 'last60' ? 'none' : '';
+        if (monthWrap) monthWrap.style.display = periodType === 'month' ? '' : 'none';
+        if (quarterWrap) quarterWrap.style.display = periodType === 'quarter' ? '' : 'none';
         weatherImpactEl.querySelectorAll('.estim-weather-metric-btn').forEach(function (btn) {
           btn.onclick = function () {
             var m = btn.getAttribute('data-metric');
@@ -317,8 +522,10 @@
           };
         });
         } catch (e) {
-          if (typeof console !== 'undefined' && console.error) console.error('renderWeatherImpact:', e);
-          weatherImpactEl.innerHTML = '<div class="estim-weather-header"><h3 class="estim-weather-title">☁ Impacto del clima</h3></div><p class="dashboard-subtitle">Error al cargar el bloque. Revisa la consola.</p>';
+          if (typeof console !== 'undefined' && console.error) console.error('renderWeatherImpact:', e.message || e, e);
+          weatherImpactEl.innerHTML = '<div class="estim-weather-header"><h3 class="estim-weather-title">☁ Impacto del clima</h3></div><p class="dashboard-subtitle">Error al cargar el bloque. Revisa la consola (F12).</p><button type="button" class="btn-secondary btn-sm" id="estim-weather-retry">Reintentar</button>';
+          var retryBtn = document.getElementById('estim-weather-retry');
+          if (retryBtn) retryBtn.onclick = function () { load(); };
         }
       }
 
@@ -607,9 +814,12 @@
           auth.fetchWithAuth('/api/settings').then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
           auth.fetchWithAuth('/api/estimaciones/alertas').then(function (r) { return safeJson(r, { alertas: [] }); }).catch(function () { return { alertas: [] }; }),
           auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
-          auth.fetchWithAuth('/api/predictions/accuracy-history?limit=20').then(function (r) { return safeJson(r, { weeks: [] }); }).catch(function () { return { weeks: [] }; })
+          auth.fetchWithAuth('/api/predictions/accuracy-history?limit=20').then(function (r) { return safeJson(r, { weeks: [] }); }).catch(function () { return { weeks: [] }; }),
+          auth.fetchWithAuth('/api/analytics/data-range').then(function (r) { return safeJson(r, null); }).catch(function () { return null; })
         ]).then(function (data) {
           var pred = data[0], settings = data[1], alertasResp = data[2], weatherImpact = data[3], accuracyHistory = data[4];
+          weatherDataRange = data[5] && (data[5].minDate || data[5].maxDate) ? data[5] : null;
+          applySettingsToWeatherThresholds(settings);
 
           var comfortBySchema = {}; var comfortByCocina = {};
 
@@ -638,9 +848,13 @@
       Promise.all([
         auth.fetchWithAuth('/api/dashboard/week?weekStart=' + ws).then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
         auth.fetchWithAuth('/api/predictions/by-week?weekStart=' + ws).then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
-        auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return safeJson(r, null); }).catch(function () { return null; })
+        auth.fetchWithAuth(buildWeatherImpactUrl()).then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
+        auth.fetchWithAuth('/api/analytics/data-range').then(function (r) { return safeJson(r, null); }).catch(function () { return null; }),
+        auth.fetchWithAuth('/api/settings').then(function (r) { return safeJson(r, null); }).catch(function () { return null; })
       ]).then(function (data) {
         var dash = data[0], predHist = data[1], weatherImpact = data[2];
+        weatherDataRange = data[3] && (data[3].minDate || data[3].maxDate) ? data[3] : null;
+        applySettingsToWeatherThresholds(data[4]);
 
         renderWeatherImpact(weatherImpact);
         renderActions(ws);

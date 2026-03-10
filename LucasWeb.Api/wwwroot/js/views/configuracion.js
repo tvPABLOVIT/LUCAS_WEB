@@ -273,6 +273,16 @@
       '<div class="form-group"><label for="config-LonRestaurante">Longitud</label><input type="text" id="config-LonRestaurante" placeholder="Se rellena al obtener coordenadas" readonly /></div>' +
       '</div></div>' +
       '<div class="config-section">' +
+      '<h3 class="config-section-title">Umbrales impacto del clima</h3>' +
+      '<p class="config-desc">Umbrales usados en Estimaciones para el bloque «Impacto del clima». Si se dejan vacíos se usan los valores por defecto (lluvia 0,5 mm, intensa 5 mm, viento 35 km/h, frío 5 °C, calor 30 °C).</p>' +
+      '<div class="form-row">' +
+      '<div class="form-group"><label for="config-WeatherImpactRainyPrecipMm">Lluvia (mm)</label><input type="number" id="config-WeatherImpactRainyPrecipMm" step="0.1" min="0" placeholder="0.5" /></div>' +
+      '<div class="form-group"><label for="config-WeatherImpactHeavyRainMm">Lluvia intensa (mm)</label><input type="number" id="config-WeatherImpactHeavyRainMm" step="0.1" min="0" placeholder="5" /></div>' +
+      '<div class="form-group"><label for="config-WeatherImpactWindyKmh">Viento (km/h)</label><input type="number" id="config-WeatherImpactWindyKmh" step="1" min="0" placeholder="35" /></div>' +
+      '<div class="form-group"><label for="config-WeatherImpactColdC">Frío (°C)</label><input type="number" id="config-WeatherImpactColdC" step="1" placeholder="5" /></div>' +
+      '<div class="form-group"><label for="config-WeatherImpactHotC">Calor (°C)</label><input type="number" id="config-WeatherImpactHotC" step="1" placeholder="30" /></div>' +
+      '</div></div>' +
+      '<div class="config-section">' +
       '<h3 class="config-section-title">Ruta de la base de datos (solo lectura)</h3>' +
       '<div class="form-group"><input type="text" id="config-db-path" readonly value="—" /></div></div>' +
       '<div class="config-section">' +
@@ -355,6 +365,11 @@
         lonEl.value = data.LonRestaurante != null && data.LonRestaurante !== '' ? data.LonRestaurante : '';
         if (lonEl.value) lonEl.removeAttribute('readonly'); else lonEl.setAttribute('readonly', 'readonly');
       }
+      if ((el = document.getElementById('config-WeatherImpactRainyPrecipMm'))) el.value = (data.WeatherImpactRainyPrecipMm != null && data.WeatherImpactRainyPrecipMm !== '') ? data.WeatherImpactRainyPrecipMm : '';
+      if ((el = document.getElementById('config-WeatherImpactHeavyRainMm'))) el.value = (data.WeatherImpactHeavyRainMm != null && data.WeatherImpactHeavyRainMm !== '') ? data.WeatherImpactHeavyRainMm : '';
+      if ((el = document.getElementById('config-WeatherImpactWindyKmh'))) el.value = (data.WeatherImpactWindyKmh != null && data.WeatherImpactWindyKmh !== '') ? data.WeatherImpactWindyKmh : '';
+      if ((el = document.getElementById('config-WeatherImpactColdC'))) el.value = (data.WeatherImpactColdC != null && data.WeatherImpactColdC !== '') ? data.WeatherImpactColdC : '';
+      if ((el = document.getElementById('config-WeatherImpactHotC'))) el.value = (data.WeatherImpactHotC != null && data.WeatherImpactHotC !== '') ? data.WeatherImpactHotC : '';
       try {
         var raw = (data.Empleados && data.Empleados.length) ? (typeof data.Empleados === 'string' ? JSON.parse(data.Empleados) : data.Empleados) : [];
         empleadosLocal = raw.map(function (e) { return { name: e.name || '', hours: e.hours != null ? e.hours : 40, position: e.position || '' }; });
@@ -428,6 +443,11 @@
     if (isNaN(coste) || coste < 0) { showMsg(msgEl, 'Coste por hora de personal debe ser ≥ 0.', false); return; }
     var factorConservador = document.getElementById('config-PrediccionConservadoraFactor')?.value?.trim() ?? '';
     var factObjSem = document.getElementById('config-FacturacionObjetivoSemanal')?.value?.trim() ?? '';
+    var wRainy = (document.getElementById('config-WeatherImpactRainyPrecipMm')?.value ?? '').trim();
+    var wHeavy = (document.getElementById('config-WeatherImpactHeavyRainMm')?.value ?? '').trim();
+    var wWind = (document.getElementById('config-WeatherImpactWindyKmh')?.value ?? '').trim();
+    var wCold = (document.getElementById('config-WeatherImpactColdC')?.value ?? '').trim();
+    var wHot = (document.getElementById('config-WeatherImpactHotC')?.value ?? '').trim();
     var body = {
       HorasPorTurno: String(horas),
       ProductividadIdealEurHora: String(prod),
@@ -438,7 +458,12 @@
       DireccionRestaurante: document.getElementById('config-DireccionRestaurante')?.value ?? '',
       LatRestaurante: (document.getElementById('config-LatRestaurante')?.value ?? '').trim(),
       LonRestaurante: (document.getElementById('config-LonRestaurante')?.value ?? '').trim(),
-      Empleados: JSON.stringify(empleadosLocal)
+      Empleados: JSON.stringify(empleadosLocal),
+      WeatherImpactRainyPrecipMm: wRainy,
+      WeatherImpactHeavyRainMm: wHeavy,
+      WeatherImpactWindyKmh: wWind,
+      WeatherImpactColdC: wCold,
+      WeatherImpactHotC: wHot
     };
     auth.fetchWithAuth('/api/settings', { method: 'PATCH', body: JSON.stringify(body) }).then(function (r) {
       if (r.status === 401) return Promise.reject(new Error('Sesión expirada'));

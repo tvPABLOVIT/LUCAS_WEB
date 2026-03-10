@@ -20,6 +20,25 @@ public class AnalyticsController : ControllerBase
     }
 
     /// <summary>
+    /// Rango de fechas con datos de ejecución (días con facturación/horas) para restringir selectores de período.
+    /// </summary>
+    [HttpGet("data-range")]
+    public async Task<IActionResult> GetDataRange()
+    {
+        var range = await _db.ExecutionDays
+            .AsNoTracking()
+            .Where(d => !d.IsFeedbackOnly && d.TotalRevenue > 0 && d.TotalHoursWorked > 0)
+            .Select(d => d.Date)
+            .ToListAsync();
+        if (range.Count == 0)
+            return Ok(new { minDate = (string?)null, maxDate = (string?)null });
+        var min = range.Min();
+        var max = range.Max();
+        var inv = CultureInfo.InvariantCulture;
+        return Ok(new { minDate = min.ToString("yyyy-MM-dd", inv), maxDate = max.ToString("yyyy-MM-dd", inv) });
+    }
+
+    /// <summary>
     /// Impacto del clima en histórico (facturación/productividad) por día o por turno.
     /// </summary>
     [HttpGet("weather-impact")]
@@ -34,6 +53,15 @@ public class AnalyticsController : ControllerBase
         [FromQuery] decimal hotC = 30m,
         [FromQuery(Name = "days")] int? windowDays = null)
     {
+        // Usar umbrales guardados en Configuración si existen
+        var thKeys = new[] { "WeatherImpactRainyPrecipMm", "WeatherImpactHeavyRainMm", "WeatherImpactWindyKmh", "WeatherImpactColdC", "WeatherImpactHotC" };
+        var thSettings = await _db.Settings.Where(s => thKeys.Contains(s.Key)).ToDictionaryAsync(s => s.Key, s => s.Value).ConfigureAwait(false);
+        if (thSettings.TryGetValue("WeatherImpactRainyPrecipMm", out var v1) && !string.IsNullOrWhiteSpace(v1) && decimal.TryParse(v1.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var r)) rainyPrecipMm = r;
+        if (thSettings.TryGetValue("WeatherImpactHeavyRainMm", out var v2) && !string.IsNullOrWhiteSpace(v2) && decimal.TryParse(v2.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var h)) heavyRainMm = h;
+        if (thSettings.TryGetValue("WeatherImpactWindyKmh", out var v3) && !string.IsNullOrWhiteSpace(v3) && decimal.TryParse(v3.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var w)) windyKmh = w;
+        if (thSettings.TryGetValue("WeatherImpactColdC", out var v4) && !string.IsNullOrWhiteSpace(v4) && decimal.TryParse(v4.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var c)) coldC = c;
+        if (thSettings.TryGetValue("WeatherImpactHotC", out var v5) && !string.IsNullOrWhiteSpace(v5) && decimal.TryParse(v5.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var ho)) hotC = ho;
+
         rainyPrecipMm = rainyPrecipMm > 0 ? rainyPrecipMm : WeatherImpactHelper.DefaultRainyPrecipMm;
         heavyRainMm = heavyRainMm > 0 ? heavyRainMm : WeatherImpactHelper.DefaultHeavyRainMm;
         windyKmh = windyKmh > 0 ? windyKmh : WeatherImpactHelper.DefaultWindyKmh;
@@ -76,10 +104,12 @@ public class AnalyticsController : ControllerBase
                 withWind = list.Count(x => x.Wind.HasValue)
             };
 
+            // Modo turno: extremo alto/bajo usan Temp promedio del turno (WeatherTempAvg); no hay TempMax/TempMin por turno (mejora D).
             var samples = list
                 .Where(x => x.Revenue > 0 && x.Hours > 0)
                 .Select(x => new Sample
                 {
+                    YearMonth = x.Date.ToString("yyyy-MM", inv),
                     Dow = x.Date.DayOfWeek,
                     ShiftName = (x.ShiftName ?? "").Trim(),
                     Revenue = x.Revenue,
@@ -121,10 +151,12 @@ public class AnalyticsController : ControllerBase
             withWind = days.Count(x => x.WeatherWindMaxKmh.HasValue)
         };
 
+        // Modo día: extremo alto/bajo se definen por TempMax/TempMin del día (mejora D).
         var daySamples = days
             .Where(x => x.TotalRevenue > 0 && x.TotalHoursWorked > 0)
             .Select(x => new Sample
             {
+                YearMonth = x.Date.ToString("yyyy-MM", inv),
                 Dow = x.Date.DayOfWeek,
                 Revenue = x.TotalRevenue,
                 Productivity = x.TotalHoursWorked > 0 ? x.TotalRevenue / x.TotalHoursWorked : 0,
@@ -141,6 +173,7 @@ public class AnalyticsController : ControllerBase
 
     private sealed class Sample
     {
+        public string YearMonth { get; set; } = "";
         public DayOfWeek Dow { get; set; }
         public string? ShiftName { get; set; }
         public decimal Revenue { get; set; }
@@ -157,51 +190,60 @@ public class AnalyticsController : ControllerBase
     private static object BuildImpactPayload(List<Sample> samples, DateTime start, DateTime end, string groupBy, object? coverage,
         decimal rainyPrecipMm, decimal heavyRainMm, decimal windyKmh, decimal coldC, decimal hotC)
     {
+        const decimal TrimFraction = 0.05m; // Mejora B: recorte 5% superior e inferior por Revenue
         var baseSet = samples;
-        var rainy = samples.Where(s => s.IsRainy).ToList();
-        var dry = samples.Where(s => !s.IsRainy).ToList();
-        var heavy = samples.Where(s => s.IsHeavyRain).ToList();
-        var windy = samples.Where(s => s.IsWindy).ToList();
-        var extremeHigh = samples.Where(s => s.IsExtremeTempHigh).ToList();
-        var extremeLow = samples.Where(s => s.IsExtremeTempLow).ToList();
-        var notExtremeHigh = samples.Where(s => !s.IsExtremeTempHigh).ToList();
-        var notExtremeLow = samples.Where(s => !s.IsExtremeTempLow).ToList();
+        var rainy = TrimOutliersByRevenue(samples.Where(s => s.IsRainy).ToList(), TrimFraction);
+        var dry = TrimOutliersByRevenue(samples.Where(s => !s.IsRainy).ToList(), TrimFraction);
+        var heavy = TrimOutliersByRevenue(samples.Where(s => s.IsHeavyRain).ToList(), TrimFraction);
+        var windy = TrimOutliersByRevenue(samples.Where(s => s.IsWindy).ToList(), TrimFraction);
+        var extremeHigh = TrimOutliersByRevenue(samples.Where(s => s.IsExtremeTempHigh).ToList(), TrimFraction);
+        var extremeLow = TrimOutliersByRevenue(samples.Where(s => s.IsExtremeTempLow).ToList(), TrimFraction);
+        // Mejora E: baseline temperatura "puro" = solo días con temp en rango normal (ni extremo alto ni bajo)
+        var normalTemp = samples.Where(s => !s.IsExtremeTempHigh && !s.IsExtremeTempLow).ToList();
+        var notExtremeHigh = TrimOutliersByRevenue(normalTemp, TrimFraction);
+        var notExtremeLow = notExtremeHigh;
 
         Func<Sample, string> keySelector = groupBy == "shift"
-            ? (s => $"{(int)s.Dow}|{(s.ShiftName ?? "").Trim().ToLowerInvariant()}")
+            ? (Func<Sample, string>)(s => $"{(int)s.Dow}|{(s.ShiftName ?? "").Trim().ToLowerInvariant()}")
             : (s => $"{(int)s.Dow}");
 
-        var thresholdsUsed = new
-        {
-            rainyPrecipMm,
-            heavyRainMm,
-            windyKmh,
-            coldC,
-            hotC
-        };
+        var thresholdsUsed = new { rainyPrecipMm, heavyRainMm, windyKmh, coldC, hotC };
+        var notWindy = TrimOutliersByRevenue(samples.Where(s => !s.IsWindy).ToList(), TrimFraction);
 
         return new
         {
             groupBy,
-            from = start.ToString("yyyy-MM-dd"),
-            to = end.ToString("yyyy-MM-dd"),
+            from = start.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            to = end.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             sampleCount = baseSet.Count,
             coverage,
             thresholdsUsed,
             rainy = Metrics(rainy, dry, keySelector),
             heavyRain = Metrics(heavy, dry, keySelector),
-            windy = Metrics(windy, samples.Where(s => !s.IsWindy).ToList(), keySelector),
+            windy = Metrics(windy, notWindy, keySelector),
             extremeTempHigh = Metrics(extremeHigh, notExtremeHigh, keySelector),
             extremeTempLow = Metrics(extremeLow, notExtremeLow, keySelector),
             rainyByDow = MetricsByDow(rainy, dry),
             heavyRainByDow = MetricsByDow(heavy, dry),
-            windyByDow = MetricsByDow(windy, samples.Where(s => !s.IsWindy).ToList()),
+            windyByDow = MetricsByDow(windy, notWindy),
             extremeTempHighByDow = MetricsByDow(extremeHigh, notExtremeHigh),
             extremeTempLowByDow = MetricsByDow(extremeLow, notExtremeLow)
         };
     }
 
-    /// <summary>Impacto por día de la semana: cada DOW se compara solo con el mismo DOW (lunes con lunes, etc.).</summary>
+    /// <summary>Mejora B: excluye el trimFraction superior e inferior por Revenue para reducir efecto de outliers.</summary>
+    private static List<Sample> TrimOutliersByRevenue(List<Sample> list, decimal trimFraction)
+    {
+        if (list.Count < 4) return list;
+        var sorted = list.OrderBy(x => x.Revenue).ToList();
+        var removeCount = Math.Max(1, (int)(list.Count * trimFraction));
+        var skip = removeCount;
+        var take = list.Count - 2 * removeCount;
+        if (take < 2) return list;
+        return sorted.Skip(skip).Take(take).ToList();
+    }
+
+    /// <summary>Impacto por día de la semana: cada DOW se compara solo con el mismo DOW (lunes con lunes, etc.). Incluye SE aproximado (mejora C).</summary>
     private static List<object> MetricsByDow(List<Sample> group, List<Sample> baseline)
     {
         var result = new List<object>();
@@ -211,18 +253,50 @@ public class AnalyticsController : ControllerBase
             var b = baseline.Where(s => (int)s.Dow == dow).ToList();
             decimal? diffRev = null;
             decimal? diffProd = null;
+            decimal? diffRevSE = null;
+            decimal? diffProdSE = null;
             if (g.Count > 0 && b.Count > 0)
             {
                 var avgG = g.Average(x => x.Revenue);
                 var avgB = b.Average(x => x.Revenue);
-                if (avgB > 0) diffRev = Math.Round((avgG - avgB) / avgB * 100m, 1);
+                if (avgB > 0)
+                {
+                    diffRev = Math.Round((avgG - avgB) / avgB * 100m, 1);
+                    var seRev = StdErrRatio(g.Select(x => x.Revenue).ToList(), b.Select(x => x.Revenue).ToList(), avgG, avgB);
+                    if (seRev.HasValue) diffRevSE = Math.Round(seRev.Value * 100m, 1);
+                }
                 var avgGp = g.Average(x => x.Productivity);
                 var avgBp = b.Average(x => x.Productivity);
-                if (avgBp > 0) diffProd = Math.Round((avgGp - avgBp) / avgBp * 100m, 1);
+                if (avgBp > 0)
+                {
+                    diffProd = Math.Round((avgGp - avgBp) / avgBp * 100m, 1);
+                    var seProd = StdErrRatio(g.Select(x => x.Productivity).ToList(), b.Select(x => x.Productivity).ToList(), avgGp, avgBp);
+                    if (seProd.HasValue) diffProdSE = Math.Round(seProd.Value * 100m, 1);
+                }
             }
-            result.Add(new { dow, dowName = name, count = g.Count, baselineCount = b.Count, diffPctRevenue = diffRev, diffPctProductivity = diffProd });
+            result.Add(new { dow, dowName = name, count = g.Count, baselineCount = b.Count, diffPctRevenue = diffRev, diffPctProductivity = diffProd, diffPctRevenueSE = diffRevSE, diffPctProductivitySE = diffProdSE });
         }
         return result;
+    }
+
+    /// <summary>Aproximación SE del ratio (avgG-avgB)/avgB usando delta method: (avgG/avgB)*sqrt((stdG/avgG)²/nG + (stdB/avgB)²/nB).</summary>
+    private static decimal? StdErrRatio(List<decimal> g, List<decimal> b, decimal avgG, decimal avgB)
+    {
+        if (g.Count < 2 || b.Count < 2 || avgB == 0) return null;
+        var stdG = StdDev(g);
+        var stdB = StdDev(b);
+        if (!stdG.HasValue || !stdB.HasValue) return null;
+        var v = (double)((stdG.Value / avgG) * (stdG.Value / avgG) / g.Count + (stdB.Value / avgB) * (stdB.Value / avgB) / b.Count);
+        if (v <= 0) return null;
+        return (decimal)((double)(avgG / avgB) * Math.Sqrt(v));
+    }
+
+    private static decimal? StdDev(List<decimal> values)
+    {
+        if (values.Count < 2) return null;
+        var avg = values.Average();
+        var sumSq = values.Sum(x => (x - avg) * (x - avg));
+        return (decimal)Math.Sqrt((double)sumSq / (values.Count - 1));
     }
 
     private static object Metrics(List<Sample> group, List<Sample> baseline, Func<Sample, string> keySelector)

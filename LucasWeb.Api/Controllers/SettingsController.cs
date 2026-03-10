@@ -23,7 +23,8 @@ public class SettingsController : ControllerBase
         "Empleados",
         "GoogleSheetsUrl", "GoogleCredentialsPath", "GeminiApiKey", "WeatherApiKey",
         "BackendUrl", "UsarTunnelCloudflared", "QuickTunnelUrl", "TunnelToken",
-        "PrediccionConservadoraFactor"
+        "PrediccionConservadoraFactor",
+        "WeatherImpactRainyPrecipMm", "WeatherImpactHeavyRainMm", "WeatherImpactWindyKmh", "WeatherImpactColdC", "WeatherImpactHotC"
     };
 
     private readonly AppDbContext _db;
