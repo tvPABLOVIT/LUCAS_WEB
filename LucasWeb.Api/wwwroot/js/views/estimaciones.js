@@ -392,10 +392,11 @@
             var val = getPct(item);
             var txt = fmtPct(val);
             var n = item.count != null ? item.count : 0;
-            var total = (weatherImpact && weatherImpact.sampleCount != null) ? Number(weatherImpact.sampleCount) : 0;
+            var ref = item.baselineCount != null ? item.baselineCount : 0;
+            var totalDow = n + ref;
             var countLabel = n + ' día' + (n !== 1 ? 's' : '');
-            var title = countLabel + ' con esta condición · ' + total + ' días en total en la muestra';
-            var countText = total > 0 ? '(' + n + ' vs ' + total + ')' : '(' + n + ')';
+            var title = countLabel + ' con esta condición · ' + totalDow + ' ' + (totalDow !== 1 ? 'días' : 'día') + ' de este día en la muestra';
+            var countText = totalDow > 0 ? '(' + n + ' vs ' + totalDow + ')' : '(' + n + ')';
             var cls = cellClass(val);
             var pocosDatos = n > 0 && n < 5 ? ' <span class="estim-weather-pocos-datos" title="Menos de 5 días: resultado poco representativo">⚠</span>' : '';
             var cellContent = txt + ' <span class="estim-weather-cell-count" title="' + title + '">' + countText + '</span>' + pocosDatos;
@@ -450,7 +451,7 @@
             '<span class="estim-weather-metric-toggle" role="tablist"><button type="button" class="estim-weather-metric-btn' + (metric === 'revenue' ? ' estim-weather-metric-btn--active' : '') + '" data-metric="revenue">Facturación</button><button type="button" class="estim-weather-metric-btn' + (metric === 'productivity' ? ' estim-weather-metric-btn--active' : '') + '" data-metric="productivity">Productividad</button></span>' +
             '</div>' +
             '<p class="estim-weather-range">' + periodLabelText + (fromTo ? ' · ' + fromTo : '') + '</p>' +
-            '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's del período seleccionado. Mostrando: <strong>' + metricLabel + '</strong>.</p>' +
+            '<p class="estim-weather-baseline">Basado en <strong>' + (weatherImpact.sampleCount || 0) + '</strong> ' + groupLabel + 's del período seleccionado. Cada fila compara solo ese día de la semana (lunes con lunes, martes con martes, etc.). Mostrando: <strong>' + metricLabel + '</strong>.</p>' +
             covHint;
           weatherImpactEl.innerHTML =
             '<div class="estim-weather-body">' +
