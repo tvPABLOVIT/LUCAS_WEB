@@ -215,6 +215,15 @@
             if (dStr <= todayYmd && predByDate[dStr] != null) sum += Number(predByDate[dStr]);
           }
           if (sum > 0) predHastaHoy = sum;
+          if (predHastaHoy == null && comparativas && comparativas.baseRevenue != null && comparativas.baseRevenue > 0) {
+            var n = data.daysIncludedCount != null ? data.daysIncludedCount : 0;
+            if (n <= 0) {
+              var mon = new Date(ws + 'T12:00:00');
+              var today = new Date(todayYmd + 'T12:00:00');
+              n = Math.max(0, Math.min(7, Math.floor((today - mon) / 86400000) + 1));
+            }
+            if (n > 0) predHastaHoy = (Number(comparativas.baseRevenue) * n) / 7;
+          }
         }
         if (!data) {
           loading = false;
