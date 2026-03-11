@@ -340,15 +340,15 @@
             var bodyHtml;
             if (realVal != null) {
               if (usePredHastaHoy && predHastaHoyFormatted) {
-                bodyHtml = 'Predicción semana completa: <strong>' + predVal + ' €</strong>. Predicho (hasta hoy): <strong>' + predHastaHoyFormatted + ' €</strong>. Real (hasta hoy): <strong>' + realVal + ' €</strong>. Diferencia: <strong>' + diffPctStr + '</strong> vs pred. hasta hoy.';
+                var diaHoy = dayNameFromDate(todayYmd);
+                bodyHtml = 'Para esta semana, a día <strong>' + diaHoy + '</strong> deberíamos haber facturado <strong>' + predHastaHoyFormatted + ' €</strong> y llevamos <strong>' + realVal + ' €</strong>. La diferencia es de <strong>' + diffPctStr + '</strong>.';
               } else {
                 bodyHtml = 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Real: <strong>' + realVal + ' €</strong>. Diferencia: <strong>' + diffPctStr + '</strong>.';
               }
             } else {
               bodyHtml = 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Aún no hay datos de facturación.';
             }
-            var hintHtml = (data.isCurrentWeek === true || isCurrentWeek(ws)) ? '<p class="dashboard-pred-vs-real-hint">La evaluación de la predicción se hace automáticamente al cerrar la semana para que el modelo mejore.</p>' : '';
-            predVsRealEl.innerHTML = blockTitle + '<p class="dashboard-pred-vs-real-value">' + bodyHtml + '</p>' + hintHtml;
+            predVsRealEl.innerHTML = blockTitle + '<p class="dashboard-pred-vs-real-value">' + bodyHtml + '</p>';
           } else {
             predVsRealEl.innerHTML = blockTitle + '<p class="dashboard-pred-vs-real-value">No hay predicción guardada para esta semana. Genera una en <a href="#estimaciones">Estimaciones</a> (Planificación semana siguiente) para la semana que quieras comparar y verás aquí la comparación.</p>';
           }
