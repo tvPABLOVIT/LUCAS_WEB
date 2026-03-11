@@ -302,6 +302,7 @@
           kpisEl.appendChild(div);
         });
         if (predVsRealEl) {
+          var blockTitle = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3>';
           if (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue))) {
             var predVal = Number(comparativas.baseRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var realVal = null;
@@ -316,9 +317,9 @@
               ? 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. ' + realLabel + ' <strong>' + realVal + ' €</strong>. Diferencia: <strong>' + diffPctStr + '</strong>.'
               : 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Aún no hay datos de facturación.';
             var hintHtml = (data.isCurrentWeek === true || isCurrentWeek(ws)) ? '<p class="dashboard-pred-vs-real-hint">Al cerrar la semana, evalúa la predicción en <a href="#estimaciones">Estimaciones</a> para que el modelo mejore.</p>' : '';
-            predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><p class="dashboard-pred-vs-real-value">' + bodyHtml + '</p>' + hintHtml;
+            predVsRealEl.innerHTML = blockTitle + '<p class="dashboard-pred-vs-real-value">' + bodyHtml + '</p>' + hintHtml;
           } else {
-            predVsRealEl.innerHTML = '';
+            predVsRealEl.innerHTML = blockTitle + '<p class="dashboard-pred-vs-real-value">No hay predicción guardada para esta semana. Genera una en <a href="#estimaciones">Estimaciones</a> (Planificación semana siguiente) para la semana que quieras comparar y verás aquí la comparación.</p>';
           }
         }
         if (resumenEl) {

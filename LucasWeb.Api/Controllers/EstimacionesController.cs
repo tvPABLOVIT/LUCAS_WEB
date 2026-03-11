@@ -484,7 +484,7 @@ public class EstimacionesController : ControllerBase
             weekEndSunday = end.ToString("yyyy-MM-dd"),
             baseRevenue,
             baseProductivity = baseProd,
-            actual = new { revenue = actualRevenue > 0 ? actualRevenue : (decimal?)null, hours = actualHours > 0 ? actualHours : (decimal?)null, productivity = actualProd },
+            actual = new { revenue = actualRevenue >= 0 ? actualRevenue : (decimal?)null, hours = actualHours >= 0 ? actualHours : (decimal?)null, productivity = actualProd },
             previousWeek = new { revenue = prevRevenue > 0 ? prevRevenue : (decimal?)null, hours = prevHours > 0 ? prevHours : (decimal?)null, productivity = prevProd, pctRevenue = vsPrevPct },
             previousMonthSameDates = new { revenue = prevMonthRevenue, pctRevenue = vsPrevMonthPct, from = sameStart.ToString("yyyy-MM-dd"), to = sameEnd.ToString("yyyy-MM-dd") },
             objectives = new
