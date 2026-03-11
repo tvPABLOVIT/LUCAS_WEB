@@ -74,14 +74,15 @@
       '</div>' +
       '</div>' +
       '<div id="dashboard-kpis" class="kpi-grid"></div>' +
+      '<div id="dashboard-pred-vs-real" class="card dashboard-pred-vs-real-card"></div>' +
       '<div id="dashboard-days-wrap" class="card"><h3>Días de la semana</h3><div id="dashboard-days-table-wrap"></div><div id="dashboard-days-cards-wrap" class="dashboard-days-cards-wrap"></div></div>' +
       '<div id="dashboard-resumen" class="card"></div>' +
       '<div class="card dashboard-import-card">' +
       '<h3>Importar datos</h3>' +
       '<div class="dashboard-import-row">' +
       '<div class="dashboard-import-item">' +
-      '<label class="dashboard-import-label">Excel (facturación + horas reales por turno). Puede elegir varios archivos (Ctrl+clic).</label>' +
-      '<input type="file" id="dashboard-excel-file" accept=".xlsx,.xls" class="dashboard-import-input" multiple />' +
+      '<label class="dashboard-import-label">Excel (facturación + horas reales por turno). Para varios archivos: mantén Ctrl (Cmd en Mac) y haz clic en cada archivo.</label>' +
+      '<input type="file" id="dashboard-excel-file" accept=".xlsx,.xls" class="dashboard-import-input" multiple="multiple" />' +
       '<button type="button" id="dashboard-import-excel" class="btn-secondary btn-sm">Cargar Excel (uno o varios)</button>' +
       '<span id="dashboard-excel-status" class="dashboard-import-status"></span>' +
       '</div>' +
@@ -101,6 +102,7 @@
     var weekRangeEl = document.getElementById('dashboard-week-range');
     var badgeEl = document.getElementById('dashboard-semana-en-curso');
     var kpisEl = document.getElementById('dashboard-kpis');
+    var predVsRealEl = document.getElementById('dashboard-pred-vs-real');
     var resumenEl = document.getElementById('dashboard-resumen');
     var daysWrap = document.getElementById('dashboard-days-table-wrap');
     var daysCardsWrap = document.getElementById('dashboard-days-cards-wrap');
@@ -141,6 +143,7 @@
         else { badgeEl.textContent = ''; badgeEl.classList.add('hidden'); badgeEl.classList.remove('dashboard-badge--current'); }
       }
       kpisEl.innerHTML = '<p class="loading">Cargando…</p>';
+      if (predVsRealEl) predVsRealEl.innerHTML = '';
       resumenEl.innerHTML = '';
       daysWrap.innerHTML = '';
       var todayYmd = (function () { var t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); })();
@@ -159,7 +162,15 @@
           if (r2.status === 403) return [];
           if (!r2.ok) return [];
           return r2.json();
-        }).catch(function () { return []; })
+        }).catch(function () { return []; }),
+        auth.fetchWithAuth('/api/estimaciones/comparativas?weekStart=' + encodeURIComponent(ws) + '&mode=plan').then(function (r) {
+          if (!r || !r.ok) return null;
+          return r.json();
+        }).catch(function () { return null; }),
+        auth.fetchWithAuth('/api/predictions/by-week?weekStart=' + encodeURIComponent(ws)).then(function (r) {
+          if (!r || !r.ok) return null;
+          return r.json();
+        }).catch(function () { return null; })
       ]).then(function (arr) {
         if (!isDashboardVisible()) {
           loading = false;
@@ -169,6 +180,23 @@
         }
         var data = arr[0];
         var events = arr[1] || [];
+        var comparativas = arr[2] || null;
+        var byWeek = arr[3] || null;
+        var predByDate = {};
+        function toYmd(s) { if (!s || typeof s !== 'string') return ''; return s.substring(0, 10); }
+        function safePct(n) { if (n == null || typeof n !== 'number' || !Number.isFinite(n)) return '—'; return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+        if (byWeek && byWeek.dailyPredictionsJson) {
+          try {
+            var dailyArr = JSON.parse(byWeek.dailyPredictionsJson);
+            if (Array.isArray(dailyArr)) {
+              dailyArr.forEach(function (day) {
+                var dateStr = toYmd(day.date || day.dateStr || '');
+                var rev = day.revenue != null ? day.revenue : (day.predictedRevenue != null ? day.predictedRevenue : null);
+                if (dateStr && rev != null) predByDate[dateStr] = rev;
+              });
+            }
+          } catch (e) { }
+        }
         if (!data) {
           loading = false;
           var b2 = document.getElementById('dashboard-cargar');
@@ -213,6 +241,16 @@
           pctVsPrev += '<div class="kpi-card-sub ' + objetivoClass + '">' + pctObjStr + '% vs fact. objetivo</div>';
         } else {
           pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted">vs fact. objetivo: —</div>';
+        }
+        if (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue))) {
+          var predFormatted = Number(comparativas.baseRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+          pctVsPrev += '<div class="kpi-card-sub">Predicho: ' + predFormatted + '</div>';
+          if (comparativas.actual && comparativas.actual.revenue != null && comparativas.baseRevenue > 0) {
+            var pctVsPred = ((comparativas.actual.revenue - comparativas.baseRevenue) / comparativas.baseRevenue) * 100;
+            var realFormatted = Number(comparativas.actual.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+            var pctVsPredClass = (typeof pctVsPred === 'number' && Number.isFinite(pctVsPred)) ? (pctVsPred > 0 ? 'kpi-card-sub--up' : (pctVsPred < 0 ? 'kpi-card-sub--down' : '')) : '';
+            pctVsPrev += '<div class="kpi-card-sub ' + pctVsPredClass + '">Real: ' + realFormatted + ' (' + safePct(pctVsPred) + ' vs pred.)</div>';
+          }
         }
         var prodValue = data.avgProductivity != null ? data.avgProductivity.toFixed(1) + ' €/h' : '—';
         var pctVsPrevProd = '';
@@ -263,6 +301,26 @@
           div.innerHTML = '<div class="label">' + k.label + '</div><div class="value">' + k.value + '</div>' + (k.sub || '');
           kpisEl.appendChild(div);
         });
+        if (predVsRealEl) {
+          if (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue))) {
+            var predVal = Number(comparativas.baseRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            var realVal = null;
+            var diffPct = null;
+            if (comparativas.actual && comparativas.actual.revenue != null) {
+              realVal = Number(comparativas.actual.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              if (comparativas.baseRevenue > 0) diffPct = ((comparativas.actual.revenue - comparativas.baseRevenue) / comparativas.baseRevenue) * 100;
+            }
+            var realLabel = (data.isCurrentWeek ? 'Real (hasta hoy)' : 'Real') + ': ';
+            var diffPctStr = (diffPct != null && typeof diffPct === 'number' && Number.isFinite(diffPct)) ? (diffPct >= 0 ? '+' : '') + diffPct.toFixed(1) + '%' : '—';
+            var bodyHtml = realVal != null
+              ? 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. ' + realLabel + ' <strong>' + realVal + ' €</strong>. Diferencia: <strong>' + diffPctStr + '</strong>.'
+              : 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Aún no hay datos de facturación.';
+            var hintHtml = (data.isCurrentWeek === true || isCurrentWeek(ws)) ? '<p class="dashboard-pred-vs-real-hint">Al cerrar la semana, evalúa la predicción en <a href="#estimaciones">Estimaciones</a> para que el modelo mejore.</p>' : '';
+            predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><p class="dashboard-pred-vs-real-value">' + bodyHtml + '</p>' + hintHtml;
+          } else {
+            predVsRealEl.innerHTML = '';
+          }
+        }
         if (resumenEl) {
           resumenEl.innerHTML = '<h3>Resumen</h3>' +
             (data.resumenClasificacion ? '<p class="dashboard-clasificacion">' + data.resumenClasificacion + '</p>' : '') +
@@ -413,19 +471,22 @@
             return parts.join(' ');
           }
 
-          var headers = ['Día', 'Fecha', 'Clima', 'Facturación', 'Horas', 'Productividad (€/h)', 'Personal', 'Observaciones del Día'];
+          var headers = ['Día', 'Fecha', 'Clima', 'Facturación', 'Predicho', 'Horas', 'Productividad (€/h)', 'Personal', 'Observaciones del Día'];
           var rows = daysToShow.map(function (d) {
             if (d.isPlaceholder) {
               var dayName = d.dayName || dayNameFromDate(d.date);
               var dateShort = formatDateShort(d.date);
               var isFuture = d.date > todayYmd;
               var observacionesPlaceholder = isFuture ? '—' : '<span class="dashboard-observaciones-text">Sin datos.</span>';
-              return [dayName, dateShort, '—', '—', '—', '—', '—', observacionesPlaceholder];
+              return [dayName, dateShort, '—', '—', '—', '—', '—', '—', observacionesPlaceholder];
             }
             var dayName = d.dayName || dayNameFromDate(d.date);
             var dateShort = formatDateShort(d.date);
             var clima = '<span class="dashboard-weather">' + weatherText(d) + '</span>';
             var rev = d.revenue != null ? Number(d.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
+            var dayKey = toYmd(d.date || '');
+            var predValNum = predByDate[dayKey] != null ? Number(predByDate[dayKey]) : NaN;
+            var predCell = (predValNum != null && Number.isFinite(predValNum)) ? '<span class="dashboard-day-pred">' + predValNum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</span>' : '—';
             var hoursVal = d.effectiveHours != null ? d.effectiveHours : d.hoursWorked;
             var hours = hoursVal != null ? hoursVal.toFixed(1) : '—';
             var prodVal = d.effectiveProductivity != null ? d.effectiveProductivity : d.productivity;
@@ -446,10 +507,10 @@
             var observacionesParagraph = buildDayObservationsParagraph(d);
             var observacionesCell = '<div class="dashboard-observaciones-wrap">' +
               '<div class="dashboard-observaciones-text">' + observacionesParagraph + '</div></div>';
-            return [dayName, dateShort, clima, rev, hours, prod, staff, observacionesCell];
+            return [dayName, dateShort, clima, rev, predCell, hours, prod, staff, observacionesCell];
           });
           var personalTitle = 'Sala y cocina por turno (Mediodía-Tarde-Noche). Con PDF: se muestran las horas del cuadrante por turno (reales). Sin PDF (dato manual): Horas calc. = (Sala+Cocina) × h/turno (Config.).';
-          var thead = '<thead><tr><th>Día</th><th>Fecha</th><th>Clima</th><th>Facturación</th><th>Horas</th><th>Productividad (€/h)</th><th title="' + personalTitle + '">Personal</th><th>Observaciones del Día</th></tr></thead>';
+          var thead = '<thead><tr><th>Día</th><th>Fecha</th><th>Clima</th><th>Facturación</th><th class="dashboard-th-pred">Predicho</th><th>Horas</th><th>Productividad (€/h)</th><th title="' + personalTitle + '">Personal</th><th>Observaciones del Día</th></tr></thead>';
           var tbody = '<tbody>' + rows.map(function (row) { return '<tr>' + row.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>';
           daysWrap.innerHTML = '<table class="dashboard-table">' + thead + tbody + '</table>';
 
@@ -495,6 +556,9 @@
               var dayName = d.dayName || dayNameFromDate(d.date);
               var dateShort = formatDateShort(d.date);
               var rev = d.revenue != null ? Number(d.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
+              var dayKeyCard = toYmd(d.date || '');
+              var predValCard = predByDate[dayKeyCard] != null ? Number(predByDate[dayKeyCard]) : NaN;
+              var predLineHtml = (predValCard != null && Number.isFinite(predValCard)) ? '<div class="dashboard-day-card-kpi dashboard-day-card-pred"><span class="label">Predicho</span><span class="value">' + predValCard.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</span></div>' : '';
               var hoursVal = d.effectiveHours != null ? d.effectiveHours : d.hoursWorked;
               var hours = hoursVal != null ? hoursVal.toFixed(1) + ' h' : '—';
               var prodVal = d.effectiveProductivity != null ? d.effectiveProductivity : d.productivity;
@@ -532,6 +596,7 @@
                 '<div class="dashboard-day-card-head"><div class="dashboard-day-card-title">' + dayName + '</div><div class="dashboard-day-card-date">' + dateShort + '</div></div>' +
                 '<div class="dashboard-day-card-kpis">' +
                 '<div class="dashboard-day-card-kpi"><span class="label">Facturación</span><span class="value">' + rev + '</span></div>' +
+                (predLineHtml || '') +
                 '<div class="dashboard-day-card-kpi"><span class="label">Horas</span><span class="value">' + hours + '</span></div>' +
                 '<div class="dashboard-day-card-kpi"><span class="label">Prod.</span><span class="value">' + prod + '</span></div>' +
                 '</div>' +
@@ -632,7 +697,9 @@
           if (b) b.disabled = false;
           return;
         }
-        if (weekRangeEl) { weekRangeEl.textContent = formatWeekRange((weekInput && weekInput.value) || weekStart); weekRangeEl.classList.remove('dashboard-week-range--loading'); }
+        if (weekRangeEl) weekRangeEl.textContent = formatWeekRange((weekInput && weekInput.value) || weekStart);
+        weekRangeEl && weekRangeEl.classList.remove('dashboard-week-range--loading');
+        if (predVsRealEl) predVsRealEl.innerHTML = '';
         if (kpisEl) kpisEl.innerHTML = '<p class="error-msg">' + (err.message || 'Error al cargar.') + '</p>';
         var chartEl = document.getElementById('dashboard-chart-30d');
         if (chartEl) chartEl.innerHTML = '<p class="dashboard-empty">Sin datos para el gráfico.</p>';
