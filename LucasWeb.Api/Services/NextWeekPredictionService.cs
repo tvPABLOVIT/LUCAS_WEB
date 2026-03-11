@@ -122,11 +122,16 @@ public class NextWeekPredictionService
         return result;
     }
 
-    public async Task<(DateTime WeekStartMonday, decimal PredictedRevenue, string? DailyPredictionsJson)> ComputeLivePredictionAsync()
+    /// <summary>Calcula la predicción para la semana cuyo lunes es targetMonday (debe ser semana actual o siguiente). Si no se pasa, usa la semana siguiente.</summary>
+    public async Task<(DateTime WeekStartMonday, decimal PredictedRevenue, string? DailyPredictionsJson)> ComputeLivePredictionAsync(DateTime? targetMonday = null)
     {
         var today = DateTime.UtcNow.Date;
         var currentWeekMonday = GetMonday(today);
-        var nextMonday = GetNextMonday(today);
+        var nextMonday = NextWeekPredictionService.GetNextMonday(today);
+        var weekToPredict = targetMonday ?? nextMonday;
+        weekToPredict = GetMonday(weekToPredict);
+        if (weekToPredict != currentWeekMonday && weekToPredict != nextMonday)
+            return (weekToPredict, 0, null);
 
         var historicDays = await _db.ExecutionDays
             .AsNoTracking()
@@ -135,7 +140,7 @@ public class NextWeekPredictionService
             .ToListAsync();
 
         if (historicDays.Count < 5)
-            return (nextMonday, 0, null);
+            return (weekToPredict, 0, null);
 
         var weeklyGroups = historicDays
             .GroupBy(e => GetMonday(e.Date))
@@ -153,12 +158,12 @@ public class NextWeekPredictionService
                 .ToList();
         }
         if (weeklyGroups.Count < 2)
-            return (nextMonday, 0, null);
+            return (weekToPredict, 0, null);
 
         var last4Weeks = weeklyGroups.Take(4).SelectMany(g => g).ToList();
         var prev4Weeks = weeklyGroups.Skip(4).Take(4).SelectMany(g => g).ToList();
         if (prev4Weeks.Count == 0)
-            return (nextMonday, 0, null);
+            return (weekToPredict, 0, null);
 
         decimal overallAvg = (decimal)historicDays.Average(x => x.TotalRevenue);
         var recentHistoricDays = historicDays.OrderByDescending(x => x.Date).Take(BaseAndOverallRecentDays).ToList();
@@ -221,7 +226,7 @@ public class NextWeekPredictionService
 
         for (int i = 0; i < 7; i++)
         {
-            var dayDate = nextMonday.AddDays(i);
+            var dayDate = weekToPredict.AddDays(i);
             int dow = Dow(dayDate);
             decimal monthAvg = 1m;
             if (byMonth.TryGetValue(dayDate.Month, out var monthRev) && overallForBase > 0)
@@ -282,7 +287,7 @@ public class NextWeekPredictionService
         }
 
         var json = JsonSerializer.Serialize(daily);
-        return (nextMonday, totalPredicted, json);
+        return (weekToPredict, totalPredicted, json);
     }
 
     /// <summary>Número de semanas usadas para la predicción (≥6 días por semana, fallback ≥5; máx 8).</summary>

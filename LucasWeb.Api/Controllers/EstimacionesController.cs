@@ -15,15 +15,17 @@ public class EstimacionesController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly NextWeekPredictionService _predictionService;
+    private readonly EnsurePredictionForWeekService _ensurePrediction;
     private readonly IWeatherService _weather;
     private readonly IHolidaysService _holidays;
     private readonly IEventsService _events;
     private readonly IDetectedPatternsService _patterns;
 
-    public EstimacionesController(AppDbContext db, NextWeekPredictionService predictionService, IWeatherService weather, IHolidaysService holidays, IEventsService events, IDetectedPatternsService patterns)
+    public EstimacionesController(AppDbContext db, NextWeekPredictionService predictionService, EnsurePredictionForWeekService ensurePrediction, IWeatherService weather, IHolidaysService holidays, IEventsService events, IDetectedPatternsService patterns)
     {
         _db = db;
         _predictionService = predictionService;
+        _ensurePrediction = ensurePrediction;
         _weather = weather;
         _holidays = holidays;
         _events = events;
@@ -412,6 +414,14 @@ public class EstimacionesController : ControllerBase
         var end = monday.AddDays(6);
         var inv = CultureInfo.InvariantCulture;
 
+        if (string.Equals(mode, "plan", StringComparison.OrdinalIgnoreCase))
+        {
+            await _ensurePrediction.EnsurePredictionForWeekAsync(monday);
+            var nextMonday = NextWeekPredictionService.GetNextMonday(DateTime.UtcNow.Date);
+            if (nextMonday != monday)
+                await _ensurePrediction.EnsurePredictionForWeekAsync(nextMonday);
+        }
+
         decimal? factObj = null;
         var factObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoSemanal");
         if (factObjS != null && decimal.TryParse((factObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var fo) && fo > 0) factObj = fo;
@@ -455,12 +465,6 @@ public class EstimacionesController : ControllerBase
             var pred = await _db.WeeklyPredictions.AsNoTracking().FirstOrDefaultAsync(p => p.WeekStartMonday == monday);
             if (pred != null && pred.PredictedRevenue.HasValue && pred.PredictedRevenue > 0)
                 predictedRevenue = pred.PredictedRevenue.Value;
-            else
-            {
-                // Fallback: predicción en vivo (sin necesidad de haberla guardado).
-                var (weekStartLive, total, _) = await _predictionService.ComputeLivePredictionAsync();
-                if (weekStartLive == monday && total > 0) predictedRevenue = total;
-            }
         }
 
         var baseRevenue = string.Equals(mode, "plan", StringComparison.OrdinalIgnoreCase)

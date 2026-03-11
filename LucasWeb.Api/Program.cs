@@ -48,6 +48,7 @@ builder.Services.AddScoped<IEvaluatePredictionsService, EvaluatePredictionsServi
 builder.Services.AddScoped<IGoogleSheetSyncService, GoogleSheetSyncService>();
 builder.Services.AddScoped<PredictionEnrichmentService>();
 builder.Services.AddScoped<StaffByTurnoPredictionService>();
+builder.Services.AddScoped<EnsurePredictionForWeekService>();
 builder.Services.AddControllers();
 var lucasOptions = builder.Configuration.GetSection(LucasOptions.SectionName).Get<LucasOptions>() ?? new LucasOptions();
 var isProduction = builder.Environment.IsProduction();
