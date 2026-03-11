@@ -148,30 +148,40 @@
       daysWrap.innerHTML = '';
       var todayYmd = (function () { var t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); })();
       var we = weekEndFromWeekStart(ws);
-      Promise.all([
-        auth.fetchWithAuth('/api/dashboard/week?weekStart=' + encodeURIComponent(ws) + '&asOf=' + encodeURIComponent(todayYmd)).then(function (r) {
-        if (r.status === 401) {
-          if (global.LUCAS_APP && global.LUCAS_APP.onUnauthorized) global.LUCAS_APP.onUnauthorized();
-          return null;
-        }
-        if (!r.ok) throw new Error('Error al cargar');
+      auth.fetchWithAuth('/api/estimaciones/comparativas?weekStart=' + encodeURIComponent(ws) + '&asOf=' + encodeURIComponent(todayYmd) + '&mode=plan').then(function (r) {
+        if (!r || !r.ok) return null;
         return r.json();
-      }),
-        auth.fetchWithAuth('/api/events?from=' + encodeURIComponent(ws) + '&to=' + encodeURIComponent(we)).then(function (r2) {
-          if (r2.status === 401) return null;
-          if (r2.status === 403) return [];
-          if (!r2.ok) return [];
-          return r2.json();
-        }).catch(function () { return []; }),
-        auth.fetchWithAuth('/api/estimaciones/comparativas?weekStart=' + encodeURIComponent(ws) + '&asOf=' + encodeURIComponent(todayYmd) + '&mode=plan').then(function (r) {
-          if (!r || !r.ok) return null;
-          return r.json();
-        }).catch(function () { return null; }),
-        auth.fetchWithAuth('/api/predictions/by-week?weekStart=' + encodeURIComponent(ws)).then(function (r) {
-          if (!r || !r.ok) return null;
-          return r.json();
-        }).catch(function () { return null; })
-      ]).then(function (arr) {
+      }).catch(function () { return null; }).then(function (comparativas) {
+        return Promise.all([
+          auth.fetchWithAuth('/api/dashboard/week?weekStart=' + encodeURIComponent(ws) + '&asOf=' + encodeURIComponent(todayYmd)).then(function (r) {
+            if (r.status === 401) {
+              if (global.LUCAS_APP && global.LUCAS_APP.onUnauthorized) global.LUCAS_APP.onUnauthorized();
+              return null;
+            }
+            if (!r.ok) throw new Error('Error al cargar');
+            return r.json();
+          }),
+          auth.fetchWithAuth('/api/events?from=' + encodeURIComponent(ws) + '&to=' + encodeURIComponent(we)).then(function (r2) {
+            if (r2.status === 401) return null;
+            if (r2.status === 403) return [];
+            if (!r2.ok) return [];
+            return r2.json();
+          }).catch(function () { return []; }),
+          Promise.resolve(comparativas),
+          auth.fetchWithAuth('/api/predictions/by-week?weekStart=' + encodeURIComponent(ws)).then(function (r) {
+            if (!r || !r.ok) return null;
+            return r.json();
+          }).catch(function () { return null; })
+        ]).then(function (arr) {
+          return [arr[0], arr[1], arr[2], arr[3]];
+        });
+      }).then(function (arr) {
+        if (!arr) {
+          loading = false;
+          var b = document.getElementById('dashboard-cargar');
+          if (b) b.disabled = false;
+          return;
+        }
         if (!isDashboardVisible()) {
           loading = false;
           var b = document.getElementById('dashboard-cargar');
