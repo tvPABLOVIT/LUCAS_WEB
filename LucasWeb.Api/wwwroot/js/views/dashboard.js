@@ -163,7 +163,7 @@
           if (!r2.ok) return [];
           return r2.json();
         }).catch(function () { return []; }),
-        auth.fetchWithAuth('/api/estimaciones/comparativas?weekStart=' + encodeURIComponent(ws) + '&mode=plan').then(function (r) {
+        auth.fetchWithAuth('/api/estimaciones/comparativas?weekStart=' + encodeURIComponent(ws) + '&asOf=' + encodeURIComponent(todayYmd) + '&mode=plan').then(function (r) {
           if (!r || !r.ok) return null;
           return r.json();
         }).catch(function () { return null; }),
@@ -196,6 +196,15 @@
               });
             }
           } catch (e) { }
+        }
+        var predHastaHoy = null;
+        if (data && data.isCurrentWeek && ws) {
+          var sum = 0;
+          for (var i = 0; i < 7; i++) {
+            var dStr = addDays(ws, i);
+            if (dStr <= todayYmd && predByDate[dStr] != null) sum += Number(predByDate[dStr]);
+          }
+          if (sum > 0) predHastaHoy = sum;
         }
         if (!data) {
           loading = false;
@@ -244,12 +253,15 @@
         }
         if (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue))) {
           var predFormatted = Number(comparativas.baseRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-          pctVsPrev += '<div class="kpi-card-sub">Predicho: ' + predFormatted + '</div>';
-          if (comparativas.actual && comparativas.actual.revenue != null && comparativas.baseRevenue > 0) {
-            var pctVsPred = ((comparativas.actual.revenue - comparativas.baseRevenue) / comparativas.baseRevenue) * 100;
+          pctVsPrev += '<div class="kpi-card-sub">Predicho' + (data.isCurrentWeek ? ' (semana)' : '') + ': ' + predFormatted + '</div>';
+          if (comparativas.actual && comparativas.actual.revenue != null) {
             var realFormatted = Number(comparativas.actual.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-            var pctVsPredClass = (typeof pctVsPred === 'number' && Number.isFinite(pctVsPred)) ? (pctVsPred > 0 ? 'kpi-card-sub--up' : (pctVsPred < 0 ? 'kpi-card-sub--down' : '')) : '';
-            pctVsPrev += '<div class="kpi-card-sub ' + pctVsPredClass + '">Real: ' + realFormatted + ' (' + safePct(pctVsPred) + ' vs pred.)</div>';
+            var baseForPct = (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0) ? predHastaHoy : comparativas.baseRevenue;
+            var pctVsPred = (baseForPct > 0) ? ((comparativas.actual.revenue - baseForPct) / baseForPct) * 100 : null;
+            var pctVsPredClass = (pctVsPred != null && typeof pctVsPred === 'number' && Number.isFinite(pctVsPred)) ? (pctVsPred > 0 ? 'kpi-card-sub--up' : (pctVsPred < 0 ? 'kpi-card-sub--down' : '')) : '';
+            var vsPredLabel = (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0) ? 'vs pred. hasta hoy' : 'vs pred.';
+            var realLabelKpi = data.isCurrentWeek ? 'Real (hasta hoy): ' : 'Real: ';
+            pctVsPrev += '<div class="kpi-card-sub ' + pctVsPredClass + '">' + realLabelKpi + realFormatted + (pctVsPred != null ? ' (' + safePct(pctVsPred) + ' ' + vsPredLabel + ')' : '') + '</div>';
           }
         }
         var prodValue = data.avgProductivity != null ? data.avgProductivity.toFixed(1) + ' €/h' : '—';
@@ -307,16 +319,25 @@
             var predVal = Number(comparativas.baseRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var realVal = null;
             var diffPct = null;
+            var usePredHastaHoy = data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0;
             if (comparativas.actual && comparativas.actual.revenue != null) {
               realVal = Number(comparativas.actual.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-              if (comparativas.baseRevenue > 0) diffPct = ((comparativas.actual.revenue - comparativas.baseRevenue) / comparativas.baseRevenue) * 100;
+              var baseForDiff = usePredHastaHoy ? predHastaHoy : comparativas.baseRevenue;
+              if (baseForDiff > 0) diffPct = ((comparativas.actual.revenue - baseForDiff) / baseForDiff) * 100;
             }
-            var realLabel = (data.isCurrentWeek ? 'Real (hasta hoy)' : 'Real') + ': ';
+            var predHastaHoyFormatted = usePredHastaHoy ? Number(predHastaHoy).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
             var diffPctStr = (diffPct != null && typeof diffPct === 'number' && Number.isFinite(diffPct)) ? (diffPct >= 0 ? '+' : '') + diffPct.toFixed(1) + '%' : '—';
-            var bodyHtml = realVal != null
-              ? 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. ' + realLabel + ' <strong>' + realVal + ' €</strong>. Diferencia: <strong>' + diffPctStr + '</strong>.'
-              : 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Aún no hay datos de facturación.';
-            var hintHtml = (data.isCurrentWeek === true || isCurrentWeek(ws)) ? '<p class="dashboard-pred-vs-real-hint">Al cerrar la semana, evalúa la predicción en <a href="#estimaciones">Estimaciones</a> para que el modelo mejore.</p>' : '';
+            var bodyHtml;
+            if (realVal != null) {
+              if (usePredHastaHoy && predHastaHoyFormatted) {
+                bodyHtml = 'Predicción semana completa: <strong>' + predVal + ' €</strong>. Predicho (hasta hoy): <strong>' + predHastaHoyFormatted + ' €</strong>. Real (hasta hoy): <strong>' + realVal + ' €</strong>. Diferencia: <strong>' + diffPctStr + '</strong> vs pred. hasta hoy.';
+              } else {
+                bodyHtml = 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Real: <strong>' + realVal + ' €</strong>. Diferencia: <strong>' + diffPctStr + '</strong>.';
+              }
+            } else {
+              bodyHtml = 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Aún no hay datos de facturación.';
+            }
+            var hintHtml = (data.isCurrentWeek === true || isCurrentWeek(ws)) ? '<p class="dashboard-pred-vs-real-hint">La evaluación de la predicción se hace automáticamente al cerrar la semana para que el modelo mejore.</p>' : '';
             predVsRealEl.innerHTML = blockTitle + '<p class="dashboard-pred-vs-real-value">' + bodyHtml + '</p>' + hintHtml;
           } else {
             predVsRealEl.innerHTML = blockTitle + '<p class="dashboard-pred-vs-real-value">No hay predicción guardada para esta semana. Genera una en <a href="#estimaciones">Estimaciones</a> (Planificación semana siguiente) para la semana que quieras comparar y verás aquí la comparación.</p>';

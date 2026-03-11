@@ -16,16 +16,18 @@ public class EstimacionesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly NextWeekPredictionService _predictionService;
     private readonly EnsurePredictionForWeekService _ensurePrediction;
+    private readonly IEvaluatePredictionsService _evaluatePredictions;
     private readonly IWeatherService _weather;
     private readonly IHolidaysService _holidays;
     private readonly IEventsService _events;
     private readonly IDetectedPatternsService _patterns;
 
-    public EstimacionesController(AppDbContext db, NextWeekPredictionService predictionService, EnsurePredictionForWeekService ensurePrediction, IWeatherService weather, IHolidaysService holidays, IEventsService events, IDetectedPatternsService patterns)
+    public EstimacionesController(AppDbContext db, NextWeekPredictionService predictionService, EnsurePredictionForWeekService ensurePrediction, IEvaluatePredictionsService evaluatePredictions, IWeatherService weather, IHolidaysService holidays, IEventsService events, IDetectedPatternsService patterns)
     {
         _db = db;
         _predictionService = predictionService;
         _ensurePrediction = ensurePrediction;
+        _evaluatePredictions = evaluatePredictions;
         _weather = weather;
         _holidays = holidays;
         _events = events;
@@ -405,13 +407,16 @@ public class EstimacionesController : ControllerBase
     }
 
     [HttpGet("comparativas")]
-    public async Task<IActionResult> GetComparativas([FromQuery] string weekStart, [FromQuery] string mode = "plan")
+    public async Task<IActionResult> GetComparativas([FromQuery] string weekStart, [FromQuery] string? asOf = null, [FromQuery] string mode = "plan")
     {
         if (string.IsNullOrWhiteSpace(weekStart) || !DateTime.TryParse(weekStart, out var d))
             return BadRequest(new { message = "weekStart inválido (yyyy-MM-dd)." });
 
         var monday = GetMonday(d.Date);
         var end = monday.AddDays(6);
+        DateTime? asOfDate = null;
+        if (!string.IsNullOrWhiteSpace(asOf) && DateTime.TryParse(asOf, out var asOfParsed) && asOfParsed.Date >= monday && asOfParsed.Date <= end)
+            asOfDate = asOfParsed.Date;
         var inv = CultureInfo.InvariantCulture;
 
         if (string.Equals(mode, "plan", StringComparison.OrdinalIgnoreCase))
@@ -420,6 +425,8 @@ public class EstimacionesController : ControllerBase
             var nextMonday = NextWeekPredictionService.GetNextMonday(DateTime.UtcNow.Date);
             if (nextMonday != monday)
                 await _ensurePrediction.EnsurePredictionForWeekAsync(nextMonday);
+            if (monday.AddDays(6) < DateTime.UtcNow.Date)
+                await _evaluatePredictions.EvaluateWeekIfPendingAsync(monday);
         }
 
         decimal? factObj = null;
@@ -435,6 +442,8 @@ public class EstimacionesController : ControllerBase
             .Where(e => !e.IsFeedbackOnly && e.Date >= monday && e.Date <= end)
             .Select(e => new { e.Date, e.TotalRevenue, e.TotalHoursWorked })
             .ToListAsync();
+        if (asOfDate.HasValue)
+            weekDays = weekDays.Where(x => x.Date <= asOfDate.Value).ToList();
         var actualRevenue = weekDays.Sum(x => x.TotalRevenue);
         var actualHours = weekDays.Sum(x => x.TotalHoursWorked);
         decimal? actualProd = actualHours > 0 ? actualRevenue / actualHours : null;

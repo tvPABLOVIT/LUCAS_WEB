@@ -40,12 +40,21 @@ public class EvaluatePredictionsService : IEvaluatePredictionsService
         var today = DateTime.UtcNow.Date;
         var lastSunday = GetLastSunday(today);
         var lastMonday = lastSunday.AddDays(-6);
+        await EvaluateWeekIfPendingAsync(lastMonday);
+    }
+
+    public async Task EvaluateWeekIfPendingAsync(DateTime weekStartMonday)
+    {
+        var today = DateTime.UtcNow.Date;
+        var monday = weekStartMonday.Date;
+        var sunday = monday.AddDays(6);
+        if (sunday >= today) return;
         var pred = await _db.WeeklyPredictions
-            .FirstOrDefaultAsync(p => p.WeekStartMonday == lastMonday && p.CompletedAt == null);
+            .FirstOrDefaultAsync(p => p.WeekStartMonday == monday && p.CompletedAt == null);
         if (pred == null) return;
 
         var actualDays = await _db.ExecutionDays
-            .Where(e => !e.IsFeedbackOnly && e.Date >= lastMonday && e.Date <= lastSunday)
+            .Where(e => !e.IsFeedbackOnly && e.Date >= monday && e.Date <= sunday)
             .Select(e => new { e.Date, e.TotalRevenue })
             .ToListAsync();
         var actualTotal = actualDays.Sum(d => d.TotalRevenue);
@@ -65,7 +74,7 @@ public class EvaluatePredictionsService : IEvaluatePredictionsService
             predicted_revenue = pred.PredictedRevenue
         });
 
-        pred.StaffAccuracyJson = await ComputeStaffAccuracyJsonAsync(lastMonday, lastSunday, pred.DailyPredictionsJson);
+        pred.StaffAccuracyJson = await ComputeStaffAccuracyJsonAsync(monday, sunday, pred.DailyPredictionsJson);
 
         if (string.IsNullOrWhiteSpace(pred.DailyPredictionsJson)) { await _db.SaveChangesAsync(); return; }
         List<JsonElement>? days;
