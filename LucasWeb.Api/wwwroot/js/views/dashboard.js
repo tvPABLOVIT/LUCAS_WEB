@@ -364,7 +364,11 @@
                 var ajusteNote = (realAdjustedForComparison != null) ? ' (real para comparar: ajustado -9,1% en días con facturación manual)' : '';
                 bodyParts.push('Para esta semana, a día <strong>' + dayNameFromDate(todayYmd) + '</strong> la predicción acumulada hasta hoy era de <strong>' + predHastaHoyFormatted + ' €</strong> y el real facturado' + ajusteNote + ' es <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
               } else {
-                bodyParts.push('La predicción semanal era de <strong>' + predVal + ' €</strong> y la facturación real de la semana ha sido <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
+                bodyParts.push('La predicción semanal era de <strong>' + predVal + ' €</strong> y la facturación real de la semana ' + (data.isCurrentWeek ? 'viene siendo' : 'ha sido') + ' <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
+              }
+              if (data.isCurrentWeek && diffPct != null && Number.isFinite(diffPct)) {
+                var porEncimaDebajo = diffPct > 0 ? 'un ' + diffPct.toFixed(1) + '% por encima' : (diffPct < 0 ? 'un ' + Math.abs(diffPct).toFixed(1) + '% por debajo' : 'alineados');
+                bodyParts.push(' A día de hoy, vamos ' + porEncimaDebajo + '.');
               }
               var daysWithBoth = [];
               var wsBuild = (weekInput && weekInput.value) || weekStart;
@@ -378,12 +382,13 @@
                 }
                 var realDay = dayObj && dayObj.revenue != null ? Number(dayObj.revenue) : null;
                 if (predDay != null && predDay > 0 && realDay != null) {
-                  var dayPct = ((realDay - predDay) / predDay) * 100;
+                  var realDayForParagraph = (dayObj && dayObj.revenueFromManual !== false) ? realDay * (1 - 0.091) : realDay;
+                  var dayPct = ((realDayForParagraph - predDay) / predDay) * 100;
                   var dayPctStr = (Number.isFinite(dayPct) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—');
                   daysWithBoth.push({
                     name: dayNameFromDate(dateStrDay),
                     pred: predDay,
-                    real: realDay,
+                    real: realDayForParagraph,
                     pct: dayPctStr
                   });
                 }
