@@ -91,6 +91,9 @@ public class DashboardController : ControllerBase
 
         var daysInRange = numDaysToCompare > 0 ? days.Where(d => d.Date <= effectiveAsOf).ToList() : new List<Models.ExecutionDay>();
         var totalRevenue = daysInRange.Sum(d => d.TotalRevenue);
+        var totalRevenueForComparisons = isCurrentWeek && daysInRange.Count > 0
+            ? daysInRange.Sum(d => d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * 0.909m)
+            : totalRevenue;
         var totalHours = daysInRange.Sum(d => d.TotalHoursWorked);
         var avgStaff = daysInRange.Count > 0 ? (decimal)daysInRange.Average(d => d.StaffTotal) : 0;
         decimal? avgProductivity = null;
@@ -314,7 +317,7 @@ public class DashboardController : ControllerBase
             }
             if (prevWeekRevenue.HasValue && prevWeekRevenue.Value > 0)
             {
-                var pctVsPrev = (totalRevenue - prevWeekRevenue.Value) / prevWeekRevenue.Value;
+                var pctVsPrev = (totalRevenueForComparisons - prevWeekRevenue.Value) / prevWeekRevenue.Value;
                 var pctPct = (int)Math.Round(pctVsPrev * 100);
                 if (pctPct > 5)
                     parts.Add($"Respecto a la semana pasada, la facturación ha subido un {pctPct}%.");
@@ -325,7 +328,7 @@ public class DashboardController : ControllerBase
             }
             if (avgRevenueHistoric.HasValue && avgRevenueHistoric.Value > 0)
             {
-                var diffVsMedia = totalRevenue - avgRevenueHistoric.Value;
+                var diffVsMedia = totalRevenueForComparisons - avgRevenueHistoric.Value;
                 var pctVsMedia = (int)Math.Round((diffVsMedia / avgRevenueHistoric.Value) * 100);
                 if (pctVsMedia > 10)
                     parts.Add($"La media de las últimas doce semanas ronda los {avgRevenueHistoric.Value:N0} €, así que esta semana vas claramente por encima.");

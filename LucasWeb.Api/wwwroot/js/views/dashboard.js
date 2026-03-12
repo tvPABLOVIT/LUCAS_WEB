@@ -287,16 +287,6 @@
         if (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue))) {
           var predFormatted = Number(comparativas.baseRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
           pctVsPrev += '<div class="kpi-card-sub">Predicho' + (data.isCurrentWeek ? ' (semana)' : '') + ': ' + predFormatted + '</div>';
-          if (comparativas.actual && comparativas.actual.revenue != null) {
-            var realFormatted = (data.isCurrentWeek && realAdjustedForComparison != null) ? Number(realAdjustedForComparison).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : Number(comparativas.actual.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-            var baseForPct = (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0) ? predHastaHoy : comparativas.baseRevenue;
-            var realForPct = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : comparativas.actual.revenue;
-            var pctVsPred = (baseForPct > 0) ? ((realForPct - baseForPct) / baseForPct) * 100 : null;
-            var pctVsPredClass = (pctVsPred != null && typeof pctVsPred === 'number' && Number.isFinite(pctVsPred)) ? (pctVsPred > 0 ? 'kpi-card-sub--up' : (pctVsPred < 0 ? 'kpi-card-sub--down' : '')) : '';
-            var vsPredLabel = (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0) ? 'vs pred. hasta hoy' : 'vs pred.';
-            var realLabelKpi = data.isCurrentWeek ? 'Real (hasta hoy): ' : 'Real: ';
-            pctVsPrev += '<div class="kpi-card-sub ' + pctVsPredClass + '">' + realLabelKpi + realFormatted + (pctVsPred != null ? ' (' + safePct(pctVsPred) + ' ' + vsPredLabel + ')' : '') + '</div>';
-          }
         }
         var prodValue = data.avgProductivity != null ? data.avgProductivity.toFixed(1) + ' €/h' : '—';
         var pctVsPrevProd = '';
