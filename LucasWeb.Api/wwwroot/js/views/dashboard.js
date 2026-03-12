@@ -225,6 +225,16 @@
             if (n > 0) predHastaHoy = (Number(comparativas.baseRevenue) * n) / 7;
           }
         }
+        var realAdjustedForComparison = null;
+        if (data && data.isCurrentWeek && data.days && data.days.length > 0) {
+          var sumAdj = 0;
+          for (var ai = 0; ai < data.days.length; ai++) {
+            var da = data.days[ai];
+            var ra = da.revenue != null ? Number(da.revenue) : 0;
+            if (ra > 0) sumAdj += (da.revenueFromManual !== false ? ra * (1 - 0.091) : ra);
+          }
+          if (sumAdj > 0) realAdjustedForComparison = sumAdj;
+        }
         if (!data) {
           loading = false;
           var b2 = document.getElementById('dashboard-cargar');
@@ -276,7 +286,8 @@
           if (comparativas.actual && comparativas.actual.revenue != null) {
             var realFormatted = Number(comparativas.actual.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
             var baseForPct = (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0) ? predHastaHoy : comparativas.baseRevenue;
-            var pctVsPred = (baseForPct > 0) ? ((comparativas.actual.revenue - baseForPct) / baseForPct) * 100 : null;
+            var realForPct = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : comparativas.actual.revenue;
+            var pctVsPred = (baseForPct > 0) ? ((realForPct - baseForPct) / baseForPct) * 100 : null;
             var pctVsPredClass = (pctVsPred != null && typeof pctVsPred === 'number' && Number.isFinite(pctVsPred)) ? (pctVsPred > 0 ? 'kpi-card-sub--up' : (pctVsPred < 0 ? 'kpi-card-sub--down' : '')) : '';
             var vsPredLabel = (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0) ? 'vs pred. hasta hoy' : 'vs pred.';
             var realLabelKpi = data.isCurrentWeek ? 'Real (hasta hoy): ' : 'Real: ';
@@ -340,23 +351,61 @@
             var diffPct = null;
             var usePredHastaHoy = data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0;
             if (comparativas.actual && comparativas.actual.revenue != null) {
-              realVal = Number(comparativas.actual.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              var realForBlock = (usePredHastaHoy && realAdjustedForComparison != null) ? realAdjustedForComparison : comparativas.actual.revenue;
+              realVal = Number(realForBlock).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               var baseForDiff = usePredHastaHoy ? predHastaHoy : comparativas.baseRevenue;
-              if (baseForDiff > 0) diffPct = ((comparativas.actual.revenue - baseForDiff) / baseForDiff) * 100;
+              if (baseForDiff > 0) diffPct = ((realForBlock - baseForDiff) / baseForDiff) * 100;
             }
             var predHastaHoyFormatted = usePredHastaHoy ? Number(predHastaHoy).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
             var diffPctStr = (diffPct != null && typeof diffPct === 'number' && Number.isFinite(diffPct)) ? (diffPct >= 0 ? '+' : '') + diffPct.toFixed(1) + '%' : '—';
-            var bodyHtml;
+            var bodyParts = [];
             if (realVal != null) {
               if (usePredHastaHoy && predHastaHoyFormatted) {
-                var diaHoy = dayNameFromDate(todayYmd);
-                bodyHtml = 'Para esta semana, a día <strong>' + diaHoy + '</strong> deberíamos haber facturado <strong>' + predHastaHoyFormatted + ' €</strong> y llevamos <strong>' + realVal + ' €</strong>. La diferencia es de <strong>' + diffPctStr + '</strong>.';
+                var ajusteNote = (realAdjustedForComparison != null) ? ' (real para comparar: ajustado -9,1% en días con facturación manual)' : '';
+                bodyParts.push('Para esta semana, a día <strong>' + dayNameFromDate(todayYmd) + '</strong> la predicción acumulada hasta hoy era de <strong>' + predHastaHoyFormatted + ' €</strong> y el real facturado' + ajusteNote + ' es <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
               } else {
-                bodyHtml = 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Real: <strong>' + realVal + ' €</strong>. Diferencia: <strong>' + diffPctStr + '</strong>.';
+                bodyParts.push('La predicción semanal era de <strong>' + predVal + ' €</strong> y la facturación real de la semana ha sido <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
+              }
+              var daysWithBoth = [];
+              var wsBuild = (weekInput && weekInput.value) || weekStart;
+              for (var di = 0; di < 7; di++) {
+                var dateStrDay = addDays(wsBuild, di);
+                if (data.isCurrentWeek && dateStrDay > todayYmd) continue;
+                var predDay = predByDate[dateStrDay] != null ? Number(predByDate[dateStrDay]) : null;
+                var dayObj = null;
+                for (var dj = 0; dj < (data.days || []).length; dj++) {
+                  if (toYmd((data.days)[dj].date) === dateStrDay) { dayObj = (data.days)[dj]; break; }
+                }
+                var realDay = dayObj && dayObj.revenue != null ? Number(dayObj.revenue) : null;
+                if (predDay != null && predDay > 0 && realDay != null) {
+                  var dayPct = ((realDay - predDay) / predDay) * 100;
+                  var dayPctStr = (Number.isFinite(dayPct) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—');
+                  daysWithBoth.push({
+                    name: dayNameFromDate(dateStrDay),
+                    pred: predDay,
+                    real: realDay,
+                    pct: dayPctStr
+                  });
+                }
+              }
+              if (daysWithBoth.length > 0) {
+                bodyParts.push(' Por días: ');
+                var dayPhrases = daysWithBoth.map(function (x) {
+                  return 'el <strong>' + x.name + '</strong> se había predicho ' + x.pred.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € y se facturó ' + x.real.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € (' + x.pct + ')';
+                });
+                bodyParts.push(dayPhrases.join('; ') + '.');
+              }
+              if (data.isCurrentWeek && usePredHastaHoy) {
+                var tendencia = (diffPct != null && diffPct < 0) ? 'por debajo de lo estimado' : ((diffPct != null && diffPct > 0) ? 'por encima de lo estimado' : 'alineada con lo estimado');
+                bodyParts.push(' La predicción completa de la semana era <strong>' + predVal + ' €</strong>; con los datos actuales (parciales) la tendencia queda ' + tendencia + '.');
+              } else if (!data.isCurrentWeek && diffPct != null) {
+                if (diffPct > 0) bodyParts.push(' La semana ha cerrado por encima de la predicción.');
+                else if (diffPct < 0) bodyParts.push(' La semana ha cerrado por debajo de la predicción.');
               }
             } else {
-              bodyHtml = 'Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Aún no hay datos de facturación.';
+              bodyParts.push('Para esta semana se había estimado <strong>' + predVal + ' €</strong>. Aún no hay datos de facturación.');
             }
+            var bodyHtml = bodyParts.join('');
             predVsRealEl.innerHTML = blockTitle + '<p class="dashboard-pred-vs-real-value">' + bodyHtml + '</p>';
           } else {
             predVsRealEl.innerHTML = blockTitle + '<p class="dashboard-pred-vs-real-value">No hay predicción guardada para esta semana. Genera una en <a href="#estimaciones">Estimaciones</a> (Planificación semana siguiente) para la semana que quieras comparar y verás aquí la comparación.</p>';
