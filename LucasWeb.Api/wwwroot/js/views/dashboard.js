@@ -360,8 +360,12 @@
               } else {
                 bodyParts.push('La predicción semanal era de <strong>' + predVal + ' €</strong> y la facturación real de la semana ' + (data.isCurrentWeek ? 'viene siendo' : 'ha sido') + ' <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
               }
-              if (data.isCurrentWeek && diffPct != null && Number.isFinite(diffPct)) {
-                var porEncimaDebajo = diffPct > 0 ? 'un ' + diffPct.toFixed(1) + '% por encima' : (diffPct < 0 ? 'un ' + Math.abs(diffPct).toFixed(1) + '% por debajo' : 'alineados');
+              var pctParaHoy = null;
+              if (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0 && realAdjustedForComparison != null) {
+                pctParaHoy = ((realAdjustedForComparison - predHastaHoy) / predHastaHoy) * 100;
+              }
+              if (data.isCurrentWeek && pctParaHoy != null && Number.isFinite(pctParaHoy)) {
+                var porEncimaDebajo = pctParaHoy > 0 ? 'un ' + pctParaHoy.toFixed(1) + '% por encima' : (pctParaHoy < 0 ? 'un ' + Math.abs(pctParaHoy).toFixed(1) + '% por debajo' : 'alineados');
                 bodyParts.push(' A día de hoy, vamos ' + porEncimaDebajo + '.');
               }
               var daysWithBoth = [];
@@ -395,7 +399,8 @@
                 bodyParts.push(dayPhrases.join('; ') + '.');
               }
               if (data.isCurrentWeek && usePredHastaHoy) {
-                var tendencia = (diffPct != null && diffPct < 0) ? 'por debajo de lo estimado' : ((diffPct != null && diffPct > 0) ? 'por encima de lo estimado' : 'alineada con lo estimado');
+                var tendenciaPct = (pctParaHoy != null && Number.isFinite(pctParaHoy)) ? pctParaHoy : diffPct;
+                var tendencia = (tendenciaPct != null && tendenciaPct < 0) ? 'por debajo de lo estimado' : ((tendenciaPct != null && tendenciaPct > 0) ? 'por encima de lo estimado' : 'alineada con lo estimado');
                 bodyParts.push(' La predicción completa de la semana era <strong>' + predVal + ' €</strong>; con los datos actuales (parciales) la tendencia queda ' + tendencia + '.');
               } else if (!data.isCurrentWeek && diffPct != null) {
                 if (diffPct > 0) bodyParts.push(' La semana ha cerrado por encima de la predicción.');
