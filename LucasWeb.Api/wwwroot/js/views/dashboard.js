@@ -361,8 +361,11 @@
                 bodyParts.push('La predicción semanal era de <strong>' + predVal + ' €</strong> y la facturación real de la semana ' + (data.isCurrentWeek ? 'viene siendo' : 'ha sido') + ' <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
               }
               var pctParaHoy = null;
-              if (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0 && realAdjustedForComparison != null) {
-                pctParaHoy = ((realAdjustedForComparison - predHastaHoy) / predHastaHoy) * 100;
+              if (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0) {
+                var realParaHoy = realAdjustedForComparison != null
+                  ? realAdjustedForComparison
+                  : (comparativas && comparativas.actual && comparativas.actual.revenue != null ? comparativas.actual.revenue : null);
+                if (realParaHoy != null) pctParaHoy = ((realParaHoy - predHastaHoy) / predHastaHoy) * 100;
               }
               if (data.isCurrentWeek && pctParaHoy != null && Number.isFinite(pctParaHoy)) {
                 var porEncimaDebajo = pctParaHoy > 0 ? 'un ' + pctParaHoy.toFixed(1) + '% por encima' : (pctParaHoy < 0 ? 'un ' + Math.abs(pctParaHoy).toFixed(1) + '% por debajo' : 'alineados');
