@@ -171,6 +171,7 @@ public class ImportController : ControllerBase
                         TotalHoursWorked = row.TotalHoursWorked,
                         StaffTotal = 0,
                         IsFeedbackOnly = false,
+                        RevenueFromExcel = true,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     });
@@ -182,6 +183,7 @@ public class ImportController : ControllerBase
                     day.TotalRevenue = row.TotalRevenue;
                     day.TotalHoursWorked = row.TotalHoursWorked;
                     if (row.TotalRevenue > 0 || row.TotalHoursWorked > 0) day.IsFeedbackOnly = false;
+                    day.RevenueFromExcel = true;
                     day.UpdatedAt = DateTime.UtcNow;
                     updated++;
                 }
@@ -379,6 +381,7 @@ public class ImportController : ControllerBase
                     TotalHoursWorked = totalHours,
                     StaffTotal = 0,
                     IsFeedbackOnly = false,
+                    RevenueFromExcel = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -398,6 +401,7 @@ public class ImportController : ControllerBase
                 if (totalHours > 0)
                     day.TotalHoursWorked = totalHours;
                 if (total > 0 || totalHours > 0) day.IsFeedbackOnly = false;
+                day.RevenueFromExcel = true;
                 day.UpdatedAt = DateTime.UtcNow;
                 updated++;
                 AddOrUpdateShift(day, "Mediodia", d.RevMed, d.HoursMed);

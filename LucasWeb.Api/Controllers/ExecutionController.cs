@@ -213,12 +213,14 @@ public class ExecutionController : ControllerBase
             day.TotalHoursWorked = computed.hasAnyRevenueOrHours ? computed.hours : request.TotalHoursWorked;
             day.StaffTotal = computed.staffTotal;
             day.IsFeedbackOnly = day.TotalRevenue == 0 && day.TotalHoursWorked == 0 && computed.hasAnyFeedbackOrStaff;
+            day.RevenueFromExcel = false;
         }
         else
         {
             day.TotalRevenue = request.TotalRevenue;
             day.TotalHoursWorked = request.TotalHoursWorked;
             day.StaffTotal = request.StaffTotal;
+            day.RevenueFromExcel = false;
         }
         day.Notes = request.Notes;
         day.UpdatedAt = DateTime.UtcNow;

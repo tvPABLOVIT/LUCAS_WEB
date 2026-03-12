@@ -255,6 +255,7 @@ public class DashboardController : ControllerBase
                 Date = d.Date.ToString("yyyy-MM-dd"),
                 DayName = dayNames.TryGetValue(d.Date.DayOfWeek, out var name) ? name : "",
                 Revenue = d.TotalRevenue,
+                RevenueFromManual = d.RevenueFromExcel == false,
                 HoursWorked = d.TotalHoursWorked,
                 Productivity = d.TotalHoursWorked > 0 ? d.TotalRevenue / d.TotalHoursWorked : 0,
                 StaffTotal = d.StaffTotal,

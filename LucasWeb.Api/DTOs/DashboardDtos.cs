@@ -13,6 +13,10 @@ public class DashboardDayItemDto
     [JsonPropertyName("revenue")]
     public decimal Revenue { get; set; }
 
+    /// <summary>True si la facturación del día es de entrada manual (feedback/registro). En semana en curso el Dashboard muestra entre paréntesis el valor -9,1% como referencia.</summary>
+    [JsonPropertyName("revenueFromManual")]
+    public bool RevenueFromManual { get; set; }
+
     [JsonPropertyName("hoursWorked")]
     public decimal HoursWorked { get; set; }
 

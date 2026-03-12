@@ -23,6 +23,7 @@ public static class DataSeeder
         await EnsureKitchenComfortColumnsAsync(db);
         await EnsureShiftWeatherColumnsAsync(db);
         await EnsureExecutionDayFeedbackOnlyColumnAsync(db);
+        await EnsureExecutionDayRevenueFromExcelColumnAsync(db);
         await EnsureExecutionDayWeatherColumnsAsync(db);
         await EnsurePlannedHoursTotalColumnAsync(db);
         await BackfillStaffComfortAsync(db);
@@ -212,6 +213,11 @@ public static class DataSeeder
     private static async Task EnsureExecutionDayFeedbackOnlyColumnAsync(AppDbContext db)
     {
         await AddColumnIfNotExistsAsync(db, "ExecutionDays", "IsFeedbackOnly", "INTEGER NOT NULL DEFAULT 0");
+    }
+
+    private static async Task EnsureExecutionDayRevenueFromExcelColumnAsync(AppDbContext db)
+    {
+        await AddColumnIfNotExistsAsync(db, "ExecutionDays", "RevenueFromExcel", "INTEGER NULL");
     }
 
     private static async Task EnsureExecutionDayWeatherColumnsAsync(AppDbContext db)

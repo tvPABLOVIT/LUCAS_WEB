@@ -25,6 +25,8 @@ public class ExecutionDay
     /// Se usa para excluir estos días de KPIs y predicciones basadas en revenue/hours.
     /// </summary>
     public bool IsFeedbackOnly { get; set; }
+    /// <summary>True si la facturación del día proviene de importación Excel (definitiva). False si es manual (feedback/registro). Null = legacy.</summary>
+    public bool? RevenueFromExcel { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

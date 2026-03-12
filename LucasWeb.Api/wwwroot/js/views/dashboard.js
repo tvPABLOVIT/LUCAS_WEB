@@ -524,7 +524,15 @@
             var dayName = d.dayName || dayNameFromDate(d.date);
             var dateShort = formatDateShort(d.date);
             var clima = '<span class="dashboard-weather">' + weatherText(d) + '</span>';
-            var rev = d.revenue != null ? Number(d.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
+            var revNum = d.revenue != null ? Number(d.revenue) : null;
+            var rev = '—';
+            if (revNum != null) {
+              var revFormatted = revNum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+              if (data.isCurrentWeek && d.revenueFromManual && revNum > 0) {
+                var estFinal = revNum * (1 - 0.091);
+                rev = revFormatted + ' (' + estFinal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €)';
+              } else rev = revFormatted;
+            }
             var dayKey = toYmd(d.date || '');
             var predValNum = predByDate[dayKey] != null ? Number(predByDate[dayKey]) : NaN;
             var predCell = (predValNum != null && Number.isFinite(predValNum)) ? '<span class="dashboard-day-pred">' + predValNum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</span>' : '—';
@@ -596,7 +604,15 @@
               }
               var dayName = d.dayName || dayNameFromDate(d.date);
               var dateShort = formatDateShort(d.date);
-              var rev = d.revenue != null ? Number(d.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
+              var revNumCard = d.revenue != null ? Number(d.revenue) : null;
+              var rev = '—';
+              if (revNumCard != null) {
+                var revFormattedCard = revNumCard.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+                if (data.isCurrentWeek && d.revenueFromManual && revNumCard > 0) {
+                  var estFinalCard = revNumCard * (1 - 0.091);
+                  rev = revFormattedCard + ' (' + estFinalCard.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €)';
+                } else rev = revFormattedCard;
+              }
               var dayKeyCard = toYmd(d.date || '');
               var predValCard = predByDate[dayKeyCard] != null ? Number(predByDate[dayKeyCard]) : NaN;
               var predLineHtml = (predValCard != null && Number.isFinite(predValCard)) ? '<div class="dashboard-day-card-kpi dashboard-day-card-pred"><span class="label">Predicho</span><span class="value">' + predValCard.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</span></div>' : '';
