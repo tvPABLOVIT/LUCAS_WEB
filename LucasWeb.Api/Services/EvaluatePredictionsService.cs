@@ -111,6 +111,74 @@ public class EvaluatePredictionsService : IEvaluatePredictionsService
         await _db.SaveChangesAsync();
     }
 
+    /// <summary>Re-evalúa la semana con los datos actuales de facturación (tras importar Excel). Actualiza ActualRevenue y métricas para comparativas real vs predicción.</summary>
+    public async Task ReEvaluateWeekAsync(DateTime weekStartMonday)
+    {
+        var today = DateTime.UtcNow.Date;
+        var monday = weekStartMonday.Date;
+        var sunday = monday.AddDays(6);
+        if (sunday >= today) return;
+        var pred = await _db.WeeklyPredictions.FirstOrDefaultAsync(p => p.WeekStartMonday == monday);
+        if (pred == null) return;
+
+        var actualDays = await _db.ExecutionDays
+            .Where(e => !e.IsFeedbackOnly && e.Date >= monday && e.Date <= sunday)
+            .Select(e => new { e.Date, e.TotalRevenue })
+            .ToListAsync();
+        var actualTotal = actualDays.Sum(d => d.TotalRevenue);
+        var byDate = actualDays.ToDictionary(d => d.Date.Date, d => d.TotalRevenue);
+
+        pred.ActualRevenue = actualTotal;
+        pred.CompletedAt = DateTime.UtcNow;
+        var errorPct = pred.PredictedRevenue.HasValue && pred.PredictedRevenue > 0
+            ? Math.Abs(pred.PredictedRevenue.Value - actualTotal) / pred.PredictedRevenue.Value * 100
+            : 0;
+        var accuracy = Math.Max(0, 100 - errorPct);
+        pred.AccuracyMetricsJson = JsonSerializer.Serialize(new
+        {
+            overall_error_percent = errorPct,
+            accuracy_percent = accuracy,
+            actual_revenue = actualTotal,
+            predicted_revenue = pred.PredictedRevenue
+        });
+
+        pred.StaffAccuracyJson = await ComputeStaffAccuracyJsonAsync(monday, sunday, pred.DailyPredictionsJson);
+
+        if (string.IsNullOrWhiteSpace(pred.DailyPredictionsJson)) { await _db.SaveChangesAsync(); return; }
+        List<JsonElement>? days;
+        try { days = JsonSerializer.Deserialize<List<JsonElement>>(pred.DailyPredictionsJson); } catch { await _db.SaveChangesAsync(); return; }
+        if (days == null || days.Count == 0) { await _db.SaveChangesAsync(); return; }
+
+        await EnsureSettingsTableAsync();
+        var biasJson = await GetSettingValueAsync("PredictionBiasJson");
+        var maeJson = await GetSettingValueAsync("PredictionMaeJson");
+        PredictionBiasMaeWindow.ParseBiasWithWindow(biasJson, out var bias, out var biasRecent);
+        PredictionBiasMaeWindow.ParseMaeWithWindow(maeJson, out var mae, out var maeRecent);
+
+        foreach (var d in days)
+        {
+            if (!d.TryGetProperty("date", out var dateEl)) continue;
+            var dateStr = dateEl.GetString();
+            if (string.IsNullOrEmpty(dateStr) || !DateTime.TryParse(dateStr, out var date)) continue;
+            var dayDate = date.Date;
+            var dow = Dow(dayDate);
+            var predRev = 0m;
+            if (d.TryGetProperty("revenue", out var r)) predRev = r.GetDecimal();
+            else if (d.TryGetProperty("predictedRevenue", out r)) predRev = r.GetDecimal();
+            if (predRev <= 0) continue;
+            var realRev = byDate.TryGetValue(dayDate, out var rev) ? rev : 0;
+            var errorPctDay = (predRev - realRev) / predRev * 100;
+            var absError = Math.Abs(predRev - realRev);
+
+            PredictionBiasMaeWindow.UpdateWindow(biasRecent[dow], (double)errorPctDay, BiasMaeWindowSize, out bias[dow]);
+            PredictionBiasMaeWindow.UpdateWindow(maeRecent[dow], (double)absError, BiasMaeWindowSize, out mae[dow]);
+        }
+
+        await SetSettingValueAsync("PredictionBiasJson", PredictionBiasMaeWindow.SerializeBiasWithWindow(bias, biasRecent));
+        await SetSettingValueAsync("PredictionMaeJson", PredictionBiasMaeWindow.SerializeMaeWithWindow(mae, maeRecent));
+        await _db.SaveChangesAsync();
+    }
+
     private async Task EnsureSettingsTableAsync()
     {
         try { await _db.Database.ExecuteSqlRawAsync("CREATE TABLE IF NOT EXISTS \"Settings\" (\"Key\" TEXT NOT NULL PRIMARY KEY, \"Value\" TEXT NOT NULL, \"UpdatedAt\" TEXT NOT NULL);"); } catch { }

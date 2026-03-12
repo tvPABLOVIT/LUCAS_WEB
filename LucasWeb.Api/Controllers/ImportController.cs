@@ -18,13 +18,21 @@ public class ImportController : ControllerBase
     private readonly IGoogleSheetSyncService _googleSheetSync;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICuadrantePdfService _cuadrantePdf;
+    private readonly IEvaluatePredictionsService _evaluatePredictions;
 
-    public ImportController(AppDbContext db, IGoogleSheetSyncService googleSheetSync, IServiceScopeFactory scopeFactory, ICuadrantePdfService cuadrantePdf)
+    public ImportController(AppDbContext db, IGoogleSheetSyncService googleSheetSync, IServiceScopeFactory scopeFactory, ICuadrantePdfService cuadrantePdf, IEvaluatePredictionsService evaluatePredictions)
     {
         _db = db;
         _googleSheetSync = googleSheetSync;
         _scopeFactory = scopeFactory;
         _cuadrantePdf = cuadrantePdf;
+        _evaluatePredictions = evaluatePredictions;
+    }
+
+    private static DateTime GetMonday(DateTime d)
+    {
+        var diff = (7 + (d.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return d.Date.AddDays(-diff);
     }
 
     /// <summary>
@@ -126,6 +134,8 @@ public class ImportController : ControllerBase
                 await _googleSheetSync.SyncAsync(estimacionDates);
                 result.Message = $"Estimaciones: {imported} importados, {updated} actualizados, {errors.Count} errores. Google Sheet actualizado.";
                 RunBackgroundAnalysisAsync(imported + updated);
+                foreach (var monday in days.Select(d => GetMonday(d.TargetDate)).Distinct())
+                    await _evaluatePredictions.ReEvaluateWeekAsync(monday);
                 return Ok(result);
             }
 
@@ -153,6 +163,8 @@ public class ImportController : ControllerBase
                 if (errors.Count > 0)
                     result.Message += " " + string.Join(" ", errors.Take(5));
                 RunBackgroundAnalysisAsync(imported + updated);
+                foreach (var monday in days.Select(d => GetMonday(d.TargetDate)).Distinct())
+                    await _evaluatePredictions.ReEvaluateWeekAsync(monday);
                 return Ok(result);
             }
 
@@ -196,6 +208,8 @@ public class ImportController : ControllerBase
             if (errors.Count > 0)
                 result.Message += ". Primeros 5 errores: " + string.Join("; ", errors.Take(5));
             RunBackgroundAnalysisAsync(imported + updated);
+            foreach (var monday in genericRows.Select(r => GetMonday(r.Date)).Distinct())
+                await _evaluatePredictions.ReEvaluateWeekAsync(monday);
         }
 
         return Ok(result);

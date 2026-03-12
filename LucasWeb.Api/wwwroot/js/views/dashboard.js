@@ -259,21 +259,25 @@
           subtitleEl.textContent = isCurrent ? ('Datos hasta hoy (' + n + ' de 7 días)') : 'Semana cerrada — datos completos';
         }
         if (kpisEl) kpisEl.innerHTML = '';
+        var realForKpiComparisons = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : (data.totalRevenue != null ? Number(data.totalRevenue) : null);
         var revValue = data.totalRevenue != null ? Number(data.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
+        if (data.isCurrentWeek && realAdjustedForComparison != null && data.totalRevenue != null && data.totalRevenue > 0 && Math.abs(realAdjustedForComparison - data.totalRevenue) > 0.01) {
+          revValue = Number(data.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € (' + Number(realAdjustedForComparison).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €)';
+        }
         var pctVsPrev = '';
         if (data.isCurrentWeek && data.daysIncludedCount != null && data.daysIncludedCount > 0)
           pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted">Datos parciales (hasta hoy)</div>';
-        if (data.totalRevenue != null && data.prevWeekRevenue != null && data.prevWeekRevenue > 0) {
-          var pct = ((data.totalRevenue - data.prevWeekRevenue) / data.prevWeekRevenue) * 100;
+        if (realForKpiComparisons != null && data.prevWeekRevenue != null && data.prevWeekRevenue > 0) {
+          var pct = ((realForKpiComparisons - data.prevWeekRevenue) / data.prevWeekRevenue) * 100;
           if (pct > 0) pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--up">+' + pct.toFixed(1) + '% vs sem. ant.</div>';
           else if (pct < 0) pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--down">' + pct.toFixed(1) + '% vs sem. ant.</div>';
           else pctVsPrev += '<div class="kpi-card-sub">0% vs sem. ant.</div>';
         }
-        // % vs objetivo (facturación)
+        // % vs objetivo (facturación) — en semana actual usar real ajustado (-9,1% manual)
         var objRaw = data.facturacionObjetivo != null ? data.facturacionObjetivo : data.FacturacionObjetivo;
         var objNum = objRaw != null && objRaw !== '' ? Number(objRaw) : NaN;
-        if (objNum > 0 && data.totalRevenue != null) {
-          var pctObj = ((data.totalRevenue - objNum) / objNum) * 100;
+        if (objNum > 0 && realForKpiComparisons != null) {
+          var pctObj = ((realForKpiComparisons - objNum) / objNum) * 100;
           var objetivoClass = pctObj > 0 ? 'kpi-card-sub--up' : (pctObj < 0 ? 'kpi-card-sub--down' : '');
           var pctObjStr = pctObj > 0 ? ('+' + pctObj.toFixed(1)) : pctObj.toFixed(1);
           pctVsPrev += '<div class="kpi-card-sub ' + objetivoClass + '">' + pctObjStr + '% vs fact. objetivo</div>';
@@ -284,7 +288,7 @@
           var predFormatted = Number(comparativas.baseRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
           pctVsPrev += '<div class="kpi-card-sub">Predicho' + (data.isCurrentWeek ? ' (semana)' : '') + ': ' + predFormatted + '</div>';
           if (comparativas.actual && comparativas.actual.revenue != null) {
-            var realFormatted = Number(comparativas.actual.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+            var realFormatted = (data.isCurrentWeek && realAdjustedForComparison != null) ? Number(realAdjustedForComparison).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : Number(comparativas.actual.revenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
             var baseForPct = (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0) ? predHastaHoy : comparativas.baseRevenue;
             var realForPct = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : comparativas.actual.revenue;
             var pctVsPred = (baseForPct > 0) ? ((realForPct - baseForPct) / baseForPct) * 100 : null;

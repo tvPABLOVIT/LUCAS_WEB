@@ -8,4 +8,7 @@ public interface IEvaluatePredictionsService
 
     /// <summary>Evalúa la predicción de la semana indicada si está cerrada y aún no evaluada (para evaluación automática al consultar comparativas).</summary>
     Task EvaluateWeekIfPendingAsync(DateTime weekStartMonday);
+
+    /// <summary>Re-evalúa la predicción de la semana con los datos actuales de facturación (p. ej. tras importar Excel con reales). Actualiza ActualRevenue y métricas para que las comparativas reflejen real vs predicción.</summary>
+    Task ReEvaluateWeekAsync(DateTime weekStartMonday);
 }
