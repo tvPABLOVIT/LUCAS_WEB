@@ -194,13 +194,22 @@
         var byWeek = arr[3] || null;
         var predByDate = {};
         function toYmd(s) { if (!s || typeof s !== 'string') return ''; return s.substring(0, 10); }
+        function parseToYmd(s) {
+          if (!s) return '';
+          var str = typeof s === 'string' ? s.trim() : String(s);
+          if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.substring(0, 10);
+          var d = new Date(str);
+          if (isNaN(d.getTime())) return toYmd(str);
+          var y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+          return y + '-' + m + '-' + day;
+        }
         function safePct(n) { if (n == null || typeof n !== 'number' || !Number.isFinite(n)) return '—'; return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
         if (byWeek && byWeek.dailyPredictionsJson) {
           try {
             var dailyArr = JSON.parse(byWeek.dailyPredictionsJson);
             if (Array.isArray(dailyArr)) {
               dailyArr.forEach(function (day) {
-                var dateStr = toYmd(day.date || day.dateStr || '');
+                var dateStr = parseToYmd(day.date || day.dateStr || '');
                 var rev = day.revenue != null ? day.revenue : (day.predictedRevenue != null ? day.predictedRevenue : null);
                 if (dateStr && rev != null) predByDate[dateStr] = rev;
               });
@@ -361,11 +370,21 @@
                 bodyParts.push('La predicción semanal era de <strong>' + predVal + ' €</strong> y la facturación real de la semana ' + (data.isCurrentWeek ? 'viene siendo' : 'ha sido') + ' <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
               }
               var pctParaHoy = null;
-              if (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0) {
+              var predParaHoy = predHastaHoy;
+              if (data.isCurrentWeek && (!predParaHoy || predParaHoy <= 0) && comparativas && comparativas.baseRevenue != null && comparativas.baseRevenue > 0) {
+                var nd = (data.daysIncludedCount != null && data.daysIncludedCount > 0) ? data.daysIncludedCount : ((data.days && data.days.length) ? data.days.length : 0);
+                if (nd <= 0 && ws && todayYmd) {
+                  var monP = new Date(ws + 'T12:00:00');
+                  var todayP = new Date(todayYmd + 'T12:00:00');
+                  nd = Math.max(1, Math.min(7, Math.floor((todayP - monP) / 86400000) + 1));
+                }
+                if (nd > 0) predParaHoy = (Number(comparativas.baseRevenue) * nd) / 7;
+              }
+              if (data.isCurrentWeek && predParaHoy != null && predParaHoy > 0) {
                 var realParaHoy = realAdjustedForComparison != null
                   ? realAdjustedForComparison
                   : (comparativas && comparativas.actual && comparativas.actual.revenue != null ? comparativas.actual.revenue : null);
-                if (realParaHoy != null) pctParaHoy = ((realParaHoy - predHastaHoy) / predHastaHoy) * 100;
+                if (realParaHoy != null) pctParaHoy = ((realParaHoy - predParaHoy) / predParaHoy) * 100;
               }
               if (data.isCurrentWeek && pctParaHoy != null && Number.isFinite(pctParaHoy)) {
                 var porEncimaDebajo = pctParaHoy > 0 ? 'un ' + pctParaHoy.toFixed(1) + '% por encima' : (pctParaHoy < 0 ? 'un ' + Math.abs(pctParaHoy).toFixed(1) + '% por debajo' : 'alineados');
