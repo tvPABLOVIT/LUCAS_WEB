@@ -528,7 +528,8 @@
             var rev = '—';
             if (revNum != null) {
               var revFormatted = revNum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-              if (data.isCurrentWeek && d.revenueFromManual && revNum > 0) {
+              var showManualHint = data.isCurrentWeek && revNum > 0 && d.revenueFromManual !== false;
+              if (showManualHint) {
                 var estFinal = revNum * (1 - 0.091);
                 rev = revFormatted + ' (' + estFinal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €)';
               } else rev = revFormatted;
@@ -608,7 +609,8 @@
               var rev = '—';
               if (revNumCard != null) {
                 var revFormattedCard = revNumCard.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-                if (data.isCurrentWeek && d.revenueFromManual && revNumCard > 0) {
+                var showManualHintCard = data.isCurrentWeek && revNumCard > 0 && d.revenueFromManual !== false;
+                if (showManualHintCard) {
                   var estFinalCard = revNumCard * (1 - 0.091);
                   rev = revFormattedCard + ' (' + estFinalCard.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €)';
                 } else rev = revFormattedCard;
