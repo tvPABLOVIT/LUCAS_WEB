@@ -74,6 +74,7 @@
       '</div>' +
       '</div>' +
       '<div id="dashboard-kpis" class="kpi-grid"></div>' +
+      '<div id="dashboard-pred-vs-real" class="card dashboard-pred-vs-real-card"></div>' +
       '<div id="dashboard-days-wrap" class="card"><h3>Días de la semana</h3><div id="dashboard-days-table-wrap"></div><div id="dashboard-days-cards-wrap" class="dashboard-days-cards-wrap"></div></div>' +
       '<div id="dashboard-resumen" class="card"></div>' +
       '<div class="card dashboard-import-card">' +
@@ -101,6 +102,7 @@
     var weekRangeEl = document.getElementById('dashboard-week-range');
     var badgeEl = document.getElementById('dashboard-semana-en-curso');
     var kpisEl = document.getElementById('dashboard-kpis');
+    var predVsRealEl = document.getElementById('dashboard-pred-vs-real');
     var resumenEl = document.getElementById('dashboard-resumen');
     var daysWrap = document.getElementById('dashboard-days-table-wrap');
     var daysCardsWrap = document.getElementById('dashboard-days-cards-wrap');
@@ -141,6 +143,7 @@
         else { badgeEl.textContent = ''; badgeEl.classList.add('hidden'); badgeEl.classList.remove('dashboard-badge--current'); }
       }
       kpisEl.innerHTML = '<p class="loading">Cargando…</p>';
+      if (predVsRealEl) predVsRealEl.innerHTML = '';
       resumenEl.innerHTML = '';
       daysWrap.innerHTML = '';
       var todayYmd = (function () { var t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); })();
@@ -333,6 +336,91 @@
           div.innerHTML = '<div class="label">' + k.label + '</div><div class="value">' + k.value + '</div>' + (k.sub || '');
           kpisEl.appendChild(div);
         });
+        if (predVsRealEl && comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue))) {
+          var predSemana = Number(comparativas.baseRevenue);
+          var predHastaHoy = null;
+          var nd = (data.days && data.days.length) ? data.days.length : 0;
+          if (data.isCurrentWeek && nd > 0 && data.days && data.days.length > 0) {
+            var sumPred = 0;
+            for (var pi = 0; pi < data.days.length; pi++) {
+              var dayDate = data.days[pi].date;
+              var dStr = (typeof dayDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dayDate)) ? dayDate.substring(0, 10) : (dayDate ? (dayDate.toString ? dayDate.toString().substring(0, 10) : '') : '');
+              if (!dStr && dayDate) { var dt = new Date(dayDate); dStr = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); }
+              if (dStr && predByDate[dStr] != null) sumPred += Number(predByDate[dStr]);
+            }
+            if (sumPred > 0) predHastaHoy = sumPred;
+            if ((predHastaHoy == null || predHastaHoy <= 0) && nd > 0) predHastaHoy = (predSemana * nd) / 7;
+          }
+          var realForBlock = realForKpiComparisons != null ? Number(realForKpiComparisons) : null;
+          var wsBuild = (weekInput && weekInput.value) || weekStart;
+          var daysWithBoth = [];
+          for (var di = 0; di < 7; di++) {
+            var dateStrDay = addDays(wsBuild, di);
+            if (data.isCurrentWeek && dateStrDay > todayYmd) continue;
+            var predDay = predByDate[dateStrDay] != null ? Number(predByDate[dateStrDay]) : null;
+            var dayObj = null;
+            for (var dj = 0; dj < (data.days || []).length; dj++) {
+              if (toYmd((data.days)[dj].date) === dateStrDay) { dayObj = (data.days)[dj]; break; }
+            }
+            var realDay = dayObj && (dayObj.revenue != null || dayObj.Revenue != null) ? Number(dayObj.revenue != null ? dayObj.revenue : dayObj.Revenue) : null;
+            if (predDay != null && predDay > 0 && realDay != null) {
+              var dayPct = ((realDay - predDay) / predDay) * 100;
+              var dayPctStr = (Number.isFinite(dayPct) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—');
+              daysWithBoth.push({
+                name: dayNameFromDate(dateStrDay),
+                pred: predDay,
+                real: realDay,
+                pct: dayPctStr
+              });
+            }
+          }
+          var bodyParts = [];
+          if (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0 && realForBlock != null) {
+            var hastaLabel = (data.days && data.days.length > 0 && data.days[data.days.length - 1].dayName)
+              ? 'hasta el ' + data.days[data.days.length - 1].dayName + ' (último día con facturación)'
+              : 'hasta el último día con facturación';
+            var predHastaFormatted = Number(predHastaHoy).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            var realFormatted = Number(realForBlock).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            var diffPct = ((realForBlock - predHastaHoy) / predHastaHoy) * 100;
+            var diffPctStr = (Number.isFinite(diffPct) ? (diffPct >= 0 ? '+' : '') + diffPct.toFixed(1) + '%' : '—');
+            bodyParts.push('Para esta semana, ' + hastaLabel + ', la predicción acumulada era de <strong>' + predHastaFormatted + ' €</strong> y el real facturado (facturación real o aproximada según disponibilidad) es <strong>' + realFormatted + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>. ');
+            if (data.prevWeekRevenue != null && data.prevWeekRevenue > 0) {
+              var pctVsSemAnt = ((realForBlock - data.prevWeekRevenue) / data.prevWeekRevenue) * 100;
+              var porDebajoEncima = Number.isFinite(pctVsSemAnt)
+                ? (pctVsSemAnt > 0 ? 'un ' + pctVsSemAnt.toFixed(1) + '% por encima' : (pctVsSemAnt < 0 ? 'un ' + Math.abs(pctVsSemAnt).toFixed(1) + '% por debajo' : 'alineados'))
+                : '';
+              if (porDebajoEncima) bodyParts.push('Hasta el último día con facturación, vamos ' + porDebajoEncima + ' de la semana anterior (mismos días). ');
+            }
+          }
+          if (daysWithBoth.length > 0) {
+            bodyParts.push('Por días: ');
+            bodyParts.push(daysWithBoth.map(function (x) {
+              return x.name + ' se había predicho ' + x.pred.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € y se facturó ' + x.real.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € (' + x.pct + ')';
+            }).join('; ') + '. ');
+          }
+          if (data.isCurrentWeek && predSemana > 0 && realForBlock != null) {
+            var pctVsPred = ((realForBlock - predSemana) / predSemana) * 100;
+            var faltarian = Math.max(0, predSemana - realForBlock);
+            var predSemanaFmt = predSemana.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (pctVsPred < 0) {
+              bodyParts.push('La predicción completa de la semana era <strong>' + predSemanaFmt + ' €</strong>; con los datos actuales (parciales) estamos <strong>' + Math.abs(pctVsPred).toFixed(1) + '% por debajo</strong>, nos faltarían <strong>' + faltarian.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> para alcanzar la predicción de toda la semana.');
+            } else if (pctVsPred > 0) {
+              bodyParts.push('La predicción completa de la semana era <strong>' + predSemanaFmt + ' €</strong>; con los datos actuales (parciales) estamos <strong>' + pctVsPred.toFixed(1) + '% por encima</strong> de la predicción de toda la semana.');
+            } else {
+              bodyParts.push('La predicción completa de la semana era <strong>' + predSemanaFmt + ' €</strong>; con los datos actuales (parciales) vamos alineados con la predicción.');
+            }
+          } else if (!data.isCurrentWeek && predSemana > 0 && realForBlock != null) {
+            bodyParts.push('La predicción completa de la semana era <strong>' + predSemana.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong>.');
+          }
+          var bodyHtml = bodyParts.join('');
+          if (bodyHtml) {
+            predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><p class="dashboard-pred-vs-real-value">' + bodyHtml + '</p>';
+          } else {
+            predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><p class="dashboard-pred-vs-real-value">No hay predicción guardada para esta semana. Genera una en <a href="#estimaciones">Estimaciones</a> (Planificación semana siguiente) para ver aquí la comparación.</p>';
+          }
+        } else if (predVsRealEl && comparativas) {
+          predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><p class="dashboard-pred-vs-real-value">No hay predicción guardada para esta semana. Genera una en <a href="#estimaciones">Estimaciones</a> (Planificación semana siguiente) para ver aquí la comparación.</p>';
+        }
         if (resumenEl) {
           resumenEl.innerHTML = '<h3>Resumen</h3>' +
             (data.resumenClasificacion ? '<p class="dashboard-clasificacion">' + data.resumenClasificacion + '</p>' : '') +
@@ -729,6 +817,7 @@
         }
         if (weekRangeEl) weekRangeEl.textContent = formatWeekRange((weekInput && weekInput.value) || weekStart);
         weekRangeEl && weekRangeEl.classList.remove('dashboard-week-range--loading');
+        if (predVsRealEl) predVsRealEl.innerHTML = '';
         if (kpisEl) kpisEl.innerHTML = '<p class="error-msg">' + (err.message || 'Error al cargar.') + '</p>';
         var chartEl = document.getElementById('dashboard-chart-30d');
         if (chartEl) chartEl.innerHTML = '<p class="dashboard-empty">Sin datos para el gráfico.</p>';
