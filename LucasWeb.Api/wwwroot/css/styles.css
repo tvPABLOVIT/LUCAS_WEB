@@ -248,9 +248,18 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-day-card--pending { opacity: 0.75; }
 .dashboard-day-card--pending .dashboard-day-card-meta { color: var(--text-muted); }
 
-/* Predicción vs realidad y Semana Actual vs Anterior (Dashboard) */
-.dashboard-two-blocks { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-@media (max-width: 900px) { .dashboard-two-blocks { grid-template-columns: 1fr; } }
+/* Predicción vs realidad y Semana Actual vs Anterior (Dashboard) — lado a lado */
+.dashboard-two-blocks {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: start;
+}
+.dashboard-two-blocks > * { min-width: 0; }
+@media (max-width: 640px) {
+  .dashboard-two-blocks { grid-template-columns: 1fr; }
+}
 .dashboard-pred-vs-real-card { }
 .dashboard-actual-vs-anterior-card { }
 .dashboard-pred-vs-real-title,

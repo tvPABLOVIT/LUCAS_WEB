@@ -124,6 +124,10 @@ public class DashboardController : ControllerBase
             .Where(e => !e.IsFeedbackOnly && e.Date >= prevStart && e.Date < prevEnd)
             .ToListAsync();
         var prevWeekRevenue = prevDays.Count > 0 ? (decimal?)prevDays.Sum(d => d.TotalRevenue) : null;
+        var prevWeekDayItems = prevDays.OrderBy(d => d.Date).Select(d => new DailyRevenueItemDto { Date = d.Date.ToString("yyyy-MM-dd"), Revenue = d.TotalRevenue }).ToList();
+        var prevWeekRevenueFull = await _db.ExecutionDays
+            .Where(e => !e.IsFeedbackOnly && e.Date >= prevStart && e.Date < prevStart.AddDays(7))
+            .SumAsync(e => e.TotalRevenue);
         decimal? prevWeekProductivity = null;
         var prevHours = prevDays.Sum(d => d.TotalHoursWorked);
         if (prevHours > 0 && prevWeekRevenue.HasValue)
@@ -458,7 +462,9 @@ public class DashboardController : ControllerBase
             DaysIncludedCount = numDaysToCompare,
             AjusteFacturacionManualPct = ajustePct,
             TotalRevenueForComparisons = isCurrentWeek ? (decimal?)totalRevenueForComparisons : totalRevenue,
-            TotalRevenueManual = totalRevenueManual
+            TotalRevenueManual = totalRevenueManual,
+            PrevWeekDays = prevWeekDayItems,
+            PrevWeekRevenueFull = prevWeekRevenueFull > 0 ? (decimal?)prevWeekRevenueFull : null
         });
         }
         catch (Exception ex)

@@ -184,6 +184,14 @@ public class DashboardWeekResponse
     /// <summary>Suma bruta de días con facturación manual (solo informativo, no se usa en cálculos).</summary>
     [JsonPropertyName("totalRevenueManual")]
     public decimal? TotalRevenueManual { get; set; }
+
+    /// <summary>Días de la semana anterior (mismo número que la actual) con fecha y revenue para comparativa día a día.</summary>
+    [JsonPropertyName("prevWeekDays")]
+    public List<DailyRevenueItemDto> PrevWeekDays { get; set; } = new();
+
+    /// <summary>Facturación completa (7 días) de la semana anterior.</summary>
+    [JsonPropertyName("prevWeekRevenueFull")]
+    public decimal? PrevWeekRevenueFull { get; set; }
 }
 
 public class DailyRevenueItemDto

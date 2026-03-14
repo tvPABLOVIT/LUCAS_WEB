@@ -381,21 +381,11 @@
           }
           var bodyParts = [];
           if (data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0 && realForBlock != null) {
-            var hastaLabel = (data.days && data.days.length > 0 && data.days[data.days.length - 1].dayName)
-              ? 'hasta el ' + data.days[data.days.length - 1].dayName + ' (último día con facturación)'
-              : 'hasta el último día con facturación';
             var predHastaFormatted = Number(predHastaHoy).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var realFormatted = Number(realForBlock).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var diffPct = ((realForBlock - predHastaHoy) / predHastaHoy) * 100;
             var diffPctStr = (Number.isFinite(diffPct) ? (diffPct >= 0 ? '+' : '') + diffPct.toFixed(1) + '%' : '—');
-            bodyParts.push('Para esta semana, ' + hastaLabel + ', la predicción acumulada era de <strong>' + predHastaFormatted + ' €</strong> y el real facturado (facturación real o aproximada según disponibilidad) es <strong>' + realFormatted + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>. ');
-            if (data.prevWeekRevenue != null && data.prevWeekRevenue > 0) {
-              var pctVsSemAnt = ((realForBlock - data.prevWeekRevenue) / data.prevWeekRevenue) * 100;
-              var porDebajoEncima = Number.isFinite(pctVsSemAnt)
-                ? (pctVsSemAnt > 0 ? 'un ' + pctVsSemAnt.toFixed(1) + '% por encima' : (pctVsSemAnt < 0 ? 'un ' + Math.abs(pctVsSemAnt).toFixed(1) + '% por debajo' : 'alineados'))
-                : '';
-              if (porDebajoEncima) bodyParts.push('Hasta el último día con facturación, vamos ' + porDebajoEncima + ' de la semana anterior (mismos días). ');
-            }
+            bodyParts.push('Hasta el ' + (data.days && data.days.length > 0 ? data.days[data.days.length - 1].dayName : 'último día') + ' (último día con facturación), la predicción acumulada era <strong>' + predHastaFormatted + ' €</strong> y el real facturado (facturación real o aproximada según disponibilidad) es <strong>' + realFormatted + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>. ');
           }
           if (daysWithBoth.length > 0) {
             bodyParts.push('Por días: ');
@@ -406,11 +396,12 @@
           if (data.isCurrentWeek && predSemana > 0 && realForBlock != null) {
             var pctVsPred = ((realForBlock - predSemana) / predSemana) * 100;
             var faltarian = Math.max(0, predSemana - realForBlock);
+            var sobra = Math.max(0, realForBlock - predSemana);
             var predSemanaFmt = predSemana.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             if (pctVsPred < 0) {
               bodyParts.push('La predicción completa de la semana era <strong>' + predSemanaFmt + ' €</strong>; con los datos actuales (parciales) estamos <strong>' + Math.abs(pctVsPred).toFixed(1) + '% por debajo</strong>, nos faltarían <strong>' + faltarian.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong> para alcanzar la predicción de toda la semana.');
             } else if (pctVsPred > 0) {
-              bodyParts.push('La predicción completa de la semana era <strong>' + predSemanaFmt + ' €</strong>; con los datos actuales (parciales) estamos <strong>' + pctVsPred.toFixed(1) + '% por encima</strong> de la predicción de toda la semana.');
+              bodyParts.push('La predicción completa de la semana era <strong>' + predSemanaFmt + ' €</strong>; con los datos actuales (parciales) estamos <strong>' + pctVsPred.toFixed(1) + '% por encima</strong>, con una diferencia de <strong>+' + sobra.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</strong>.');
             } else {
               bodyParts.push('La predicción completa de la semana era <strong>' + predSemanaFmt + ' €</strong>; con los datos actuales (parciales) vamos alineados con la predicción.');
             }
@@ -430,21 +421,46 @@
           var partsVsAnt = [];
           var realVsAnt = realForKpiComparisons != null ? Number(realForKpiComparisons) : null;
           var prevVsAnt = data.prevWeekRevenue != null && data.prevWeekRevenue > 0 ? Number(data.prevWeekRevenue) : null;
+          var prevWeekDays = (data.prevWeekDays && Array.isArray(data.prevWeekDays)) ? data.prevWeekDays : [];
+          var currDays = data.days || [];
           if (data.isCurrentWeek && realVsAnt != null && prevVsAnt != null) {
-            var hastaLabelVsAnt = (data.days && data.days.length > 0 && data.days[data.days.length - 1].dayName)
-              ? 'hasta el ' + data.days[data.days.length - 1].dayName + ' (último día con facturación)'
-              : 'hasta el último día con facturación';
+            var dayNameLast = (currDays.length > 0 && currDays[currDays.length - 1].dayName) ? currDays[currDays.length - 1].dayName : 'último día';
             var realFmtVsAnt = realVsAnt.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var prevFmtVsAnt = prevVsAnt.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var diffPctVsAnt = ((realVsAnt - prevVsAnt) / prevVsAnt) * 100;
             var diffPctStrVsAnt = Number.isFinite(diffPctVsAnt) ? (diffPctVsAnt >= 0 ? '+' : '') + diffPctVsAnt.toFixed(1) + '%' : '—';
-            var porEncimaDebajoVsAnt = Number.isFinite(diffPctVsAnt)
-              ? (diffPctVsAnt > 0 ? 'un ' + diffPctVsAnt.toFixed(1) + '% por encima' : (diffPctVsAnt < 0 ? 'un ' + Math.abs(diffPctVsAnt).toFixed(1) + '% por debajo' : 'alineados'))
-              : '';
-            partsVsAnt.push('Para esta semana, ' + hastaLabelVsAnt + ', la facturación (real o aproximada según disponibilidad) es de <strong>' + realFmtVsAnt + ' €</strong> y la de la semana anterior (mismos días) fue de <strong>' + prevFmtVsAnt + ' €</strong>, una diferencia de <strong>' + diffPctStrVsAnt + '</strong>. ');
-            if (porEncimaDebajoVsAnt) partsVsAnt.push('Vamos ' + porEncimaDebajoVsAnt + ' de la semana anterior.');
-            var nDiasVsAnt = (data.days && data.days.length) ? data.days.length : (data.daysIncludedCount != null ? data.daysIncludedCount : 0);
-            if (nDiasVsAnt > 0) partsVsAnt.push(' Se comparan los mismos ' + nDiasVsAnt + ' día' + (nDiasVsAnt !== 1 ? 's' : '') + ' en ambas semanas.');
+            partsVsAnt.push('Hasta el ' + dayNameLast + ' (último día con facturación), llevamos facturado (facturación real o aproximada según disponibilidad) <strong>' + realFmtVsAnt + ' €</strong>, y a esta altura de la semana pasada íbamos <strong>' + prevFmtVsAnt + ' €</strong>, una diferencia de <strong>' + diffPctStrVsAnt + '</strong>. ');
+            var dayPairs = [];
+            for (var idx = 0; idx < currDays.length && idx < prevWeekDays.length; idx++) {
+              var d = currDays[idx];
+              var p = prevWeekDays[idx];
+              var nameD = d.dayName || (d.date ? dayNameFromDate(typeof d.date === 'string' ? d.date.substring(0, 10) : '') : '');
+              if (!nameD && d.date) nameD = dayNameFromDate((d.date + '').substring(0, 10));
+              var prevRev = (p && (p.revenue != null || p.Revenue != null)) ? Number(p.revenue != null ? p.revenue : p.Revenue) : 0;
+              var currRev = (d.revenue != null || d.Revenue != null) ? Number(d.revenue != null ? d.revenue : d.Revenue) : 0;
+              var dayPct = (prevRev > 0 && Number.isFinite(currRev)) ? ((currRev - prevRev) / prevRev) * 100 : null;
+              var dayPctStr = (dayPct != null && Number.isFinite(dayPct)) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—';
+              var prevF = prevRev.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              var currF = currRev.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              dayPairs.push(nameD + ' anterior se había facturado ' + prevF + ' € y esta semana se facturó ' + currF + ' € (' + dayPctStr + ')');
+            }
+            if (dayPairs.length > 0) {
+              partsVsAnt.push('Por días: ' + dayPairs.join('; ') + '. ');
+            }
+            var prevFull = (data.prevWeekRevenueFull != null && Number(data.prevWeekRevenueFull) > 0) ? Number(data.prevWeekRevenueFull) : null;
+            if (prevFull != null && realVsAnt != null) {
+              var pctVsFull = ((realVsAnt - prevFull) / prevFull) * 100;
+              var diffEur = realVsAnt - prevFull;
+              var prevFullFmt = prevFull.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              var diffEurFmt = (diffEur >= 0 ? '+' : '') + diffEur.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+              if (pctVsFull < 0) {
+                partsVsAnt.push('La facturación completa de la semana anterior fue <strong>' + prevFullFmt + ' €</strong>; con los datos actuales (parciales) estamos <strong>' + Math.abs(pctVsFull).toFixed(1) + '% por debajo</strong>, con una diferencia de <strong>' + diffEurFmt + '</strong>.');
+              } else if (pctVsFull > 0) {
+                partsVsAnt.push('La facturación completa de la semana anterior fue <strong>' + prevFullFmt + ' €</strong>; con los datos actuales (parciales) estamos <strong>' + pctVsFull.toFixed(1) + '% por encima</strong>, con una diferencia de <strong>' + diffEurFmt + '</strong>.');
+              } else {
+                partsVsAnt.push('La facturación completa de la semana anterior fue <strong>' + prevFullFmt + ' €</strong>; con los datos actuales (parciales) vamos alineados.');
+              }
+            }
           } else if (!data.isCurrentWeek && realVsAnt != null && prevVsAnt != null) {
             var realFmtC = realVsAnt.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var prevFmtC = prevVsAnt.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -454,7 +470,7 @@
           } else {
             partsVsAnt.push('No hay datos suficientes para comparar con la semana anterior.');
           }
-          actualVsAnteriorEl.innerHTML = '<h3 class="dashboard-actual-vs-anterior-title">Semana Actual vs Semana Anterior</h3><p class="dashboard-actual-vs-anterior-value">' + partsVsAnt.join(' ') + '</p>';
+          actualVsAnteriorEl.innerHTML = '<h3 class="dashboard-actual-vs-anterior-title">Semana Actual vs Semana Anterior</h3><p class="dashboard-actual-vs-anterior-value">' + partsVsAnt.join('') + '</p>';
         }
         if (resumenEl) {
           resumenEl.innerHTML = '<h3>Resumen</h3>' +
