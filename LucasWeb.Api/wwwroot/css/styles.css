@@ -257,7 +257,7 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   align-items: start;
 }
 .dashboard-two-blocks > * { min-width: 0; }
-@media (max-width: 640px) {
+@media (max-width: 480px) {
   .dashboard-two-blocks { grid-template-columns: 1fr; }
 }
 .dashboard-pred-vs-real-card { }
