@@ -104,6 +104,13 @@ public class DashboardController : ControllerBase
         var totalRevenueForComparisons = isCurrentWeek && daysInRange.Count > 0
             ? daysInRange.Sum(d => d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * factorManual)
             : totalRevenue;
+        decimal? totalRevenueManual = null;
+        if (isCurrentWeek && daysInRange.Count > 0)
+        {
+            var manualSum = daysInRange.Where(d => d.RevenueFromExcel != true).Sum(d => d.TotalRevenue);
+            if (manualSum > 0)
+                totalRevenueManual = manualSum;
+        }
         var totalHours = daysInRange.Sum(d => d.TotalHoursWorked);
         var avgStaff = daysInRange.Count > 0 ? (decimal)daysInRange.Average(d => d.StaffTotal) : 0;
         decimal? avgProductivity = null;
@@ -315,7 +322,7 @@ public class DashboardController : ControllerBase
 
             var parts = new List<string>();
             if (isCurrentWeek && numDaysToCompare > 0)
-                parts.Add($"Hasta hoy ({numDaysToCompare} de 7 días) la facturación ha sido de {totalRevenue:N0} €, con {totalEffectiveHours:N1} horas trabajadas.");
+                parts.Add($"Hasta hoy ({numDaysToCompare} de 7 días) la facturación ha sido de {totalRevenueForComparisons:N0} €, con {totalEffectiveHours:N1} horas trabajadas.");
             else
                 parts.Add($"En esa semana la facturación total fue de {totalRevenue:N0} €, con {totalEffectiveHours:N1} horas trabajadas.");
             if (productivityForWeek.HasValue)
@@ -373,7 +380,8 @@ public class DashboardController : ControllerBase
         if (!string.IsNullOrWhiteSpace(costeHoraSetting) && decimal.TryParse(costeHoraSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var costePorHora) && costePorHora > 0)
         {
             costePersonalEur = totalEffectiveHours * costePorHora;
-            costePersonalPctFacturacion = totalRevenue > 0 ? (costePersonalEur.Value / totalRevenue) * 100 : null;
+            var revenueBaseForCoste = isCurrentWeek ? totalRevenueForComparisons : totalRevenue;
+            costePersonalPctFacturacion = revenueBaseForCoste > 0 ? (costePersonalEur.Value / revenueBaseForCoste) * 100 : null;
             var horasContratoSetting = await GetSettingValueAsync("HorasSemanalesContrato");
             if (!string.IsNullOrWhiteSpace(horasContratoSetting) && decimal.TryParse(horasContratoSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var horasContrato) && horasContrato >= 0 && avgRevenueHistoric.HasValue && avgRevenueHistoric.Value > 0)
             {
@@ -448,7 +456,9 @@ public class DashboardController : ControllerBase
             Last30Days = last30Days,
             IsCurrentWeek = isCurrentWeek,
             DaysIncludedCount = numDaysToCompare,
-            AjusteFacturacionManualPct = ajustePct
+            AjusteFacturacionManualPct = ajustePct,
+            TotalRevenueForComparisons = isCurrentWeek ? (decimal?)totalRevenueForComparisons : totalRevenue,
+            TotalRevenueManual = totalRevenueManual
         });
         }
         catch (Exception ex)

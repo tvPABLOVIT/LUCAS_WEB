@@ -250,10 +250,15 @@
           subtitleEl.textContent = subtitleText;
         }
         if (kpisEl) kpisEl.innerHTML = '';
-        var realForKpiComparisons = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : (data.totalRevenue != null ? Number(data.totalRevenue) : null);
-        var revValue = data.totalRevenue != null ? Number(data.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—';
-        if (data.isCurrentWeek && realAdjustedForComparison != null && data.totalRevenue != null && data.totalRevenue > 0 && Math.abs(realAdjustedForComparison - data.totalRevenue) > 0.01) {
-          revValue = Number(data.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € (' + Number(realAdjustedForComparison).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €)';
+        // Semana en curso: para comparativas y cálculos usar facturación real (Excel) o, si no hay, aproximada. La manual es solo informativa.
+        var realForKpiComparisons = (data.isCurrentWeek && (data.totalRevenueForComparisons != null && Number(data.totalRevenueForComparisons) > 0))
+          ? Number(data.totalRevenueForComparisons)
+          : (data.isCurrentWeek && realAdjustedForComparison != null ? realAdjustedForComparison : (data.totalRevenue != null ? Number(data.totalRevenue) : null));
+        var revValue = (data.isCurrentWeek && realForKpiComparisons != null)
+          ? Number(realForKpiComparisons).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+          : (data.totalRevenue != null ? Number(data.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—');
+        if (data.isCurrentWeek && data.totalRevenueManual != null && Number(data.totalRevenueManual) > 0 && Math.abs(Number(data.totalRevenueManual) - (realForKpiComparisons || 0)) > 0.01) {
+          revValue += ' <span class="kpi-card-sub kpi-card-sub--muted">(' + Number(data.totalRevenueManual).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € manual, informativo)</span>';
         }
         var pctVsPrev = '';
         if (data.isCurrentWeek && data.days && data.days.length > 0 && data.days.length < 7)

@@ -176,6 +176,14 @@ public class DashboardWeekResponse
     /// <summary>Porcentaje de ajuste aplicado a facturación manual para comparativas (ej. 9.1). Null = default 9.1 en front.</summary>
     [JsonPropertyName("ajusteFacturacionManualPct")]
     public decimal? AjusteFacturacionManualPct { get; set; }
+
+    /// <summary>Valor a usar en comparativas y cálculos en semana en curso: real (Excel) + aproximada (manual ajustada). Si no hay real, solo aproximada.</summary>
+    [JsonPropertyName("totalRevenueForComparisons")]
+    public decimal? TotalRevenueForComparisons { get; set; }
+
+    /// <summary>Suma bruta de días con facturación manual (solo informativo, no se usa en cálculos).</summary>
+    [JsonPropertyName("totalRevenueManual")]
+    public decimal? TotalRevenueManual { get; set; }
 }
 
 public class DailyRevenueItemDto
