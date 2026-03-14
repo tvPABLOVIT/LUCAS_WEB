@@ -248,13 +248,6 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-day-card--pending { opacity: 0.75; }
 .dashboard-day-card--pending .dashboard-day-card-meta { color: var(--text-muted); }
 
-/* Predicción vs realidad (Dashboard) */
-.dashboard-pred-vs-real-card { margin-bottom: 1rem; }
-.dashboard-pred-vs-real-title { font-size: 1rem; margin: 0 0 0.5rem; color: var(--text-muted); }
-.dashboard-pred-vs-real-value { font-size: 0.95rem; line-height: 1.55; margin: 0; color: var(--text); max-width: 56em; }
-.dashboard-pred-vs-real-hint { font-size: 0.85rem; color: var(--text-muted); margin: 0.75rem 0 0; }
-.dashboard-pred-vs-real-hint a { color: var(--accent); text-decoration: none; font-weight: 600; }
-.dashboard-pred-vs-real-hint a:hover { text-decoration: underline; }
 .dashboard-th-pred { white-space: nowrap; }
 .dashboard-day-pred { font-weight: 600; color: var(--text-muted); }
 .dashboard-day-card-pred .value { color: var(--text-muted); font-weight: 600; }
