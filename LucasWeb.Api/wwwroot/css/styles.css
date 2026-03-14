@@ -256,7 +256,12 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   margin-bottom: 1rem;
   align-items: stretch;
 }
-.dashboard-two-blocks > * { min-width: 0; }
+.dashboard-two-blocks > * {
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+.dashboard-two-blocks .card { margin-bottom: 0; }
 @media (max-width: 480px) {
   .dashboard-two-blocks { grid-template-columns: 1fr; }
 }
@@ -264,12 +269,13 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-actual-vs-anterior-card {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
 }
 .dashboard-pred-vs-real-title,
 .dashboard-actual-vs-anterior-title { font-size: 1rem; margin: 0 0 0.5rem; color: var(--text-muted); }
 .dashboard-pred-vs-real-value,
-.dashboard-actual-vs-anterior-value { font-size: 0.95rem; line-height: 1.55; margin: 0; color: var(--text); max-width: 56em; }
+.dashboard-actual-vs-anterior-value { font-size: 0.95rem; line-height: 1.55; margin: 0; color: var(--text); max-width: 56em; flex: 1; min-height: 0; }
 .dashboard-pred-vs-real-value strong,
 .dashboard-actual-vs-anterior-value strong { font-weight: 600; }
 
