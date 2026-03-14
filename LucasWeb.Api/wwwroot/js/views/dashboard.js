@@ -367,7 +367,10 @@
             for (var dj = 0; dj < (data.days || []).length; dj++) {
               if (toYmd((data.days)[dj].date) === dateStrDay) { dayObj = (data.days)[dj]; break; }
             }
-            var realDay = dayObj && (dayObj.revenue != null || dayObj.Revenue != null) ? Number(dayObj.revenue != null ? dayObj.revenue : dayObj.Revenue) : null;
+            var rawDay = dayObj && (dayObj.revenue != null || dayObj.Revenue != null) ? Number(dayObj.revenue != null ? dayObj.revenue : dayObj.Revenue) : null;
+            var realDay = (rawDay != null && rawDay > 0)
+              ? (dayObj.revenueFromManual !== false ? rawDay * factorManual : rawDay)
+              : null;
             if (predDay != null && predDay > 0 && realDay != null) {
               var dayPct = ((realDay - predDay) / predDay) * 100;
               var dayPctStr = (Number.isFinite(dayPct) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—');
@@ -438,7 +441,8 @@
               var nameD = d.dayName || (d.date ? dayNameFromDate(typeof d.date === 'string' ? d.date.substring(0, 10) : '') : '');
               if (!nameD && d.date) nameD = dayNameFromDate((d.date + '').substring(0, 10));
               var prevRev = (p && (p.revenue != null || p.Revenue != null)) ? Number(p.revenue != null ? p.revenue : p.Revenue) : 0;
-              var currRev = (d.revenue != null || d.Revenue != null) ? Number(d.revenue != null ? d.revenue : d.Revenue) : 0;
+              var currRaw = (d.revenue != null || d.Revenue != null) ? Number(d.revenue != null ? d.revenue : d.Revenue) : 0;
+              var currRev = (currRaw != null && currRaw > 0) ? (d.revenueFromManual !== false ? currRaw * factorManual : currRaw) : currRaw;
               var dayPct = (prevRev > 0 && Number.isFinite(currRev)) ? ((currRev - prevRev) / prevRev) * 100 : null;
               var dayPctStr = (dayPct != null && Number.isFinite(dayPct)) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—';
               var prevF = prevRev.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
