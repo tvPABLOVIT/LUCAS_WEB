@@ -348,7 +348,10 @@
             var diffPct = null;
             var usePredHastaHoy = data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0;
             if (comparativas.actual && comparativas.actual.revenue != null) {
-              var realForBlock = (usePredHastaHoy && realAdjustedForComparison != null) ? realAdjustedForComparison : comparativas.actual.revenue;
+              // Mismo origen que KPIs: en semana actual con datos parciales usar totalRevenue del dashboard (mismos N días)
+              var realForBlock = (data.isCurrentWeek && data.totalRevenue != null && (data.days == null || data.days.length > 0))
+                ? (realAdjustedForComparison != null ? realAdjustedForComparison : Number(data.totalRevenue))
+                : comparativas.actual.revenue;
               realVal = Number(realForBlock).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               var baseForDiff = usePredHastaHoy ? predHastaHoy : comparativas.baseRevenue;
               if (baseForDiff > 0) diffPct = ((realForBlock - baseForDiff) / baseForDiff) * 100;
