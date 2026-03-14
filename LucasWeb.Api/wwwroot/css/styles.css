@@ -248,11 +248,17 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-day-card--pending { opacity: 0.75; }
 .dashboard-day-card--pending .dashboard-day-card-meta { color: var(--text-muted); }
 
-/* Predicción vs realidad (Dashboard) */
-.dashboard-pred-vs-real-card { margin-bottom: 1rem; }
-.dashboard-pred-vs-real-title { font-size: 1rem; margin: 0 0 0.5rem; color: var(--text-muted); }
-.dashboard-pred-vs-real-value { font-size: 0.95rem; line-height: 1.55; margin: 0; color: var(--text); max-width: 56em; }
-.dashboard-pred-vs-real-value strong { font-weight: 600; }
+/* Predicción vs realidad y Semana Actual vs Anterior (Dashboard) */
+.dashboard-two-blocks { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+@media (max-width: 900px) { .dashboard-two-blocks { grid-template-columns: 1fr; } }
+.dashboard-pred-vs-real-card { }
+.dashboard-actual-vs-anterior-card { }
+.dashboard-pred-vs-real-title,
+.dashboard-actual-vs-anterior-title { font-size: 1rem; margin: 0 0 0.5rem; color: var(--text-muted); }
+.dashboard-pred-vs-real-value,
+.dashboard-actual-vs-anterior-value { font-size: 0.95rem; line-height: 1.55; margin: 0; color: var(--text); max-width: 56em; }
+.dashboard-pred-vs-real-value strong,
+.dashboard-actual-vs-anterior-value strong { font-weight: 600; }
 
 .dashboard-th-pred { white-space: nowrap; }
 .dashboard-day-pred { font-weight: 600; color: var(--text-muted); }
