@@ -240,7 +240,7 @@
           var sumRaw = 0;
           for (var ai = 0; ai < data.days.length; ai++) {
             var da = data.days[ai];
-            var ra = da.revenue != null ? Number(da.revenue) : 0;
+            var ra = (da.revenue != null ? Number(da.revenue) : (da.Revenue != null ? Number(da.Revenue) : 0));
             if (ra > 0) {
               sumRaw += ra;
               sumAdj += (da.revenueFromManual !== false ? ra * (1 - 0.091) : ra);
@@ -357,11 +357,17 @@
               predHastaHoy = (Number(comparativas.baseRevenue) * nd) / 7;
             var usePredHastaHoy = data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0;
             var realForBlock = null;
-            if (data.isCurrentWeek && realSumFromDays != null) {
-              realForBlock = realSumFromDays;
-            } else if (comparativas.actual && comparativas.actual.revenue != null) {
-              realForBlock = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : comparativas.actual.revenue;
+            if (data.isCurrentWeek && data.days && data.days.length > 0) {
+              var sumFromDays = 0;
+              for (var si = 0; si < data.days.length; si++) {
+                var d = data.days[si];
+                var r = (d.revenue != null ? Number(d.revenue) : (d.Revenue != null ? Number(d.Revenue) : 0));
+                if (r > 0) sumFromDays += r;
+              }
+              if (sumFromDays > 0) realForBlock = sumFromDays;
             }
+            if (realForBlock == null && comparativas.actual && comparativas.actual.revenue != null)
+              realForBlock = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : comparativas.actual.revenue;
             if (realForBlock != null) {
               realVal = Number(realForBlock).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               var baseForDiff = usePredHastaHoy ? predHastaHoy : comparativas.baseRevenue;
