@@ -356,8 +356,35 @@
             if (data.isCurrentWeek && nd > 0 && (predHastaHoy == null || predHastaHoy <= 0))
               predHastaHoy = (Number(comparativas.baseRevenue) * nd) / 7;
             var usePredHastaHoy = data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0;
+            var daysWithBoth = [];
+            var realSumDisplayed = 0;
+            var wsBuild = (weekInput && weekInput.value) || weekStart;
+            for (var di = 0; di < 7; di++) {
+              var dateStrDay = addDays(wsBuild, di);
+              if (data.isCurrentWeek && dateStrDay > todayYmd) continue;
+              var predDay = predByDate[dateStrDay] != null ? Number(predByDate[dateStrDay]) : null;
+              var dayObj = null;
+              for (var dj = 0; dj < (data.days || []).length; dj++) {
+                if (toYmd((data.days)[dj].date) === dateStrDay) { dayObj = (data.days)[dj]; break; }
+              }
+              var realDay = dayObj && (dayObj.revenue != null || dayObj.Revenue != null) ? Number(dayObj.revenue != null ? dayObj.revenue : dayObj.Revenue) : null;
+              if (predDay != null && predDay > 0 && realDay != null) {
+                realSumDisplayed += realDay;
+                var realDayForParagraph = (dayObj && dayObj.revenueFromManual !== false) ? realDay * (1 - 0.091) : realDay;
+                var dayPct = ((realDayForParagraph - predDay) / predDay) * 100;
+                var dayPctStr = (Number.isFinite(dayPct) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—');
+                daysWithBoth.push({
+                  name: dayNameFromDate(dateStrDay),
+                  pred: predDay,
+                  real: realDayForParagraph,
+                  pct: dayPctStr
+                });
+              }
+            }
             var realForBlock = null;
-            if (data.isCurrentWeek && data.days && data.days.length > 0) {
+            if (data.isCurrentWeek && daysWithBoth.length > 0 && realSumDisplayed > 0)
+              realForBlock = realSumDisplayed;
+            else if (data.isCurrentWeek && data.days && data.days.length > 0) {
               var sumFromDays = 0;
               for (var si = 0; si < data.days.length; si++) {
                 var d = data.days[si];
@@ -407,33 +434,8 @@
                 if (nd > 0) predParaHoy = (Number(comparativas.baseRevenue) * nd) / 7;
               }
               if (data.isCurrentWeek && predParaHoy != null && predParaHoy > 0) {
-                var realParaHoy = realAdjustedForComparison != null
-                  ? realAdjustedForComparison
-                  : (comparativas && comparativas.actual && comparativas.actual.revenue != null ? comparativas.actual.revenue : null);
+                var realParaHoy = realForBlock != null ? realForBlock : (realAdjustedForComparison != null ? realAdjustedForComparison : (comparativas && comparativas.actual && comparativas.actual.revenue != null ? comparativas.actual.revenue : null));
                 if (realParaHoy != null) pctParaHoy = ((realParaHoy - predParaHoy) / predParaHoy) * 100;
-              }
-              var daysWithBoth = [];
-              var wsBuild = (weekInput && weekInput.value) || weekStart;
-              for (var di = 0; di < 7; di++) {
-                var dateStrDay = addDays(wsBuild, di);
-                if (data.isCurrentWeek && dateStrDay > todayYmd) continue;
-                var predDay = predByDate[dateStrDay] != null ? Number(predByDate[dateStrDay]) : null;
-                var dayObj = null;
-                for (var dj = 0; dj < (data.days || []).length; dj++) {
-                  if (toYmd((data.days)[dj].date) === dateStrDay) { dayObj = (data.days)[dj]; break; }
-                }
-                var realDay = dayObj && dayObj.revenue != null ? Number(dayObj.revenue) : null;
-                if (predDay != null && predDay > 0 && realDay != null) {
-                  var realDayForParagraph = (dayObj && dayObj.revenueFromManual !== false) ? realDay * (1 - 0.091) : realDay;
-                  var dayPct = ((realDayForParagraph - predDay) / predDay) * 100;
-                  var dayPctStr = (Number.isFinite(dayPct) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—');
-                  daysWithBoth.push({
-                    name: dayNameFromDate(dateStrDay),
-                    pred: predDay,
-                    real: realDayForParagraph,
-                    pct: dayPctStr
-                  });
-                }
               }
               if (daysWithBoth.length > 0) {
                 bodyParts.push(' Por días: ');
