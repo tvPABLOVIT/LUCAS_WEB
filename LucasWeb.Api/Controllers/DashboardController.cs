@@ -195,7 +195,8 @@ public class DashboardController : ControllerBase
         if (!string.IsNullOrWhiteSpace(horasPorTurnoStr) && decimal.TryParse(horasPorTurnoStr.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var hpt) && hpt >= 1 && hpt <= 24)
             horasPorTurno = hpt;
 
-        var dayItems = days.Select(d =>
+        // Enviar solo los días incluidos en "hasta hoy" (daysInRange) para que data.days y totales coincidan
+        var dayItems = daysInRange.Select(d =>
         {
             decimal? dayAvg = avgByDayOfWeek.TryGetValue(d.Date.DayOfWeek, out var avg) ? avg : null;
             var trendLabel = trendByDayOfWeek.TryGetValue(d.Date.DayOfWeek, out var tl) ? tl : null;

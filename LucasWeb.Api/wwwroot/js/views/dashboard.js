@@ -388,7 +388,8 @@
               realForBlock = realSumDisplayed;
             else if (data.isCurrentWeek && data.days && data.days.length > 0) {
               var sumFromDays = 0;
-              for (var si = 0; si < data.days.length; si++) {
+              var maxDaysToSum = (data.daysIncludedCount != null && data.daysIncludedCount > 0) ? Math.min(data.days.length, data.daysIncludedCount) : data.days.length;
+              for (var si = 0; si < maxDaysToSum; si++) {
                 var d = data.days[si];
                 var r = (d.revenue != null ? Number(d.revenue) : (d.Revenue != null ? Number(d.Revenue) : 0));
                 if (r > 0) sumFromDays += r;
