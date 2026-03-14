@@ -80,10 +80,20 @@ public class DashboardController : ControllerBase
             .ToListAsync();
 
         var isCurrentWeek = effectiveAsOf >= start && effectiveAsOf < end;
-        // "Hasta hoy" = hasta el último día con facturación (no el día natural; ej. si hoy es sábado y solo hay Lun–Vie, usamos 5 días)
-        var daysInRange = effectiveAsOf < start
-            ? new List<Models.ExecutionDay>()
-            : (isCurrentWeek ? days.Where(d => d.Date <= effectiveAsOf).ToList() : days.ToList());
+        // "Hasta hoy" = hasta el último día con facturación (TotalRevenue > 0). Si hoy es sábado y el sábado no tiene facturación, usamos solo Lun–Vie.
+        List<Models.ExecutionDay> daysInRange;
+        if (effectiveAsOf < start)
+            daysInRange = new List<Models.ExecutionDay>();
+        else if (isCurrentWeek)
+        {
+            var daysWithRevenueUpToToday = days.Where(d => d.Date <= effectiveAsOf && d.TotalRevenue > 0).ToList();
+            var lastDayWithBilling = daysWithRevenueUpToToday.Count > 0 ? daysWithRevenueUpToToday.Max(d => d.Date) : (DateTime?)null;
+            daysInRange = lastDayWithBilling.HasValue
+                ? days.Where(d => d.Date <= lastDayWithBilling.Value).OrderBy(d => d.Date).ToList()
+                : days.Where(d => d.Date <= effectiveAsOf).OrderBy(d => d.Date).ToList();
+        }
+        else
+            daysInRange = days.ToList();
         int numDaysToCompare = daysInRange.Count;
         var totalRevenue = daysInRange.Sum(d => d.TotalRevenue);
         decimal ajustePct = 9.1m;
