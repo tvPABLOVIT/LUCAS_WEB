@@ -124,10 +124,21 @@ public class DashboardController : ControllerBase
             .Where(e => !e.IsFeedbackOnly && e.Date >= prevStart && e.Date < prevEnd)
             .ToListAsync();
         var prevWeekRevenue = prevDays.Count > 0 ? (decimal?)prevDays.Sum(d => d.TotalRevenue) : null;
-        var prevWeekDayItems = prevDays.OrderBy(d => d.Date).Select(d => new DailyRevenueItemDto { Date = d.Date.ToString("yyyy-MM-dd"), Revenue = d.TotalRevenue }).ToList();
-        var prevWeekRevenueFull = await _db.ExecutionDays
-            .Where(e => !e.IsFeedbackOnly && e.Date >= prevStart && e.Date < prevStart.AddDays(7))
-            .SumAsync(e => e.TotalRevenue);
+        List<DailyRevenueItemDto> prevWeekDayItems;
+        decimal prevWeekRevenueFull;
+        try
+        {
+            prevWeekDayItems = prevDays.OrderBy(d => d.Date).Select(d => new DailyRevenueItemDto { Date = d.Date.ToString("yyyy-MM-dd"), Revenue = d.TotalRevenue }).ToList();
+            prevWeekRevenueFull = await _db.ExecutionDays
+                .Where(e => !e.IsFeedbackOnly && e.Date >= prevStart && e.Date < prevStart.AddDays(7))
+                .SumAsync(e => e.TotalRevenue);
+        }
+        catch (Exception exPrev)
+        {
+            _logger.LogWarning(exPrev, "Dashboard: error al cargar prevWeekDays/prevWeekRevenueFull");
+            prevWeekDayItems = new List<DailyRevenueItemDto>();
+            prevWeekRevenueFull = 0;
+        }
         decimal? prevWeekProductivity = null;
         var prevHours = prevDays.Sum(d => d.TotalHoursWorked);
         if (prevHours > 0 && prevWeekRevenue.HasValue)
