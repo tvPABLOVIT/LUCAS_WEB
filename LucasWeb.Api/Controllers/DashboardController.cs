@@ -79,17 +79,12 @@ public class DashboardController : ControllerBase
             .OrderBy(e => e.Date)
             .ToListAsync();
 
-        int numDaysToCompare;
-        if (effectiveAsOf < start)
-            numDaysToCompare = 0;
-        else if (effectiveAsOf >= end)
-            numDaysToCompare = 7;
-        else
-            numDaysToCompare = (int)(effectiveAsOf - start).TotalDays + 1;
-
         var isCurrentWeek = effectiveAsOf >= start && effectiveAsOf < end;
-
-        var daysInRange = numDaysToCompare > 0 ? days.Where(d => d.Date <= effectiveAsOf).ToList() : new List<Models.ExecutionDay>();
+        // "Hasta hoy" = hasta el último día con facturación (no el día natural; ej. si hoy es sábado y solo hay Lun–Vie, usamos 5 días)
+        var daysInRange = effectiveAsOf < start
+            ? new List<Models.ExecutionDay>()
+            : (isCurrentWeek ? days.Where(d => d.Date <= effectiveAsOf).ToList() : days.ToList());
+        int numDaysToCompare = daysInRange.Count;
         var totalRevenue = daysInRange.Sum(d => d.TotalRevenue);
         var totalRevenueForComparisons = isCurrentWeek && daysInRange.Count > 0
             ? daysInRange.Sum(d => d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * 0.909m)
@@ -100,6 +95,7 @@ public class DashboardController : ControllerBase
         if (totalHours > 0)
             avgProductivity = totalRevenue / totalHours;
 
+        // Comparativa vs semana anterior: mismo número de días (numDaysToCompare = días con facturación)
         var prevStart = start.AddDays(-7);
         var prevEnd = numDaysToCompare > 0 ? prevStart.AddDays(numDaysToCompare) : prevStart;
         var prevDays = await _db.ExecutionDays

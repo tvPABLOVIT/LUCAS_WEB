@@ -448,11 +448,13 @@ public class EstimacionesController : ControllerBase
         var actualHours = weekDays.Sum(x => x.TotalHoursWorked);
         decimal? actualProd = actualHours > 0 ? actualRevenue / actualHours : null;
 
+        // Misma cantidad de días que la semana actual (ej. Lun–Vie vs Lun–Vie) para comparativas coherentes
+        var numDaysForPrev = weekDays.Count;
         var prevMonday = monday.AddDays(-7);
-        var prevEnd = prevMonday.AddDays(6);
+        var prevEnd = numDaysForPrev > 0 ? prevMonday.AddDays(numDaysForPrev) : prevMonday;
         var prevDays = await _db.ExecutionDays
             .AsNoTracking()
-            .Where(e => !e.IsFeedbackOnly && e.Date >= prevMonday && e.Date <= prevEnd)
+            .Where(e => !e.IsFeedbackOnly && e.Date >= prevMonday && e.Date < prevEnd)
             .Select(e => new { e.TotalRevenue, e.TotalHoursWorked })
             .ToListAsync();
         var prevRevenue = prevDays.Sum(x => x.TotalRevenue);

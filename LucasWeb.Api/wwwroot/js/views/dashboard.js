@@ -216,22 +216,21 @@
             }
           } catch (e) { }
         }
+        // Predicción acumulada solo para los mismos días que hay datos reales (misma cantidad de días)
         var predHastaHoy = null;
         if (data && data.isCurrentWeek && ws) {
           var sum = 0;
-          for (var i = 0; i < 7; i++) {
-            var dStr = addDays(ws, i);
-            if (dStr <= todayYmd && predByDate[dStr] != null) sum += Number(predByDate[dStr]);
+          var numDaysWithData = (data.days && data.days.length) ? data.days.length : 0;
+          if (numDaysWithData > 0) {
+            for (var pi = 0; pi < data.days.length; pi++) {
+              var dayDate = data.days[pi].date;
+              var dStr = (typeof dayDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dayDate)) ? dayDate.substring(0, 10) : toYmd(dayDate);
+              if (predByDate[dStr] != null) sum += Number(predByDate[dStr]);
+            }
           }
           if (sum > 0) predHastaHoy = sum;
-          if (predHastaHoy == null && comparativas && comparativas.baseRevenue != null && comparativas.baseRevenue > 0) {
-            var n = data.daysIncludedCount != null ? data.daysIncludedCount : 0;
-            if (n <= 0) {
-              var mon = new Date(ws + 'T12:00:00');
-              var today = new Date(todayYmd + 'T12:00:00');
-              n = Math.max(0, Math.min(7, Math.floor((today - mon) / 86400000) + 1));
-            }
-            if (n > 0) predHastaHoy = (Number(comparativas.baseRevenue) * n) / 7;
+          if (predHastaHoy == null && comparativas && comparativas.baseRevenue != null && comparativas.baseRevenue > 0 && numDaysWithData > 0) {
+            predHastaHoy = (Number(comparativas.baseRevenue) * numDaysWithData) / 7;
           }
         }
         var realAdjustedForComparison = null;
@@ -255,17 +254,12 @@
         if (subtitleEl) {
           var wsForSub = (weekInput && weekInput.value) || weekStart;
           var isCurrent = data.isCurrentWeek === true || (data.isCurrentWeek !== false && isCurrentWeek(wsForSub));
-          var n = data.daysIncludedCount != null ? data.daysIncludedCount : 0;
-          if (isCurrent && (n === 0 || n == null)) {
-            var todayObj = new Date();
-            var todayYmdSub = todayObj.getFullYear() + '-' + String(todayObj.getMonth() + 1).padStart(2, '0') + '-' + String(todayObj.getDate()).padStart(2, '0');
-            var monSub = new Date(wsForSub + 'T12:00:00');
-            var todayDateSub = new Date(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate());
-            var monDateSub = new Date(monSub.getFullYear(), monSub.getMonth(), monSub.getDate());
-            var diffDays = Math.floor((todayDateSub - monDateSub) / 86400000);
-            n = diffDays < 0 ? 0 : Math.min(7, diffDays + 1);
-          }
-          subtitleEl.textContent = isCurrent ? ('Datos hasta hoy (' + n + ' de 7 días)') : 'Semana cerrada — datos completos';
+          var n = (data.days && data.days.length) ? data.days.length : (data.daysIncludedCount != null ? data.daysIncludedCount : 0);
+          var lastDayName = (data.days && data.days.length > 0 && data.days[data.days.length - 1].dayName) ? data.days[data.days.length - 1].dayName : null;
+          var subtitleText = isCurrent
+            ? (n > 0 ? ('Datos hasta el último día con facturación' + (lastDayName ? ' (' + lastDayName + ')' : '') + ' — ' + n + ' día' + (n !== 1 ? 's' : '')) : 'Sin datos de facturación esta semana')
+            : 'Semana cerrada — datos completos';
+          subtitleEl.textContent = subtitleText;
         }
         if (kpisEl) kpisEl.innerHTML = '';
         var realForKpiComparisons = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : (data.totalRevenue != null ? Number(data.totalRevenue) : null);
@@ -274,8 +268,8 @@
           revValue = Number(data.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € (' + Number(realAdjustedForComparison).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €)';
         }
         var pctVsPrev = '';
-        if (data.isCurrentWeek && data.daysIncludedCount != null && data.daysIncludedCount > 0)
-          pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted">Datos parciales (hasta hoy)</div>';
+        if (data.isCurrentWeek && data.days && data.days.length > 0 && data.days.length < 7)
+          pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted">Datos hasta el último día con facturación</div>';
         if (realForKpiComparisons != null && data.prevWeekRevenue != null && data.prevWeekRevenue > 0) {
           var pct = ((realForKpiComparisons - data.prevWeekRevenue) / data.prevWeekRevenue) * 100;
           if (pct > 0) pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--up">+' + pct.toFixed(1) + '% vs sem. ant.</div>';
@@ -299,8 +293,8 @@
         }
         var prodValue = data.avgProductivity != null ? data.avgProductivity.toFixed(1) + ' €/h' : '—';
         var pctVsPrevProd = '';
-        if (data.isCurrentWeek && data.daysIncludedCount != null && data.daysIncludedCount > 0)
-          pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--muted">Datos parciales (hasta hoy)</div>';
+        if (data.isCurrentWeek && data.days && data.days.length > 0 && data.days.length < 7)
+          pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--muted">Datos hasta el último día con facturación</div>';
         if (data.avgProductivity != null && data.prevWeekProductivity != null && data.prevWeekProductivity > 0) {
           var pctProd = ((data.avgProductivity - data.prevWeekProductivity) / data.prevWeekProductivity) * 100;
           if (pctProd > 0) pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--up">+' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
@@ -365,14 +359,26 @@
             if (realVal != null) {
               if (usePredHastaHoy && predHastaHoyFormatted) {
                 var ajusteNote = (realAdjustedForComparison != null) ? ' (real para comparar: ajustado -9,1% en días con facturación manual)' : '';
-                bodyParts.push('Para esta semana, a día <strong>' + dayNameFromDate(todayYmd) + '</strong> la predicción acumulada hasta hoy era de <strong>' + predHastaHoyFormatted + ' €</strong> y el real facturado' + ajusteNote + ' es <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
+                var hastaLabel = (data.days && data.days.length > 0 && data.days[data.days.length - 1].dayName)
+                  ? 'hasta el ' + data.days[data.days.length - 1].dayName + ' (último día con facturación)'
+                  : 'hasta el último día con facturación';
+                bodyParts.push('Para esta semana, ' + hastaLabel + ', la predicción acumulada era de <strong>' + predHastaHoyFormatted + ' €</strong> y el real facturado' + ajusteNote + ' es <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
               } else {
                 bodyParts.push('La predicción semanal era de <strong>' + predVal + ' €</strong> y la facturación real de la semana ' + (data.isCurrentWeek ? 'viene siendo' : 'ha sido') + ' <strong>' + realVal + ' €</strong>, una diferencia de <strong>' + diffPctStr + '</strong>.');
+              }
+              // Comparativa vs semana anterior con el mismo número de días (ej. Lun–Vie vs Lun–Vie)
+              var pctVsSemAntHoy = null;
+              if (data.isCurrentWeek && realForBlock != null && data.prevWeekRevenue != null && data.prevWeekRevenue > 0) {
+                pctVsSemAntHoy = ((realForBlock - data.prevWeekRevenue) / data.prevWeekRevenue) * 100;
+              }
+              if (data.isCurrentWeek && pctVsSemAntHoy != null && Number.isFinite(pctVsSemAntHoy)) {
+                var porEncimaDebajo = pctVsSemAntHoy > 0 ? 'un ' + pctVsSemAntHoy.toFixed(1) + '% por encima' : (pctVsSemAntHoy < 0 ? 'un ' + Math.abs(pctVsSemAntHoy).toFixed(1) + '% por debajo' : 'alineados');
+                bodyParts.push(' Hasta el último día con facturación, vamos ' + porEncimaDebajo + ' de la semana anterior (mismos días).');
               }
               var pctParaHoy = null;
               var predParaHoy = predHastaHoy;
               if (data.isCurrentWeek && (!predParaHoy || predParaHoy <= 0) && comparativas && comparativas.baseRevenue != null && comparativas.baseRevenue > 0) {
-                var nd = (data.daysIncludedCount != null && data.daysIncludedCount > 0) ? data.daysIncludedCount : ((data.days && data.days.length) ? data.days.length : 0);
+                var nd = (data.days && data.days.length) ? data.days.length : (data.daysIncludedCount != null && data.daysIncludedCount > 0 ? data.daysIncludedCount : 0);
                 if (nd <= 0 && ws && todayYmd) {
                   var monP = new Date(ws + 'T12:00:00');
                   var todayP = new Date(todayYmd + 'T12:00:00');
@@ -385,10 +391,6 @@
                   ? realAdjustedForComparison
                   : (comparativas && comparativas.actual && comparativas.actual.revenue != null ? comparativas.actual.revenue : null);
                 if (realParaHoy != null) pctParaHoy = ((realParaHoy - predParaHoy) / predParaHoy) * 100;
-              }
-              if (data.isCurrentWeek && pctParaHoy != null && Number.isFinite(pctParaHoy)) {
-                var porEncimaDebajo = pctParaHoy > 0 ? 'un ' + pctParaHoy.toFixed(1) + '% por encima' : (pctParaHoy < 0 ? 'un ' + Math.abs(pctParaHoy).toFixed(1) + '% por debajo' : 'alineados');
-                bodyParts.push(' A día de hoy, vamos ' + porEncimaDebajo + '.');
               }
               var daysWithBoth = [];
               var wsBuild = (weekInput && weekInput.value) || weekStart;
