@@ -233,6 +233,8 @@
             predHastaHoy = (Number(comparativas.baseRevenue) * numDaysWithData) / 7;
           }
         }
+        var ajustePct = (data && data.ajusteFacturacionManualPct != null && Number.isFinite(Number(data.ajusteFacturacionManualPct))) ? Number(data.ajusteFacturacionManualPct) : 9.1;
+        var factorManual = 1 - (ajustePct / 100);
         var realAdjustedForComparison = null;
         var realSumFromDays = null;
         if (data && data.isCurrentWeek && data.days && data.days.length > 0) {
@@ -243,7 +245,7 @@
             var ra = (da.revenue != null ? Number(da.revenue) : (da.Revenue != null ? Number(da.Revenue) : 0));
             if (ra > 0) {
               sumRaw += ra;
-              sumAdj += (da.revenueFromManual !== false ? ra * (1 - 0.091) : ra);
+              sumAdj += (da.revenueFromManual !== false ? ra * factorManual : ra);
             }
           }
           if (sumRaw > 0) realSumFromDays = sumRaw;
@@ -282,7 +284,7 @@
           else if (pct < 0) pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--down">' + pct.toFixed(1) + '% vs sem. ant.</div>';
           else pctVsPrev += '<div class="kpi-card-sub">0% vs sem. ant.</div>';
         }
-        // % vs objetivo (facturación) — en semana actual usar real ajustado (-9,1% manual)
+        // % vs objetivo (facturación) — en semana actual usar real ajustado (ajuste configurable en días manual)
         var objRaw = data.facturacionObjetivo != null ? data.facturacionObjetivo : data.FacturacionObjetivo;
         var objNum = objRaw != null && objRaw !== '' ? Number(objRaw) : NaN;
         if (objNum > 0 && realForKpiComparisons != null) {
@@ -370,7 +372,7 @@
               var realDay = dayObj && (dayObj.revenue != null || dayObj.Revenue != null) ? Number(dayObj.revenue != null ? dayObj.revenue : dayObj.Revenue) : null;
               if (predDay != null && predDay > 0 && realDay != null) {
                 realSumDisplayed += realDay;
-                var realDayForParagraph = (dayObj && dayObj.revenueFromManual !== false) ? realDay * (1 - 0.091) : realDay;
+                var realDayForParagraph = (dayObj && dayObj.revenueFromManual !== false) ? realDay * factorManual : realDay;
                 var dayPct = ((realDayForParagraph - predDay) / predDay) * 100;
                 var dayPctStr = (Number.isFinite(dayPct) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—');
                 daysWithBoth.push({
@@ -393,8 +395,10 @@
               }
               if (sumFromDays > 0) realForBlock = sumFromDays;
             }
-            if (realForBlock == null && comparativas.actual && comparativas.actual.revenue != null)
-              realForBlock = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : comparativas.actual.revenue;
+            if (realForBlock == null && (!data.isCurrentWeek || !data.days || data.days.length === 0) && comparativas.actual && comparativas.actual.revenue != null)
+              realForBlock = comparativas.actual.revenue;
+            else if (realForBlock == null && data.isCurrentWeek && realAdjustedForComparison != null)
+              realForBlock = realAdjustedForComparison;
             if (realForBlock != null) {
               realVal = Number(realForBlock).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               var baseForDiff = usePredHastaHoy ? predHastaHoy : comparativas.baseRevenue;
@@ -405,7 +409,7 @@
             var bodyParts = [];
             if (realVal != null) {
               if (usePredHastaHoy && predHastaHoyFormatted) {
-                var ajusteNote = (realAdjustedForComparison != null) ? ' (real para comparar: ajustado -9,1% en días con facturación manual)' : '';
+                var ajusteNote = (realAdjustedForComparison != null) ? ' (real para comparar: ajustado -' + ajustePct.toFixed(1).replace('.', ',') + '% en días con facturación manual)' : '';
                 var hastaLabel = (data.days && data.days.length > 0 && data.days[data.days.length - 1].dayName)
                   ? 'hasta el ' + data.days[data.days.length - 1].dayName + ' (último día con facturación)'
                   : 'hasta el último día con facturación';
@@ -629,7 +633,7 @@
               var revFormatted = revNum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
               var showManualHint = data.isCurrentWeek && revNum > 0 && d.revenueFromManual !== false;
               if (showManualHint) {
-                var estFinal = revNum * (1 - 0.091);
+                var estFinal = revNum * factorManual;
                 rev = revFormatted + ' (' + estFinal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €)';
               } else rev = revFormatted;
             }
@@ -710,7 +714,7 @@
                 var revFormattedCard = revNumCard.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
                 var showManualHintCard = data.isCurrentWeek && revNumCard > 0 && d.revenueFromManual !== false;
                 if (showManualHintCard) {
-                  var estFinalCard = revNumCard * (1 - 0.091);
+                  var estFinalCard = revNumCard * factorManual;
                   rev = revFormattedCard + ' (' + estFinalCard.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €)';
                 } else rev = revFormattedCard;
               }

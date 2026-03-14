@@ -233,7 +233,9 @@
       '<div class="form-group"><label for="config-HorasPorTurno">Horas por turno</label><input type="number" id="config-HorasPorTurno" step="0.1" min="1" max="24" value="4" /></div>' +
       '<div class="form-group"><label for="config-ProductividadIdealEurHora">Productividad ideal (€/h)</label><input type="number" id="config-ProductividadIdealEurHora" step="0.01" value="50" /></div>' +
       '<div class="form-group"><label for="config-CostePersonalPorHora">Coste por hora de personal (€/h)</label><input type="number" id="config-CostePersonalPorHora" step="0.01" value="15.73" /></div>' +
+      '<div class="form-group"><label for="config-AjusteFacturacionManualPct">Ajuste facturación manual (%)</label><input type="number" id="config-AjusteFacturacionManualPct" step="0.1" min="0" max="100" placeholder="9.1" /></div>' +
       '</div>' +
+      '<p class="config-desc">Se aplica a días con facturación manual para comparativas y real "para comparar" (ej. 9.1 = -9,1%).</p>' +
       '<p class="config-desc">Objetivo de facturación por hora trabajada; se usará en Estimaciones para comparar con la productividad real.</p>' +
       '<p class="config-desc">Coste medio por hora de personal; se usa en Estimaciones para el KPI Costo de personal (horas × €/h).</p>' +
       '<div class="form-row">' +
@@ -352,6 +354,7 @@
       if ((el = document.getElementById('config-ProductividadIdealEurHora'))) el.value = data.ProductividadIdealEurHora != null ? data.ProductividadIdealEurHora : '50';
       if ((el = document.getElementById('config-CostePersonalPorHora'))) el.value = data.CostePersonalPorHora != null ? data.CostePersonalPorHora : '15.73';
       if ((el = document.getElementById('config-PrediccionConservadoraFactor'))) el.value = (data.PrediccionConservadoraFactor != null && data.PrediccionConservadoraFactor !== '') ? data.PrediccionConservadoraFactor : '';
+      if ((el = document.getElementById('config-AjusteFacturacionManualPct'))) el.value = (data.AjusteFacturacionManualPct != null && data.AjusteFacturacionManualPct !== '') ? data.AjusteFacturacionManualPct : '9.1';
       if ((el = document.getElementById('config-FacturacionObjetivoSemanal'))) el.value = (data.FacturacionObjetivoSemanal != null && data.FacturacionObjetivoSemanal !== '') ? data.FacturacionObjetivoSemanal : '';
       if ((el = document.getElementById('config-NombreRestaurante'))) el.value = data.NombreRestaurante != null ? data.NombreRestaurante : '';
       if ((el = document.getElementById('config-DireccionRestaurante'))) el.value = data.DireccionRestaurante != null ? data.DireccionRestaurante : '';
@@ -448,6 +451,10 @@
     var wWind = (document.getElementById('config-WeatherImpactWindyKmh')?.value ?? '').trim();
     var wCold = (document.getElementById('config-WeatherImpactColdC')?.value ?? '').trim();
     var wHot = (document.getElementById('config-WeatherImpactHotC')?.value ?? '').trim();
+    var ajusteManual = (document.getElementById('config-AjusteFacturacionManualPct')?.value ?? '').trim();
+    if (ajusteManual !== '' && (isNaN(parseFloat(ajusteManual.replace(',', '.'))) || parseFloat(ajusteManual.replace(',', '.')) < 0 || parseFloat(ajusteManual.replace(',', '.')) > 100)) {
+      showMsg(msgEl, 'Ajuste facturación manual debe estar entre 0 y 100.', false); return;
+    }
     var body = {
       HorasPorTurno: String(horas),
       ProductividadIdealEurHora: String(prod),
@@ -463,7 +470,8 @@
       WeatherImpactHeavyRainMm: wHeavy,
       WeatherImpactWindyKmh: wWind,
       WeatherImpactColdC: wCold,
-      WeatherImpactHotC: wHot
+      WeatherImpactHotC: wHot,
+      AjusteFacturacionManualPct: ajusteManual === '' ? '' : String(parseFloat(ajusteManual.replace(',', '.')) || 0)
     };
     auth.fetchWithAuth('/api/settings', { method: 'PATCH', body: JSON.stringify(body) }).then(function (r) {
       if (r.status === 401) return Promise.reject(new Error('Sesión expirada'));

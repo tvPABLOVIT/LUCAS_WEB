@@ -86,8 +86,13 @@ public class DashboardController : ControllerBase
             : (isCurrentWeek ? days.Where(d => d.Date <= effectiveAsOf).ToList() : days.ToList());
         int numDaysToCompare = daysInRange.Count;
         var totalRevenue = daysInRange.Sum(d => d.TotalRevenue);
+        decimal ajustePct = 9.1m;
+        var ajusteSetting = await GetSettingValueAsync("AjusteFacturacionManualPct");
+        if (!string.IsNullOrWhiteSpace(ajusteSetting) && decimal.TryParse(ajusteSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed) && parsed >= 0 && parsed <= 100)
+            ajustePct = parsed;
+        var factorManual = 1m - (ajustePct / 100m);
         var totalRevenueForComparisons = isCurrentWeek && daysInRange.Count > 0
-            ? daysInRange.Sum(d => d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * 0.909m)
+            ? daysInRange.Sum(d => d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * factorManual)
             : totalRevenue;
         var totalHours = daysInRange.Sum(d => d.TotalHoursWorked);
         var avgStaff = daysInRange.Count > 0 ? (decimal)daysInRange.Average(d => d.StaffTotal) : 0;
@@ -431,7 +436,8 @@ public class DashboardController : ControllerBase
             Days = dayItems,
             Last30Days = last30Days,
             IsCurrentWeek = isCurrentWeek,
-            DaysIncludedCount = numDaysToCompare
+            DaysIncludedCount = numDaysToCompare,
+            AjusteFacturacionManualPct = ajustePct
         });
         }
         catch (Exception ex)

@@ -172,6 +172,10 @@ public class DashboardWeekResponse
     /// <summary>Número de días incluidos en los totales (1-7 en semana en curso, 7 en semana cerrada, 0 si no aplica).</summary>
     [JsonPropertyName("daysIncludedCount")]
     public int DaysIncludedCount { get; set; }
+
+    /// <summary>Porcentaje de ajuste aplicado a facturación manual para comparativas (ej. 9.1). Null = default 9.1 en front.</summary>
+    [JsonPropertyName("ajusteFacturacionManualPct")]
+    public decimal? AjusteFacturacionManualPct { get; set; }
 }
 
 public class DailyRevenueItemDto
