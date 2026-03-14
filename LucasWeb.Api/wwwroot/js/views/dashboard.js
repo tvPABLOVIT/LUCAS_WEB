@@ -234,13 +234,19 @@
           }
         }
         var realAdjustedForComparison = null;
+        var realSumFromDays = null;
         if (data && data.isCurrentWeek && data.days && data.days.length > 0) {
           var sumAdj = 0;
+          var sumRaw = 0;
           for (var ai = 0; ai < data.days.length; ai++) {
             var da = data.days[ai];
             var ra = da.revenue != null ? Number(da.revenue) : 0;
-            if (ra > 0) sumAdj += (da.revenueFromManual !== false ? ra * (1 - 0.091) : ra);
+            if (ra > 0) {
+              sumRaw += ra;
+              sumAdj += (da.revenueFromManual !== false ? ra * (1 - 0.091) : ra);
+            }
           }
+          if (sumRaw > 0) realSumFromDays = sumRaw;
           if (sumAdj > 0) realAdjustedForComparison = sumAdj;
         }
         if (!data) {
@@ -346,12 +352,17 @@
             var predVal = Number(comparativas.baseRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var realVal = null;
             var diffPct = null;
+            var nd = (data.days && data.days.length) ? data.days.length : 0;
+            if (data.isCurrentWeek && nd > 0 && (predHastaHoy == null || predHastaHoy <= 0))
+              predHastaHoy = (Number(comparativas.baseRevenue) * nd) / 7;
             var usePredHastaHoy = data.isCurrentWeek && predHastaHoy != null && predHastaHoy > 0;
-            if (comparativas.actual && comparativas.actual.revenue != null) {
-              // Mismo origen que KPIs: en semana actual con datos parciales usar totalRevenue del dashboard (mismos N días)
-              var realForBlock = (data.isCurrentWeek && data.totalRevenue != null && (data.days == null || data.days.length > 0))
-                ? (realAdjustedForComparison != null ? realAdjustedForComparison : Number(data.totalRevenue))
-                : comparativas.actual.revenue;
+            var realForBlock = null;
+            if (data.isCurrentWeek && realSumFromDays != null) {
+              realForBlock = realSumFromDays;
+            } else if (comparativas.actual && comparativas.actual.revenue != null) {
+              realForBlock = (data.isCurrentWeek && realAdjustedForComparison != null) ? realAdjustedForComparison : comparativas.actual.revenue;
+            }
+            if (realForBlock != null) {
               realVal = Number(realForBlock).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               var baseForDiff = usePredHastaHoy ? predHastaHoy : comparativas.baseRevenue;
               if (baseForDiff > 0) diffPct = ((realForBlock - baseForDiff) / baseForDiff) * 100;
