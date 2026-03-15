@@ -265,7 +265,17 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 @media (max-width: 480px) {
   .dashboard-two-blocks { grid-template-columns: 1fr; }
 }
-/* Mismo estilo que bloque Impacto del clima en Estimaciones — selector específico para ganar a .card */
+/* Mismo estilo que bloque Impacto del clima en Estimaciones — por ID para forzar */
+#dashboard-pred-vs-real,
+#dashboard-actual-vs-anterior {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-left: 4px solid #42a5f5 !important;
+  background: linear-gradient(135deg, rgba(66, 165, 245, 0.14) 0%, rgba(66, 165, 245, 0.05) 35%, transparent 65%), var(--surface) !important;
+  box-shadow: var(--shadow);
+}
 .dashboard-two-blocks .card.dashboard-pred-vs-real-card,
 .dashboard-two-blocks .card.dashboard-actual-vs-anterior-card {
   display: flex;
@@ -273,7 +283,7 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   height: 100%;
   min-height: 0;
   border-left: 4px solid #42a5f5;
-  background: linear-gradient(135deg, rgba(66, 165, 245, 0.12) 0%, rgba(66, 165, 245, 0.04) 40%, transparent 70%), var(--surface);
+  background: linear-gradient(135deg, rgba(66, 165, 245, 0.14) 0%, rgba(66, 165, 245, 0.05) 35%, transparent 65%), var(--surface);
   box-shadow: var(--shadow);
 }
 .dashboard-pred-vs-real-title,
