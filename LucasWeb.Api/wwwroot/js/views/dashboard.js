@@ -231,8 +231,13 @@
             }
           } catch (e) { }
         }
-        // Una sola fuente para la predicción semanal: la de by-week (misma que Estimaciones y la tabla por días). Si no hay, usar comparativas.baseRevenue.
-        var predSemanaUnified = (byWeek && byWeek.totalRevenue != null && Number(byWeek.totalRevenue) > 0) ? Number(byWeek.totalRevenue) : (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue)) ? Number(comparativas.baseRevenue) : null);
+        // Una sola fuente: total = suma de los mismos días que mostramos en la tabla (predByDate), para que KPI, bloque y tabla coincidan siempre.
+        var sumPredFromTable = 0;
+        for (var si = 0; si < 7; si++) {
+          var dayKey = addDays(ws, si);
+          if (predByDate[dayKey] != null) sumPredFromTable += Number(predByDate[dayKey]);
+        }
+        var predSemanaUnified = (sumPredFromTable > 0) ? sumPredFromTable : ((byWeek && byWeek.totalRevenue != null && Number(byWeek.totalRevenue) > 0) ? Number(byWeek.totalRevenue) : (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue)) ? Number(comparativas.baseRevenue) : null));
         var ajustePct = (data && data.ajusteFacturacionManualPct != null && Number.isFinite(Number(data.ajusteFacturacionManualPct))) ? Number(data.ajusteFacturacionManualPct) : 9.1;
         var factorManual = 1 - (ajustePct / 100);
         var realAdjustedForComparison = null;
