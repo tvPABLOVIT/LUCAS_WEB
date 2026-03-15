@@ -690,18 +690,18 @@ public class EstimacionesController : ControllerBase
         const decimal WeeksPerMonth = 4.33m;
         var factObjMensual = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoMensual");
         decimal? factObj = null;
-        if (factObjMensual != null && decimal.TryParse((factObjMensual.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var foMonthly) && foMonthly > 0)
+        if (factObjMensual != null && decimal.TryParse((factObjMensual.Value ?? "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var foMonthly) && foMonthly > 0)
             factObj = foMonthly / WeeksPerMonth;
         if (!factObj.HasValue)
         {
             var factObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoSemanal");
-            if (factObjS != null && decimal.TryParse((factObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var fo) && fo > 0) factObj = fo;
+            if (factObjS != null && decimal.TryParse((factObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var fo) && fo > 0) factObj = fo;
         }
         var totalHoras = await GetTotalHorasSemanalesContratoAsync();
         if (factObj.HasValue && factObj.Value > 0 && totalHoras > 0)
             return factObj.Value / totalHoras;
         var prodObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "ProductividadIdealEurHora");
-        if (prodObjS != null && decimal.TryParse((prodObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var po) && po > 0) return po;
+        if (prodObjS != null && decimal.TryParse((prodObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var po) && po > 0) return po;
         return null;
     }
 }
