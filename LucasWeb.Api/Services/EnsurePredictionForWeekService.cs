@@ -64,11 +64,9 @@ public class EnsurePredictionForWeekService
         if (string.IsNullOrWhiteSpace(dailyJson))
             return false;
 
-        var prodSetting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "ProductividadIdealEurHora");
+        var prod = await GetProductividadObjetivoAsync();
         var horasSetting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "HorasPorTurno");
-        var prod = 50m;
         var horas = 4m;
-        if (prodSetting != null && decimal.TryParse(prodSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var pp)) prod = pp;
         if (horasSetting != null && decimal.TryParse(horasSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var hh)) horas = hh;
         dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(monday, dailyJson, prod, horas) ?? dailyJson;
 
@@ -110,5 +108,47 @@ public class EnsurePredictionForWeekService
     {
         var diff = (7 + (d.DayOfWeek - DayOfWeek.Monday)) % 7;
         return d.AddDays(-diff).Date;
+    }
+
+    private async Task<decimal> GetProductividadObjetivoAsync()
+    {
+        const decimal WeeksPerMonth = 4.33m;
+        var factObjMensual = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoMensual");
+        decimal? factObj = null;
+        if (factObjMensual != null && decimal.TryParse((factObjMensual.Value ?? "").Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out var foMonthly) && foMonthly > 0)
+            factObj = foMonthly / WeeksPerMonth;
+        if (!factObj.HasValue)
+        {
+            var factObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoSemanal");
+            if (factObjS != null && decimal.TryParse((factObjS.Value ?? "").Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out var fo) && fo > 0) factObj = fo;
+        }
+        var totalHoras = await GetTotalHorasSemanalesContratoAsync();
+        if (factObj.HasValue && factObj.Value > 0 && totalHoras > 0)
+            return factObj.Value / totalHoras;
+        var prodObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "ProductividadIdealEurHora");
+        if (prodObjS != null && decimal.TryParse((prodObjS.Value ?? "").Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out var po) && po > 0) return po;
+        return 50m;
+    }
+
+    private async Task<decimal> GetTotalHorasSemanalesContratoAsync()
+    {
+        var horasSetting = await _db.Settings.AsNoTracking().Where(s => s.Key == "HorasSemanalesContrato").Select(s => s.Value).FirstOrDefaultAsync();
+        if (!string.IsNullOrWhiteSpace(horasSetting) && decimal.TryParse(horasSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, CultureInfo.InvariantCulture, out var h) && h > 0)
+            return h;
+        var empleadosJson = await _db.Settings.AsNoTracking().Where(s => s.Key == "Empleados").Select(s => s.Value).FirstOrDefaultAsync();
+        if (string.IsNullOrWhiteSpace(empleadosJson)) return 0;
+        try
+        {
+            using var doc = JsonDocument.Parse(empleadosJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return 0;
+            decimal sum = 0;
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                if (el.TryGetProperty("hours", out var hoursEl) && hoursEl.TryGetDecimal(out var hours))
+                    sum += hours;
+            }
+            return sum;
+        }
+        catch { return 0; }
     }
 }

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using LucasWeb.Api.Data;
 using LucasWeb.Api.DTOs;
 using LucasWeb.Api.Services;
@@ -436,17 +437,25 @@ public class DashboardController : ControllerBase
         }
 
         decimal? productividadObjetivo = null;
-        try
+        var totalHorasSemanales = await GetTotalHorasSemanalesContratoAsync();
+        if (facturacionObjetivo.HasValue && facturacionObjetivo.Value > 0 && totalHorasSemanales > 0)
         {
-            var prodObjSetting = await GetSettingValueAsync("ProductividadIdealEurHora");
-            if (!string.IsNullOrWhiteSpace(prodObjSetting) &&
-                decimal.TryParse(prodObjSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var prodObj) &&
-                prodObj > 0 && prodObj < 10000)
-            {
-                productividadObjetivo = prodObj;
-            }
+            productividadObjetivo = facturacionObjetivo.Value / totalHorasSemanales;
         }
-        catch { }
+        if (!productividadObjetivo.HasValue)
+        {
+            try
+            {
+                var prodObjSetting = await GetSettingValueAsync("ProductividadIdealEurHora");
+                if (!string.IsNullOrWhiteSpace(prodObjSetting) &&
+                    decimal.TryParse(prodObjSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var prodObj) &&
+                    prodObj > 0 && prodObj < 10000)
+                {
+                    productividadObjetivo = prodObj;
+                }
+            }
+            catch { }
+        }
 
         var last30Days = await GetLast30DaysRevenueAsync();
         var todayForWindow = DateTime.UtcNow.Date;
@@ -587,5 +596,28 @@ public class DashboardController : ControllerBase
                 "CREATE TABLE IF NOT EXISTS \"FacturacionObjetivoSemanas\" (\"WeekStart\" TEXT NOT NULL PRIMARY KEY, \"TargetRevenue\" REAL NOT NULL);");
         }
         catch { }
+    }
+
+    /// <summary>Total horas semanales de contrato: HorasSemanalesContrato o suma de Empleados[].hours.</summary>
+    private async Task<decimal> GetTotalHorasSemanalesContratoAsync()
+    {
+        var horasSetting = await GetSettingValueAsync("HorasSemanalesContrato");
+        if (!string.IsNullOrWhiteSpace(horasSetting) && decimal.TryParse(horasSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var h) && h > 0)
+            return h;
+        var empleadosJson = await GetSettingValueAsync("Empleados");
+        if (string.IsNullOrWhiteSpace(empleadosJson)) return 0;
+        try
+        {
+            using var doc = JsonDocument.Parse(empleadosJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return 0;
+            decimal sum = 0;
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                if (el.TryGetProperty("hours", out var hoursEl) && hoursEl.TryGetDecimal(out var hours))
+                    sum += hours;
+            }
+            return sum;
+        }
+        catch { return 0; }
     }
 }

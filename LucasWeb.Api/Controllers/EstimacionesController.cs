@@ -305,12 +305,12 @@ public class EstimacionesController : ControllerBase
             ));
         }
 
-        // Coste personal vs estimación
-        var prodSetting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "ProductividadIdealEurHora");
+        // Coste personal vs estimación (productividad objetivo derivada de facturación mensual + horas contrato)
+        var productividad = await GetProductividadObjetivoAsync();
         var costeHoraSetting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "CostePersonalPorHora");
-        if (nextWeekRevenue.HasValue && nextWeekRevenue > 0 && prodSetting != null && decimal.TryParse(prodSetting.Value.Replace(",", "."), NumberStyles.Any, inv, out var productividad) && productividad > 0 && costeHoraSetting != null && decimal.TryParse(costeHoraSetting.Value.Replace(",", "."), NumberStyles.Any, inv, out var costeHora) && costeHora >= 0)
+        if (nextWeekRevenue.HasValue && nextWeekRevenue > 0 && productividad.HasValue && productividad.Value > 0 && costeHoraSetting != null && decimal.TryParse(costeHoraSetting.Value.Replace(",", "."), NumberStyles.Any, inv, out var costeHora) && costeHora >= 0)
         {
-            var horasEst = nextWeekRevenue.Value / productividad;
+            var horasEst = nextWeekRevenue.Value / productividad.Value;
             var costeEst = horasEst * costeHora;
             var pctCoste = costeEst / nextWeekRevenue.Value * 100;
             alertas.Add(new AlertaItem("costePersonal", "Coste personal estimado", "Un " + pctCoste.ToString("F1", inv) + "% de la facturación estimada (" + costeEst.ToString("F0", inv) + " € en " + horasEst.ToString("F0", inv) + " h).", ordenMedio, null, "Horas necesarias para la productividad objetivo × coste por hora."));
@@ -440,8 +440,14 @@ public class EstimacionesController : ControllerBase
         }
 
         decimal? prodObj = null;
-        var prodObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "ProductividadIdealEurHora");
-        if (prodObjS != null && decimal.TryParse((prodObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var po) && po > 0) prodObj = po;
+        var totalHorasSemanales = await GetTotalHorasSemanalesContratoAsync();
+        if (factObj.HasValue && factObj.Value > 0 && totalHorasSemanales > 0)
+            prodObj = factObj.Value / totalHorasSemanales;
+        if (!prodObj.HasValue)
+        {
+            var prodObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "ProductividadIdealEurHora");
+            if (prodObjS != null && decimal.TryParse((prodObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var po) && po > 0) prodObj = po;
+        }
 
         var weekDays = await _db.ExecutionDays
             .AsNoTracking()
@@ -654,5 +660,48 @@ public class EstimacionesController : ControllerBase
     {
         var diff = (7 + (d.DayOfWeek - DayOfWeek.Monday)) % 7;
         return d.AddDays(-diff).Date;
+    }
+
+    private async Task<decimal> GetTotalHorasSemanalesContratoAsync()
+    {
+        var horasSetting = await _db.Settings.AsNoTracking().Where(s => s.Key == "HorasSemanalesContrato").Select(s => s.Value).FirstOrDefaultAsync();
+        if (!string.IsNullOrWhiteSpace(horasSetting) && decimal.TryParse(horasSetting.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var h) && h > 0)
+            return h;
+        var empleadosJson = await _db.Settings.AsNoTracking().Where(s => s.Key == "Empleados").Select(s => s.Value).FirstOrDefaultAsync();
+        if (string.IsNullOrWhiteSpace(empleadosJson)) return 0;
+        try
+        {
+            using var doc = JsonDocument.Parse(empleadosJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return 0;
+            decimal sum = 0;
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                if (el.TryGetProperty("hours", out var hoursEl) && hoursEl.TryGetDecimal(out var hours))
+                    sum += hours;
+            }
+            return sum;
+        }
+        catch { return 0; }
+    }
+
+    /// <summary>Productividad objetivo (€/h) derivada de facturación mensual y horas contrato; si no, ProductividadIdealEurHora.</summary>
+    private async Task<decimal?> GetProductividadObjetivoAsync()
+    {
+        const decimal WeeksPerMonth = 4.33m;
+        var factObjMensual = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoMensual");
+        decimal? factObj = null;
+        if (factObjMensual != null && decimal.TryParse((factObjMensual.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var foMonthly) && foMonthly > 0)
+            factObj = foMonthly / WeeksPerMonth;
+        if (!factObj.HasValue)
+        {
+            var factObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoSemanal");
+            if (factObjS != null && decimal.TryParse((factObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var fo) && fo > 0) factObj = fo;
+        }
+        var totalHoras = await GetTotalHorasSemanalesContratoAsync();
+        if (factObj.HasValue && factObj.Value > 0 && totalHoras > 0)
+            return factObj.Value / totalHoras;
+        var prodObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "ProductividadIdealEurHora");
+        if (prodObjS != null && decimal.TryParse((prodObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var po) && po > 0) return po;
+        return null;
     }
 }

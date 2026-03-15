@@ -231,17 +231,14 @@
       '<p class="config-desc">Duración de cada turno en horas (p. ej. 4). Las horas de equipo se calculan como (Personal sala + Personal cocina) × este valor por turno. Sirve para el resumen Sala: X-Y-Z | Cocina: X-Y-Z y para repartir las horas reales entre sala y cocina.</p>' +
       '<div class="form-row">' +
       '<div class="form-group"><label for="config-HorasPorTurno">Horas por turno</label><input type="number" id="config-HorasPorTurno" step="0.1" min="1" max="24" value="4" /></div>' +
-      '<div class="form-group"><label for="config-ProductividadIdealEurHora">Productividad ideal (€/h)</label><input type="number" id="config-ProductividadIdealEurHora" step="0.01" value="50" /></div>' +
       '<div class="form-group"><label for="config-CostePersonalPorHora">Coste por hora de personal (€/h)</label><input type="number" id="config-CostePersonalPorHora" step="0.01" value="15.73" /></div>' +
       '<div class="form-group"><label for="config-AjusteFacturacionManualPct">Ajuste facturación manual (%)</label><input type="number" id="config-AjusteFacturacionManualPct" step="0.1" min="0" max="100" placeholder="9.1" /></div>' +
       '</div>' +
-      '<p class="config-desc">Se aplica a días con facturación manual para comparativas y real "para comparar" (ej. 9.1 = -9,1%).</p>' +
-      '<p class="config-desc">Objetivo de facturación por hora trabajada; se usará en Estimaciones para comparar con la productividad real.</p>' +
-      '<p class="config-desc">Coste medio por hora de personal; se usa en Estimaciones para el KPI Costo de personal (horas × €/h).</p>' +
+      '<p class="config-desc">Se aplica a días con facturación manual para comparativas y real "para comparar" (ej. 9.1 = -9,1%). Coste medio por hora de personal; se usa en Estimaciones para el KPI Costo de personal (horas × €/h).</p>' +
       '<div class="form-row">' +
       '<div class="form-group"><label for="config-FacturacionObjetivoMensual">Facturación objetivo (€/mes)</label><input type="number" id="config-FacturacionObjetivoMensual" step="1" min="0" placeholder="ej. 52000" /></div>' +
       '</div>' +
-      '<p class="config-desc">Objetivo de facturación mensual. El objetivo semanal se calcula como mensual ÷ 4,33; en el Dashboard se muestra la facturación real vs ese objetivo semanal (%).</p>' +
+      '<p class="config-desc">Objetivo de facturación mensual. A partir de este valor se calculan: objetivo semanal (mensual ÷ 4,33), productividad objetivo (€/h) y horas objetivo, usando las horas semanales de contrato (suma de empleados). Dashboard y Estimaciones usan estos objetivos derivados.</p>' +
       '<div class="form-row">' +
       '<div class="form-group"><label for="config-PrediccionConservadoraFactor">Factor predicción (0,01–2)</label><input type="number" id="config-PrediccionConservadoraFactor" step="0.01" min="0.01" max="2" placeholder="1 = sin ajuste" /></div>' +
       '</div>' +
@@ -351,7 +348,6 @@
       if (!data) return;
       var el;
       if ((el = document.getElementById('config-HorasPorTurno'))) el.value = data.HorasPorTurno != null && data.HorasPorTurno !== '' ? data.HorasPorTurno : '4';
-      if ((el = document.getElementById('config-ProductividadIdealEurHora'))) el.value = data.ProductividadIdealEurHora != null ? data.ProductividadIdealEurHora : '50';
       if ((el = document.getElementById('config-CostePersonalPorHora'))) el.value = data.CostePersonalPorHora != null ? data.CostePersonalPorHora : '15.73';
       if ((el = document.getElementById('config-PrediccionConservadoraFactor'))) el.value = (data.PrediccionConservadoraFactor != null && data.PrediccionConservadoraFactor !== '') ? data.PrediccionConservadoraFactor : '';
       if ((el = document.getElementById('config-AjusteFacturacionManualPct'))) el.value = (data.AjusteFacturacionManualPct != null && data.AjusteFacturacionManualPct !== '') ? data.AjusteFacturacionManualPct : '9.1';
@@ -446,10 +442,8 @@
   function saveParametros() {
     var msgEl = document.getElementById('config-param-msg');
     var horas = parseFloat(document.getElementById('config-HorasPorTurno')?.value ?? '4', 10);
-    var prod = parseFloat(document.getElementById('config-ProductividadIdealEurHora')?.value ?? '50', 10);
     var coste = parseFloat(document.getElementById('config-CostePersonalPorHora')?.value ?? '15.73', 10);
     if (isNaN(horas) || horas < 1 || horas > 24) { showMsg(msgEl, 'Horas por turno debe estar entre 1 y 24.', false); return; }
-    if (isNaN(prod) || prod < 0) { showMsg(msgEl, 'Productividad ideal debe ser ≥ 0.', false); return; }
     if (isNaN(coste) || coste < 0) { showMsg(msgEl, 'Coste por hora de personal debe ser ≥ 0.', false); return; }
     var factorConservador = document.getElementById('config-PrediccionConservadoraFactor')?.value?.trim() ?? '';
     var factObjMensual = document.getElementById('config-FacturacionObjetivoMensual')?.value?.trim() ?? '';
@@ -464,7 +458,6 @@
     }
     var body = {
       HorasPorTurno: String(horas),
-      ProductividadIdealEurHora: String(prod),
       CostePersonalPorHora: String(coste),
       FacturacionObjetivoMensual: factObjMensual === '' ? '' : String(parseFloat(factObjMensual.replace(',', '.')) || 0),
       PrediccionConservadoraFactor: factorConservador === '' || factorConservador === '1' ? '' : factorConservador,

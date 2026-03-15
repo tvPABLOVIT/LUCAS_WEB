@@ -42,10 +42,39 @@ public class SettingsController : ControllerBase
     {
         await EnsureSettingsTableAsync();
         var list = await _db.Settings.Where(s => AllowedKeys.Contains(s.Key)).ToListAsync();
-        var dict = list.ToDictionary(s => s.Key, s => s.Value);
+        var dict = list.ToDictionary(s => s.Key, s => s.Value ?? "");
         foreach (var key in AllowedKeys)
             if (!dict.ContainsKey(key)) dict[key] = "";
+        var productividadObjetivo = GetProductividadObjetivoFromMensual(dict);
+        if (productividadObjetivo.HasValue)
+            dict["ProductividadIdealEurHora"] = productividadObjetivo.Value.ToString("G", CultureInfo.InvariantCulture);
         return Ok(dict);
+    }
+
+    private static decimal? GetProductividadObjetivoFromMensual(Dictionary<string, string> dict)
+    {
+        const decimal WeeksPerMonth = 4.33m;
+        if (!dict.TryGetValue("FacturacionObjetivoMensual", out var mensualStr) || string.IsNullOrWhiteSpace(mensualStr) ||
+            !decimal.TryParse(mensualStr.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var monthly) || monthly <= 0)
+            return null;
+        var weekly = monthly / WeeksPerMonth;
+        decimal totalHoras = 0;
+        if (dict.TryGetValue("HorasSemanalesContrato", out var hStr) && !string.IsNullOrWhiteSpace(hStr) && decimal.TryParse(hStr.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var h) && h > 0)
+            totalHoras = h;
+        else if (dict.TryGetValue("Empleados", out var empJson) && !string.IsNullOrWhiteSpace(empJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(empJson);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                        if (el.TryGetProperty("hours", out var hoursEl) && hoursEl.TryGetDecimal(out var hours))
+                            totalHoras += hours;
+            }
+            catch { }
+        }
+        if (totalHoras <= 0) return null;
+        return weekly / totalHoras;
     }
 
     [HttpPatch]
