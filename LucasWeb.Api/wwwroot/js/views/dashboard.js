@@ -394,7 +394,8 @@
             var tableRows = daysWithBoth.map(function (x) {
               var predFmt = x.pred.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               var realFmt = x.real.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-              return '<tr><td>' + x.name + '</td><td>' + predFmt + ' €</td><td>' + realFmt + ' €</td><td>' + x.pct + '</td></tr>';
+              var pctClass = (x.pct && x.pct.toString().indexOf('-') === 0) ? 'dashboard-pct--down' : 'dashboard-pct--up';
+              return '<tr><td>' + x.name + '</td><td>' + predFmt + ' €</td><td>' + realFmt + ' €</td><td class="dashboard-pct ' + pctClass + '">' + x.pct + '</td></tr>';
             }).join('');
             htmlParts.push('<p class="dashboard-pred-por-dias-label">Por días:</p><table class="dashboard-pred-days-table"><thead><tr><th>Día</th><th>Predicho</th><th>Facturado</th><th>Diferencia</th></tr></thead><tbody>' + tableRows + '</tbody></table>');
           }
@@ -453,7 +454,8 @@
             }
             if (dayPairsData.length > 0) {
               var tableRowsVsAnt = dayPairsData.map(function (x) {
-                return '<tr><td>' + x.name + '</td><td>' + x.prev + ' €</td><td>' + x.curr + ' €</td><td>' + x.pct + '</td></tr>';
+                var pctClass = (x.pct && x.pct.toString().indexOf('-') === 0) ? 'dashboard-pct--down' : 'dashboard-pct--up';
+                return '<tr><td>' + x.name + '</td><td>' + x.prev + ' €</td><td>' + x.curr + ' €</td><td class="dashboard-pct ' + pctClass + '">' + x.pct + '</td></tr>';
               }).join('');
               htmlPartsVsAnt.push('<p class="dashboard-actual-por-dias-label">Por días:</p><table class="dashboard-actual-days-table"><thead><tr><th>Día</th><th>Semana anterior</th><th>Esta semana</th><th>Diferencia</th></tr></thead><tbody>' + tableRowsVsAnt + '</tbody></table>');
             }

@@ -265,15 +265,16 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 @media (max-width: 480px) {
   .dashboard-two-blocks { grid-template-columns: 1fr; }
 }
-/* Mismo estilo que bloque Impacto del clima en Estimaciones */
-.dashboard-pred-vs-real-card,
-.dashboard-actual-vs-anterior-card {
+/* Mismo estilo que bloque Impacto del clima en Estimaciones — selector específico para ganar a .card */
+.dashboard-two-blocks .card.dashboard-pred-vs-real-card,
+.dashboard-two-blocks .card.dashboard-actual-vs-anterior-card {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
   border-left: 4px solid #42a5f5;
-  background: linear-gradient(135deg, rgba(66, 165, 245, 0.06) 0%, transparent 50%);
+  background: linear-gradient(135deg, rgba(66, 165, 245, 0.12) 0%, rgba(66, 165, 245, 0.04) 40%, transparent 70%), var(--surface);
+  box-shadow: var(--shadow);
 }
 .dashboard-pred-vs-real-title,
 .dashboard-actual-vs-anterior-title { font-size: 1.12rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--text); }
@@ -291,6 +292,9 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-pred-days-table th { background: var(--bg); color: var(--text-muted); font-weight: 600; }
 .dashboard-pred-days-table td { color: var(--text); }
 .dashboard-pred-days-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+.dashboard-pct { font-weight: 600; }
+.dashboard-pct--up { color: var(--success); }
+.dashboard-pct--down { color: var(--error); }
 
 .dashboard-actual-vs-anterior-body { flex: 1; min-height: 0; overflow: auto; }
 .dashboard-actual-vs-anterior-value { margin: 0 0 0.75rem; }
