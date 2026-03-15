@@ -102,7 +102,8 @@ public class DashboardController : ControllerBase
         if (!string.IsNullOrWhiteSpace(ajusteSetting) && decimal.TryParse(ajusteSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsed) && parsed >= 0 && parsed <= 100)
             ajustePct = parsed;
         var factorManual = 1m - (ajustePct / 100m);
-        var totalRevenueForComparisons = isCurrentWeek && daysInRange.Count > 0
+        // Siempre usar para cálculos: real (Excel) si existe; si no, facturación con ajuste (manual nunca para cálculos).
+        var totalRevenueForComparisons = daysInRange.Count > 0
             ? daysInRange.Sum(d => d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * factorManual)
             : totalRevenue;
         decimal? totalRevenueManual = null;
@@ -116,7 +117,7 @@ public class DashboardController : ControllerBase
         var avgStaff = daysInRange.Count > 0 ? (decimal)daysInRange.Average(d => d.StaffTotal) : 0;
         decimal? avgProductivity = null;
         if (totalHours > 0)
-            avgProductivity = totalRevenue / totalHours;
+            avgProductivity = totalRevenueForComparisons / totalHours;
 
         // Comparativa vs semana anterior: mismo número de días (numDaysToCompare = días con facturación)
         var prevStart = start.AddDays(-7);
@@ -124,14 +125,16 @@ public class DashboardController : ControllerBase
         var prevDays = await _db.ExecutionDays
             .Where(e => !e.IsFeedbackOnly && e.Date >= prevStart && e.Date < prevEnd)
             .ToListAsync();
-        var prevWeekRevenue = prevDays.Count > 0 ? (decimal?)prevDays.Sum(d => d.TotalRevenue) : null;
-        var prevWeekDayItems = prevDays.OrderBy(d => d.Date).Select(d => new DailyRevenueItemDto { Date = d.Date.ToString("yyyy-MM-dd"), Revenue = d.TotalRevenue }).ToList();
+        // Semana anterior: mismo criterio que actual — real (Excel) o ajustado; manual nunca para cálculos.
+        var prevWeekRevenue = prevDays.Count > 0 ? (decimal?)prevDays.Sum(d => d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * factorManual) : null;
+        var prevWeekDayItems = prevDays.OrderBy(d => d.Date).Select(d => new DailyRevenueItemDto { Date = d.Date.ToString("yyyy-MM-dd"), Revenue = d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * factorManual }).ToList();
         decimal prevWeekRevenueFull;
         try
         {
-            prevWeekRevenueFull = await _db.ExecutionDays
+            var prevWeekFullDays = await _db.ExecutionDays
                 .Where(e => !e.IsFeedbackOnly && e.Date >= prevStart && e.Date < prevStart.AddDays(7))
-                .SumAsync(e => e.TotalRevenue);
+                .ToListAsync();
+            prevWeekRevenueFull = prevWeekFullDays.Sum(e => e.RevenueFromExcel == true ? e.TotalRevenue : e.TotalRevenue * factorManual);
         }
         catch (Exception exPrev)
         {
@@ -206,12 +209,11 @@ public class DashboardController : ControllerBase
         }
 
         var prevWeekStart = start.AddDays(-7);
-        var prevWeekDays = await _db.ExecutionDays
+        var prevWeekDaysForTrend = await _db.ExecutionDays
             .AsNoTracking()
             .Where(e => !e.IsFeedbackOnly && e.Date >= prevWeekStart && e.Date < start)
-            .Select(e => new { e.Date, e.TotalRevenue })
             .ToListAsync();
-        var byPrevWeekDate = prevWeekDays.ToDictionary(e => e.Date.ToString("yyyy-MM-dd"), e => e.TotalRevenue);
+        var byPrevWeekDate = prevWeekDaysForTrend.ToDictionary(e => e.Date.ToString("yyyy-MM-dd"), e => e.RevenueFromExcel == true ? e.TotalRevenue : e.TotalRevenue * factorManual);
 
         var dayNames = new Dictionary<DayOfWeek, string>
         {
@@ -229,13 +231,14 @@ public class DashboardController : ControllerBase
         // Enviar solo los días incluidos en "hasta hoy" (daysInRange) para que data.days y totales coincidan
         var dayItems = daysInRange.Select(d =>
         {
+            var dayRevenueForCompare = d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * factorManual;
             decimal? dayAvg = avgByDayOfWeek.TryGetValue(d.Date.DayOfWeek, out var avg) ? avg : null;
             var trendLabel = trendByDayOfWeek.TryGetValue(d.Date.DayOfWeek, out var tl) ? tl : null;
             string? trendVsPrevWeek = null;
             var prevWeekDateStr = d.Date.AddDays(-7).ToString("yyyy-MM-dd");
             if (byPrevWeekDate.TryGetValue(prevWeekDateStr, out var prevRev) && prevRev > 0)
             {
-                var prevPct = (d.TotalRevenue - prevRev) / prevRev;
+                var prevPct = (dayRevenueForCompare - prevRev) / prevRev;
                 var prevPctPct = (int)Math.Round(prevPct * 100);
                 trendVsPrevWeek = prevPctPct >= 0 ? "vs sem. ant.: +" + prevPctPct + " %" : "vs sem. ant.: " + prevPctPct + " %";
             }
@@ -272,10 +275,10 @@ public class DashboardController : ControllerBase
             var effectiveHours = d.TotalHoursWorked > 0 ? (decimal?)d.TotalHoursWorked
                 : (plannedDayTotal > 0 ? (decimal?)plannedDayTotal
                 : (plannedHoursFromShifts > 0 ? (decimal?)plannedHoursFromShifts : calculatedStaffHours));
-            var effectiveProductivity = (effectiveHours.HasValue && effectiveHours > 0 && d.TotalRevenue > 0) ? d.TotalRevenue / effectiveHours.Value : (decimal?)null;
+            var effectiveProductivity = (effectiveHours.HasValue && effectiveHours > 0 && dayRevenueForCompare > 0) ? dayRevenueForCompare / effectiveHours.Value : (decimal?)null;
             int? pctVsAvg = null;
             if (dayAvg.HasValue && dayAvg.Value > 0)
-                pctVsAvg = (int)Math.Round((d.TotalRevenue - dayAvg.Value) / dayAvg.Value * 100);
+                pctVsAvg = (int)Math.Round((dayRevenueForCompare - dayAvg.Value) / dayAvg.Value * 100);
 
             var dayFeedbackSummary = !string.IsNullOrWhiteSpace(d.Notes)
                 ? d.Notes.Trim()
@@ -290,10 +293,10 @@ public class DashboardController : ControllerBase
             {
                 Date = d.Date.ToString("yyyy-MM-dd"),
                 DayName = dayNames.TryGetValue(d.Date.DayOfWeek, out var name) ? name : "",
-                Revenue = d.TotalRevenue,
+                Revenue = dayRevenueForCompare,
                 RevenueFromManual = d.RevenueFromExcel != true,
                 HoursWorked = d.TotalHoursWorked,
-                Productivity = d.TotalHoursWorked > 0 ? d.TotalRevenue / d.TotalHoursWorked : 0,
+                Productivity = d.TotalHoursWorked > 0 ? dayRevenueForCompare / d.TotalHoursWorked : 0,
                 StaffTotal = d.StaffTotal,
                 StaffSummarySala = staffSala,
                 StaffSummaryCocina = staffCocina,

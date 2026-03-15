@@ -93,18 +93,24 @@ public class EstimacionesController : ControllerBase
             dailyJson = daily;
         }
 
+        decimal ajustePct = 9.1m;
+        var ajusteSetting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "AjusteFacturacionManualPct");
+        if (ajusteSetting != null && decimal.TryParse((ajusteSetting.Value ?? "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed) && parsed >= 0 && parsed <= 100)
+            ajustePct = parsed;
+        var factorManual = 1m - (ajustePct / 100m);
+
         var prevMonday = nextMonday.AddDays(-7);
         var prevEnd = prevMonday.AddDays(6);
         var prevDays = await _db.ExecutionDays
             .Where(e => !e.IsFeedbackOnly && e.Date >= prevMonday && e.Date <= prevEnd)
-            .Select(e => new { e.TotalRevenue, e.TotalHoursWorked })
+            .Select(e => new { e.TotalRevenue, e.TotalHoursWorked, e.RevenueFromExcel })
             .ToListAsync();
         decimal prevWeekRevenue = 0;
         decimal prevWeekHours = 0;
         decimal? prevWeekProductivity = null;
         if (prevDays.Count > 0)
         {
-            prevWeekRevenue = prevDays.Sum(d => d.TotalRevenue);
+            prevWeekRevenue = prevDays.Sum(d => d.RevenueFromExcel == true ? d.TotalRevenue : d.TotalRevenue * factorManual);
             prevWeekHours = prevDays.Sum(d => d.TotalHoursWorked);
             if (prevWeekHours > 0) prevWeekProductivity = prevWeekRevenue / prevWeekHours;
         }
@@ -449,27 +455,33 @@ public class EstimacionesController : ControllerBase
             if (prodObjS != null && decimal.TryParse((prodObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var po) && po > 0) prodObj = po;
         }
 
+        decimal ajustePct = 9.1m;
+        var ajusteSetting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "AjusteFacturacionManualPct");
+        if (ajusteSetting != null && decimal.TryParse((ajusteSetting.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var parsed) && parsed >= 0 && parsed <= 100)
+            ajustePct = parsed;
+        var factorManual = 1m - (ajustePct / 100m);
+
         var weekDays = await _db.ExecutionDays
             .AsNoTracking()
             .Where(e => !e.IsFeedbackOnly && e.Date >= monday && e.Date <= end)
-            .Select(e => new { e.Date, e.TotalRevenue, e.TotalHoursWorked })
+            .Select(e => new { e.Date, e.TotalRevenue, e.TotalHoursWorked, e.RevenueFromExcel })
             .ToListAsync();
         if (asOfDate.HasValue)
             weekDays = weekDays.Where(x => x.Date <= asOfDate.Value).ToList();
-        var actualRevenue = weekDays.Sum(x => x.TotalRevenue);
+        var actualRevenue = weekDays.Sum(x => x.RevenueFromExcel == true ? x.TotalRevenue : x.TotalRevenue * factorManual);
         var actualHours = weekDays.Sum(x => x.TotalHoursWorked);
         decimal? actualProd = actualHours > 0 ? actualRevenue / actualHours : null;
 
-        // Misma cantidad de días que la semana actual (ej. Lun–Vie vs Lun–Vie) para comparativas coherentes
+        // Misma cantidad de días que la semana actual (ej. Lun–Vie vs Lun–Vie) para comparativas coherentes. Semana anterior: real (Excel) o ajustado; manual nunca para cálculos.
         var numDaysForPrev = weekDays.Count;
         var prevMonday = monday.AddDays(-7);
         var prevEnd = numDaysForPrev > 0 ? prevMonday.AddDays(numDaysForPrev) : prevMonday;
         var prevDays = await _db.ExecutionDays
             .AsNoTracking()
             .Where(e => !e.IsFeedbackOnly && e.Date >= prevMonday && e.Date < prevEnd)
-            .Select(e => new { e.TotalRevenue, e.TotalHoursWorked })
+            .Select(e => new { e.TotalRevenue, e.TotalHoursWorked, e.RevenueFromExcel })
             .ToListAsync();
-        var prevRevenue = prevDays.Sum(x => x.TotalRevenue);
+        var prevRevenue = prevDays.Sum(x => x.RevenueFromExcel == true ? x.TotalRevenue : x.TotalRevenue * factorManual);
         var prevHours = prevDays.Sum(x => x.TotalHoursWorked);
         decimal? prevProd = prevHours > 0 ? prevRevenue / prevHours : null;
 
