@@ -231,6 +231,8 @@
             }
           } catch (e) { }
         }
+        // Una sola fuente para la predicción semanal: la de by-week (misma que Estimaciones y la tabla por días). Si no hay, usar comparativas.baseRevenue.
+        var predSemanaUnified = (byWeek && byWeek.totalRevenue != null && Number(byWeek.totalRevenue) > 0) ? Number(byWeek.totalRevenue) : (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue)) ? Number(comparativas.baseRevenue) : null);
         var ajustePct = (data && data.ajusteFacturacionManualPct != null && Number.isFinite(Number(data.ajusteFacturacionManualPct))) ? Number(data.ajusteFacturacionManualPct) : 9.1;
         var factorManual = 1 - (ajustePct / 100);
         var realAdjustedForComparison = null;
@@ -292,9 +294,9 @@
         } else {
           pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted">vs fact. objetivo: —</div>';
         }
-        if (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue))) {
-          var predFormatted = Number(comparativas.baseRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-          pctVsPrev += '<div class="kpi-card-sub">Predicho' + (data.isCurrentWeek ? ' (semana)' : '') + ': ' + predFormatted + '</div>';
+        if (predSemanaUnified != null && predSemanaUnified > 0) {
+          var predFormatted = Number(predSemanaUnified).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+          pctVsPrev += '<div class="kpi-card-sub">Predicción' + (data.isCurrentWeek ? ' (semana)' : '') + ': ' + predFormatted + '</div>';
         }
         var prodValue = data.avgProductivity != null ? data.avgProductivity.toFixed(1) + ' €/h' : '—';
         var pctVsPrevProd = '';
@@ -345,8 +347,8 @@
           div.innerHTML = '<div class="label">' + k.label + '</div><div class="value">' + k.value + '</div>' + (k.sub || '');
           kpisEl.appendChild(div);
         });
-        if (predVsRealEl && comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue))) {
-          var predSemana = Number(comparativas.baseRevenue);
+        if (predVsRealEl && predSemanaUnified != null && predSemanaUnified > 0) {
+          var predSemana = predSemanaUnified;
           var predHastaHoy = null;
           var nd = (data.days && data.days.length) ? data.days.length : 0;
           if (data.isCurrentWeek && nd > 0 && data.days && data.days.length > 0) {
@@ -423,7 +425,7 @@
           } else {
             predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><div class="dashboard-pred-vs-real-body"><p class="dashboard-pred-vs-real-value">No hay predicción guardada para esta semana. Genera una en <a href="#estimaciones">Estimaciones</a> (Planificación semana siguiente) para ver aquí la comparación.</p></div>';
           }
-        } else if (predVsRealEl && comparativas) {
+        } else if (predVsRealEl) {
           predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><div class="dashboard-pred-vs-real-body"><p class="dashboard-pred-vs-real-value">No hay predicción guardada para esta semana. Genera una en <a href="#estimaciones">Estimaciones</a> (Planificación semana siguiente) para ver aquí la comparación.</p></div>';
         }
         if (actualVsAnteriorEl) {
