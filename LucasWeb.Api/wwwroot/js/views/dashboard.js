@@ -224,20 +224,14 @@
         var ajustePct = (data && data.ajusteFacturacionManualPct != null && Number.isFinite(Number(data.ajusteFacturacionManualPct))) ? Number(data.ajusteFacturacionManualPct) : 9.1;
         var factorManual = 1 - (ajustePct / 100);
         var realAdjustedForComparison = null;
-        var realSumFromDays = null;
+        // El backend ya envía en day.revenue el valor para comparaciones (real o ajustado). No aplicar factorManual de nuevo.
         if (data && data.isCurrentWeek && data.days && data.days.length > 0) {
-          var sumAdj = 0;
-          var sumRaw = 0;
+          var sumFromBackend = 0;
           for (var ai = 0; ai < data.days.length; ai++) {
-            var da = data.days[ai];
-            var ra = (da.revenue != null ? Number(da.revenue) : (da.Revenue != null ? Number(da.Revenue) : 0));
-            if (ra > 0) {
-              sumRaw += ra;
-              sumAdj += (da.revenueFromManual !== false ? ra * factorManual : ra);
-            }
+            var ra = (data.days[ai].revenue != null ? Number(data.days[ai].revenue) : (data.days[ai].Revenue != null ? Number(data.days[ai].Revenue) : 0));
+            if (ra > 0) sumFromBackend += ra;
           }
-          if (sumRaw > 0) realSumFromDays = sumRaw;
-          if (sumAdj > 0) realAdjustedForComparison = sumAdj;
+          if (sumFromBackend > 0) realAdjustedForComparison = sumFromBackend;
         }
         if (!data) {
           loading = false;
@@ -258,11 +252,11 @@
           subtitleEl.textContent = subtitleText;
         }
         if (kpisEl) kpisEl.innerHTML = '';
-        // Semana en curso: para comparativas y cálculos usar facturación real (Excel) o, si no hay, aproximada. La manual es solo informativa.
-        var realForKpiComparisons = (data.isCurrentWeek && (data.totalRevenueForComparisons != null && Number(data.totalRevenueForComparisons) > 0))
+        // Para cálculos y display: usar siempre totalRevenueForComparisons (real o ajustado). La manual bruta es solo informativa.
+        var realForKpiComparisons = (data.totalRevenueForComparisons != null && Number(data.totalRevenueForComparisons) > 0)
           ? Number(data.totalRevenueForComparisons)
           : (data.isCurrentWeek && realAdjustedForComparison != null ? realAdjustedForComparison : (data.totalRevenue != null ? Number(data.totalRevenue) : null));
-        var revValue = (data.isCurrentWeek && realForKpiComparisons != null)
+        var revValue = realForKpiComparisons != null
           ? Number(realForKpiComparisons).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
           : (data.totalRevenue != null ? Number(data.totalRevenue).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : '—');
         if (data.isCurrentWeek && data.totalRevenueManual != null && Number(data.totalRevenueManual) > 0 && Math.abs(Number(data.totalRevenueManual) - (realForKpiComparisons || 0)) > 0.01) {
@@ -367,10 +361,9 @@
             for (var dj = 0; dj < (data.days || []).length; dj++) {
               if (toYmd((data.days)[dj].date) === dateStrDay) { dayObj = (data.days)[dj]; break; }
             }
-            var rawDay = dayObj && (dayObj.revenue != null || dayObj.Revenue != null) ? Number(dayObj.revenue != null ? dayObj.revenue : dayObj.Revenue) : null;
-            var realDay = (rawDay != null && rawDay > 0)
-              ? (dayObj.revenueFromManual !== false ? rawDay * factorManual : rawDay)
-              : null;
+            // Backend ya envía revenue ajustado (real o con -9,1% si manual). Usar tal cual.
+            var realDay = dayObj && (dayObj.revenue != null || dayObj.Revenue != null) ? Number(dayObj.revenue != null ? dayObj.revenue : dayObj.Revenue) : null;
+            if (realDay != null && realDay <= 0) realDay = null;
             if (predDay != null && predDay > 0 && realDay != null) {
               var dayPct = ((realDay - predDay) / predDay) * 100;
               var dayPctStr = (Number.isFinite(dayPct) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—');
@@ -444,8 +437,8 @@
               var nameD = d.dayName || (d.date ? dayNameFromDate(typeof d.date === 'string' ? d.date.substring(0, 10) : '') : '');
               if (!nameD && d.date) nameD = dayNameFromDate((d.date + '').substring(0, 10));
               var prevRev = (p && (p.revenue != null || p.Revenue != null)) ? Number(p.revenue != null ? p.revenue : p.Revenue) : 0;
-              var currRaw = (d.revenue != null || d.Revenue != null) ? Number(d.revenue != null ? d.revenue : d.Revenue) : 0;
-              var currRev = (currRaw != null && currRaw > 0) ? (d.revenueFromManual !== false ? currRaw * factorManual : currRaw) : currRaw;
+              // Backend ya envía revenue ajustado en d.revenue. Usar tal cual.
+              var currRev = (d.revenue != null || d.Revenue != null) ? Number(d.revenue != null ? d.revenue : d.Revenue) : 0;
               var dayPct = (prevRev > 0 && Number.isFinite(currRev)) ? ((currRev - prevRev) / prevRev) * 100 : null;
               var dayPctStr = (dayPct != null && Number.isFinite(dayPct)) ? (dayPct >= 0 ? '+' : '') + dayPct.toFixed(1) + '%' : '—';
               var prevF = prevRev.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

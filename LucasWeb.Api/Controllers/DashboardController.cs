@@ -491,7 +491,7 @@ public class DashboardController : ControllerBase
             IsCurrentWeek = isCurrentWeek,
             DaysIncludedCount = numDaysToCompare,
             AjusteFacturacionManualPct = ajustePct,
-            TotalRevenueForComparisons = isCurrentWeek ? (decimal?)totalRevenueForComparisons : totalRevenue,
+            TotalRevenueForComparisons = (decimal?)totalRevenueForComparisons,
             TotalRevenueManual = totalRevenueManual,
             PrevWeekDays = prevWeekDayItems,
             PrevWeekRevenueFull = prevWeekRevenueFull > 0 ? (decimal?)prevWeekRevenueFull : null
