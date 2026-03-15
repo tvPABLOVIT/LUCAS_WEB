@@ -209,6 +209,7 @@
           return y + '-' + m + '-' + day;
         }
         function safePct(n) { if (n == null || typeof n !== 'number' || !Number.isFinite(n)) return '—'; return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+        var predDayDetails = {};
         if (byWeek && byWeek.dailyPredictionsJson) {
           try {
             var dailyArr = JSON.parse(byWeek.dailyPredictionsJson);
@@ -217,6 +218,15 @@
                 var dateStr = parseToYmd(day.date || day.dateStr || '');
                 var rev = day.revenue != null ? day.revenue : (day.predictedRevenue != null ? day.predictedRevenue : null);
                 if (dateStr && rev != null) predByDate[dateStr] = rev;
+                if (dateStr) {
+                  predDayDetails[dateStr] = {
+                    weatherCode: day.weatherCode != null ? day.weatherCode : null,
+                    weatherTempMax: day.weatherTempMax != null ? day.weatherTempMax : (day.tempMax != null ? day.tempMax : null),
+                    weatherTempMin: day.weatherTempMin != null ? day.weatherTempMin : (day.tempMin != null ? day.tempMin : null),
+                    weatherPrecipMm: day.weatherPrecipMm != null ? day.weatherPrecipMm : (day.precipMm != null ? day.precipMm : null),
+                    weatherWindMaxKmh: day.weatherWindMaxKmh != null ? day.weatherWindMaxKmh : (day.windMaxKmh != null ? day.windMaxKmh : null)
+                  };
+                }
               });
             }
           } catch (e) { }
@@ -647,8 +657,15 @@
               var dayName = d.dayName || dayNameFromDate(d.date);
               var dateShort = formatDateShort(d.date);
               var isFuture = d.date > todayYmd;
+              var dayKey = toYmd(d.date || '');
+              var predValPlaceholder = predByDate[dayKey] != null ? Number(predByDate[dayKey]) : NaN;
+              var predCellPlaceholder = (predValPlaceholder != null && Number.isFinite(predValPlaceholder)) ? '<span class="dashboard-day-pred">' + predValPlaceholder.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €</span>' : '—';
+              var climaPlaceholder = '—';
+              if (predDayDetails[dayKey]) {
+                climaPlaceholder = '<span class="dashboard-weather">' + weatherText(predDayDetails[dayKey]) + '</span>';
+              }
               var observacionesPlaceholder = isFuture ? '—' : '<span class="dashboard-observaciones-text">Sin datos.</span>';
-              return [dayName, dateShort, '—', '—', '—', '—', '—', '—', observacionesPlaceholder];
+              return [dayName, dateShort, climaPlaceholder, '—', predCellPlaceholder, '—', '—', '—', observacionesPlaceholder];
             }
             var dayName = d.dayName || dayNameFromDate(d.date);
             var dateShort = formatDateShort(d.date);

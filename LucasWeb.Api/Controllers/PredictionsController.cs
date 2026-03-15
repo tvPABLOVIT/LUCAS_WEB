@@ -18,13 +18,15 @@ public class PredictionsController : ControllerBase
     private readonly NextWeekPredictionService _livePrediction;
     private readonly PredictionEnrichmentService _enrichment;
     private readonly StaffByTurnoPredictionService _staffByTurno;
+    private readonly EnsurePredictionForWeekService _ensurePrediction;
 
-    public PredictionsController(AppDbContext db, NextWeekPredictionService livePrediction, PredictionEnrichmentService enrichment, StaffByTurnoPredictionService staffByTurno)
+    public PredictionsController(AppDbContext db, NextWeekPredictionService livePrediction, PredictionEnrichmentService enrichment, StaffByTurnoPredictionService staffByTurno, EnsurePredictionForWeekService ensurePrediction)
     {
         _db = db;
         _livePrediction = livePrediction;
         _enrichment = enrichment;
         _staffByTurno = staffByTurno;
+        _ensurePrediction = ensurePrediction;
     }
 
     /// <summary>Historial de precisión: últimas N semanas evaluadas (predicción vs real) para ver evolución del error y sesgo.</summary>
@@ -82,8 +84,7 @@ public class PredictionsController : ControllerBase
     }
 
     /// <summary>
-    /// Devuelve la predicción guardada para una semana concreta (histórico).
-    /// No calcula predicción en vivo; si no existe en DB, devuelve isSavedPrediction=false.
+    /// Devuelve la predicción guardada para una semana. Si la semana es la actual o la siguiente y no existe, la genera y guarda (para que al empezar el lunes ya esté guardada y se use en comparativas).
     /// </summary>
     [HttpGet("by-week")]
     public async Task<IActionResult> GetByWeek([FromQuery] string weekStart)
@@ -95,6 +96,8 @@ public class PredictionsController : ControllerBase
         // Normalizar a lunes (si entra una fecha no-lunes, se ajusta hacia el lunes de esa semana).
         var diff = (7 + (monday.DayOfWeek - DayOfWeek.Monday)) % 7;
         monday = monday.AddDays(-diff).Date;
+
+        await _ensurePrediction.EnsurePredictionForWeekAsync(monday);
 
         var pred = await _db.WeeklyPredictions.AsNoTracking().FirstOrDefaultAsync(p => p.WeekStartMonday == monday);
         if (pred == null || string.IsNullOrWhiteSpace(pred.DailyPredictionsJson))
@@ -151,6 +154,7 @@ public class PredictionsController : ControllerBase
     public async Task<IActionResult> GetNextWeek([FromQuery] decimal? lat, [FromQuery] decimal? lon, [FromQuery] string? countryCode)
     {
         var nextMonday = NextWeekPredictionService.GetNextMonday(DateTime.UtcNow.Date);
+        await _ensurePrediction.EnsurePredictionForWeekAsync(nextMonday);
         string? dailyJson = null;
         decimal? totalRevenue = null;
         string? historicalStatsJson = null;
