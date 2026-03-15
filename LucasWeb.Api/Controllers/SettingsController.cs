@@ -18,7 +18,7 @@ public class SettingsController : ControllerBase
     private const string RolesCanPatch = "admin,manager,master";
 
     private static readonly string[] AllowedKeys = {
-        "ProductividadIdealEurHora", "HorasPorTurno", "CostePersonalPorHora", "HorasSemanalesContrato", "FacturacionObjetivoSemanal",
+        "ProductividadIdealEurHora", "HorasPorTurno", "CostePersonalPorHora", "HorasSemanalesContrato", "FacturacionObjetivoSemanal", "FacturacionObjetivoMensual",
         "NombreRestaurante", "DireccionRestaurante", "LatRestaurante", "LonRestaurante", "CountryCode",
         "Empleados",
         "GoogleSheetsUrl", "GoogleCredentialsPath", "GeminiApiKey", "WeatherApiKey",
@@ -56,14 +56,14 @@ public class SettingsController : ControllerBase
         await EnsureSettingsTableAsync();
         await EnsureFacturacionObjetivoTableAsync();
 
-        var kvObjetivo = body.FirstOrDefault(kv => string.Equals(kv.Key, "FacturacionObjetivoSemanal", StringComparison.OrdinalIgnoreCase));
-        string? oldObjetivo = null;
+        var kvObjetivoMensual = body.FirstOrDefault(kv => string.Equals(kv.Key, "FacturacionObjetivoMensual", StringComparison.OrdinalIgnoreCase));
+        string? oldObjetivoMensual = null;
         string? oldLastWeek = null;
-        if (kvObjetivo.Key != null)
+        if (kvObjetivoMensual.Key != null)
         {
-            var existingObjetivo = await _db.Settings.FindAsync("FacturacionObjetivoSemanal");
-            var existingLastWeek = await _db.Settings.FindAsync("FacturacionObjetivoSemanal_LastWeekStart");
-            oldObjetivo = existingObjetivo?.Value;
+            var existingObjetivo = await _db.Settings.FindAsync("FacturacionObjetivoMensual");
+            var existingLastWeek = await _db.Settings.FindAsync("FacturacionObjetivoMensual_LastWeekStart");
+            oldObjetivoMensual = existingObjetivo?.Value;
             oldLastWeek = existingLastWeek?.Value;
         }
 
@@ -86,34 +86,36 @@ public class SettingsController : ControllerBase
             }
         }
 
-        if (kvObjetivo.Key != null && !string.IsNullOrWhiteSpace(oldObjetivo) && decimal.TryParse(oldObjetivo.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var oldTargetEur) && !string.IsNullOrWhiteSpace(oldLastWeek) && DateTime.TryParse(oldLastWeek, out var oldWeekStart))
+        const decimal WeeksPerMonth = 4.33m;
+        if (kvObjetivoMensual.Key != null && !string.IsNullOrWhiteSpace(oldObjetivoMensual) && decimal.TryParse(oldObjetivoMensual.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var oldMonthlyEur) && oldMonthlyEur > 0 && !string.IsNullOrWhiteSpace(oldLastWeek) && DateTime.TryParse(oldLastWeek, out var oldWeekStart))
         {
             var currentWeekStart = GetMonday(now.Date);
             oldWeekStart = oldWeekStart.Date;
+            var oldWeeklyEur = oldMonthlyEur / WeeksPerMonth;
             for (var w = oldWeekStart; w < currentWeekStart; w = w.AddDays(7))
             {
                 var existing = await _db.FacturacionObjetivoSemanas.FindAsync(w);
                 if (existing != null)
-                    existing.TargetRevenue = oldTargetEur;
+                    existing.TargetRevenue = oldWeeklyEur;
                 else
-                    _db.FacturacionObjetivoSemanas.Add(new FacturacionObjetivoSemana { WeekStart = w, TargetRevenue = oldTargetEur });
+                    _db.FacturacionObjetivoSemanas.Add(new FacturacionObjetivoSemana { WeekStart = w, TargetRevenue = oldWeeklyEur });
             }
-            var lastWeekSetting = await _db.Settings.FindAsync("FacturacionObjetivoSemanal_LastWeekStart");
+            var lastWeekSetting = await _db.Settings.FindAsync("FacturacionObjetivoMensual_LastWeekStart");
             var currentWeekStr = currentWeekStart.ToString("yyyy-MM-dd");
             if (lastWeekSetting != null)
                 lastWeekSetting.Value = currentWeekStr;
             else
-                _db.Settings.Add(new Setting { Key = "FacturacionObjetivoSemanal_LastWeekStart", Value = currentWeekStr, UpdatedAt = now });
+                _db.Settings.Add(new Setting { Key = "FacturacionObjetivoMensual_LastWeekStart", Value = currentWeekStr, UpdatedAt = now });
         }
-        else if (kvObjetivo.Key != null)
+        else if (kvObjetivoMensual.Key != null)
         {
             var currentWeekStart = GetMonday(now.Date);
-            var lastWeekSetting = await _db.Settings.FindAsync("FacturacionObjetivoSemanal_LastWeekStart");
+            var lastWeekSetting = await _db.Settings.FindAsync("FacturacionObjetivoMensual_LastWeekStart");
             var currentWeekStr = currentWeekStart.ToString("yyyy-MM-dd");
             if (lastWeekSetting != null)
                 lastWeekSetting.Value = currentWeekStr;
             else
-                _db.Settings.Add(new Setting { Key = "FacturacionObjetivoSemanal_LastWeekStart", Value = currentWeekStr, UpdatedAt = now });
+                _db.Settings.Add(new Setting { Key = "FacturacionObjetivoMensual_LastWeekStart", Value = currentWeekStr, UpdatedAt = now });
         }
 
         // Si hay dirección pero no coordenadas, geocodificar para obtener lat/lon (clima)

@@ -406,16 +406,25 @@ public class DashboardController : ControllerBase
         decimal? facturacionObjetivo = null;
         var startNormalized = GetMonday(start);
         await EnsureFacturacionObjetivoTableAsync();
-        // Preferir SIEMPRE el objetivo configurado en Settings (igual que productividad objetivo).
-        // Si no existe/está vacío, usar histórico si lo hubiera.
+        const decimal WeeksPerMonth = 4.33m;
         try
         {
-            var objSetting = await GetFacturacionObjetivoSemanalAsync();
-            if (!string.IsNullOrWhiteSpace(objSetting) &&
-                decimal.TryParse(objSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var objEur) &&
-                objEur > 0 && objEur < 1_000_000)
+            var objMensual = await GetSettingValueAsync("FacturacionObjetivoMensual");
+            if (!string.IsNullOrWhiteSpace(objMensual) &&
+                decimal.TryParse(objMensual.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var monthlyEur) &&
+                monthlyEur > 0 && monthlyEur < 10_000_000)
             {
-                facturacionObjetivo = objEur;
+                facturacionObjetivo = monthlyEur / WeeksPerMonth;
+            }
+            if (!facturacionObjetivo.HasValue)
+            {
+                var objSetting = await GetFacturacionObjetivoSemanalAsync();
+                if (!string.IsNullOrWhiteSpace(objSetting) &&
+                    decimal.TryParse(objSetting.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var objEur) &&
+                    objEur > 0 && objEur < 1_000_000)
+                {
+                    facturacionObjetivo = objEur;
+                }
             }
         }
         catch { }

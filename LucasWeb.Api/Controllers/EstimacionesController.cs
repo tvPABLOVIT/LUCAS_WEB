@@ -430,8 +430,14 @@ public class EstimacionesController : ControllerBase
         }
 
         decimal? factObj = null;
-        var factObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoSemanal");
-        if (factObjS != null && decimal.TryParse((factObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var fo) && fo > 0) factObj = fo;
+        const decimal WeeksPerMonth = 4.33m;
+        var factObjMensual = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoMensual");
+        if (factObjMensual != null && decimal.TryParse((factObjMensual.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var foMonthly) && foMonthly > 0) factObj = foMonthly / WeeksPerMonth;
+        if (!factObj.HasValue)
+        {
+            var factObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "FacturacionObjetivoSemanal");
+            if (factObjS != null && decimal.TryParse((factObjS.Value ?? "").Replace(",", "."), NumberStyles.Any, inv, out var fo) && fo > 0) factObj = fo;
+        }
 
         decimal? prodObj = null;
         var prodObjS = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == "ProductividadIdealEurHora");

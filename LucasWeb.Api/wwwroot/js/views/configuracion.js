@@ -239,9 +239,9 @@
       '<p class="config-desc">Objetivo de facturación por hora trabajada; se usará en Estimaciones para comparar con la productividad real.</p>' +
       '<p class="config-desc">Coste medio por hora de personal; se usa en Estimaciones para el KPI Costo de personal (horas × €/h).</p>' +
       '<div class="form-row">' +
-      '<div class="form-group"><label for="config-FacturacionObjetivoSemanal">Facturación objetivo (€/semana)</label><input type="number" id="config-FacturacionObjetivoSemanal" step="1" min="0" placeholder="ej. 12000" /></div>' +
+      '<div class="form-group"><label for="config-FacturacionObjetivoMensual">Facturación objetivo (€/mes)</label><input type="number" id="config-FacturacionObjetivoMensual" step="1" min="0" placeholder="ej. 52000" /></div>' +
       '</div>' +
-      '<p class="config-desc">Objetivo de facturación semanal; en el Dashboard se muestra la facturación real vs este objetivo (%).</p>' +
+      '<p class="config-desc">Objetivo de facturación mensual. El objetivo semanal se calcula como mensual ÷ 4,33; en el Dashboard se muestra la facturación real vs ese objetivo semanal (%).</p>' +
       '<div class="form-row">' +
       '<div class="form-group"><label for="config-PrediccionConservadoraFactor">Factor predicción (0,01–2)</label><input type="number" id="config-PrediccionConservadoraFactor" step="0.01" min="0.01" max="2" placeholder="1 = sin ajuste" /></div>' +
       '</div>' +
@@ -355,7 +355,14 @@
       if ((el = document.getElementById('config-CostePersonalPorHora'))) el.value = data.CostePersonalPorHora != null ? data.CostePersonalPorHora : '15.73';
       if ((el = document.getElementById('config-PrediccionConservadoraFactor'))) el.value = (data.PrediccionConservadoraFactor != null && data.PrediccionConservadoraFactor !== '') ? data.PrediccionConservadoraFactor : '';
       if ((el = document.getElementById('config-AjusteFacturacionManualPct'))) el.value = (data.AjusteFacturacionManualPct != null && data.AjusteFacturacionManualPct !== '') ? data.AjusteFacturacionManualPct : '9.1';
-      if ((el = document.getElementById('config-FacturacionObjetivoSemanal'))) el.value = (data.FacturacionObjetivoSemanal != null && data.FacturacionObjetivoSemanal !== '') ? data.FacturacionObjetivoSemanal : '';
+      if ((el = document.getElementById('config-FacturacionObjetivoMensual'))) {
+        var mensual = (data.FacturacionObjetivoMensual != null && data.FacturacionObjetivoMensual !== '') ? data.FacturacionObjetivoMensual : '';
+        if (mensual === '' && data.FacturacionObjetivoSemanal != null && data.FacturacionObjetivoSemanal !== '') {
+          var semanalNum = parseFloat(String(data.FacturacionObjetivoSemanal).replace(',', '.'), 10);
+          if (!isNaN(semanalNum) && semanalNum > 0) mensual = String(Math.round(semanalNum * 4.33));
+        }
+        el.value = mensual;
+      }
       if ((el = document.getElementById('config-NombreRestaurante'))) el.value = data.NombreRestaurante != null ? data.NombreRestaurante : '';
       if ((el = document.getElementById('config-DireccionRestaurante'))) el.value = data.DireccionRestaurante != null ? data.DireccionRestaurante : '';
       var latEl = document.getElementById('config-LatRestaurante');
@@ -445,7 +452,7 @@
     if (isNaN(prod) || prod < 0) { showMsg(msgEl, 'Productividad ideal debe ser ≥ 0.', false); return; }
     if (isNaN(coste) || coste < 0) { showMsg(msgEl, 'Coste por hora de personal debe ser ≥ 0.', false); return; }
     var factorConservador = document.getElementById('config-PrediccionConservadoraFactor')?.value?.trim() ?? '';
-    var factObjSem = document.getElementById('config-FacturacionObjetivoSemanal')?.value?.trim() ?? '';
+    var factObjMensual = document.getElementById('config-FacturacionObjetivoMensual')?.value?.trim() ?? '';
     var wRainy = (document.getElementById('config-WeatherImpactRainyPrecipMm')?.value ?? '').trim();
     var wHeavy = (document.getElementById('config-WeatherImpactHeavyRainMm')?.value ?? '').trim();
     var wWind = (document.getElementById('config-WeatherImpactWindyKmh')?.value ?? '').trim();
@@ -459,7 +466,7 @@
       HorasPorTurno: String(horas),
       ProductividadIdealEurHora: String(prod),
       CostePersonalPorHora: String(coste),
-      FacturacionObjetivoSemanal: factObjSem === '' ? '' : String(parseFloat(factObjSem.replace(',', '.')) || 0),
+      FacturacionObjetivoMensual: factObjMensual === '' ? '' : String(parseFloat(factObjMensual.replace(',', '.')) || 0),
       PrediccionConservadoraFactor: factorConservador === '' || factorConservador === '1' ? '' : factorConservador,
       NombreRestaurante: document.getElementById('config-NombreRestaurante')?.value ?? '',
       DireccionRestaurante: document.getElementById('config-DireccionRestaurante')?.value ?? '',
