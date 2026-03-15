@@ -210,14 +210,18 @@
         }
         function safePct(n) { if (n == null || typeof n !== 'number' || !Number.isFinite(n)) return '—'; return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
         var predDayDetails = {};
+        var sumPredFromDailyJson = 0;
         if (byWeek && byWeek.dailyPredictionsJson) {
           try {
             var dailyArr = JSON.parse(byWeek.dailyPredictionsJson);
             if (Array.isArray(dailyArr)) {
               dailyArr.forEach(function (day) {
-                var dateStr = parseToYmd(day.date || day.dateStr || '');
+                var dateStr = parseToYmd(day.date || day.dateStr || day.Date || '');
                 var rev = day.revenue != null ? day.revenue : (day.predictedRevenue != null ? day.predictedRevenue : null);
-                if (dateStr && rev != null) predByDate[dateStr] = rev;
+                if (dateStr && rev != null) {
+                  predByDate[dateStr] = rev;
+                  sumPredFromDailyJson += Number(rev);
+                }
                 if (dateStr) {
                   predDayDetails[dateStr] = {
                     weatherCode: day.weatherCode != null ? day.weatherCode : null,
@@ -231,13 +235,8 @@
             }
           } catch (e) { }
         }
-        // Una sola fuente: total = suma de los mismos días que mostramos en la tabla (predByDate), para que KPI, bloque y tabla coincidan siempre.
-        var sumPredFromTable = 0;
-        for (var si = 0; si < 7; si++) {
-          var dayKey = addDays(ws, si);
-          if (predByDate[dayKey] != null) sumPredFromTable += Number(predByDate[dayKey]);
-        }
-        var predSemanaUnified = (sumPredFromTable > 0) ? sumPredFromTable : ((byWeek && byWeek.totalRevenue != null && Number(byWeek.totalRevenue) > 0) ? Number(byWeek.totalRevenue) : (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue)) ? Number(comparativas.baseRevenue) : null));
+        // Una sola fuente: total = suma exacta del JSON diario que usamos para la tabla, para que KPI, bloque y suma por días coincidan siempre.
+        var predSemanaUnified = (sumPredFromDailyJson > 0) ? sumPredFromDailyJson : ((byWeek && byWeek.totalRevenue != null && Number(byWeek.totalRevenue) > 0) ? Number(byWeek.totalRevenue) : (comparativas && comparativas.baseRevenue != null && Number.isFinite(Number(comparativas.baseRevenue)) ? Number(comparativas.baseRevenue) : null));
         var ajustePct = (data && data.ajusteFacturacionManualPct != null && Number.isFinite(Number(data.ajusteFacturacionManualPct))) ? Number(data.ajusteFacturacionManualPct) : 9.1;
         var factorManual = 1 - (ajustePct / 100);
         var realAdjustedForComparison = null;
