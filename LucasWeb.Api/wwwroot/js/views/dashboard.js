@@ -429,7 +429,7 @@
             var prevFmtVsAnt = prevVsAnt.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var diffPctVsAnt = ((realVsAnt - prevVsAnt) / prevVsAnt) * 100;
             var diffPctStrVsAnt = Number.isFinite(diffPctVsAnt) ? (diffPctVsAnt >= 0 ? '+' : '') + diffPctVsAnt.toFixed(1) + '%' : '—';
-            htmlPartsVsAnt.push('<p class="dashboard-actual-vs-anterior-value">Hasta el ' + dayNameLast + ' (último día con facturación), llevamos facturado (facturación real o aproximada según disponibilidad) <strong>' + realFmtVsAnt + ' €</strong>, y a esta altura de la semana pasada íbamos <strong>' + prevFmtVsAnt + ' €</strong>, una diferencia de <strong>' + diffPctStrVsAnt + '</strong>.</p>');
+            htmlPartsVsAnt.push('<p class="dashboard-actual-vs-anterior-value">Hasta el ' + dayNameLast + ' (último día con facturación), la semana seleccionada lleva facturado (facturación real o aproximada) <strong>' + realFmtVsAnt + ' €</strong>, y a esta altura la semana anterior (a la seleccionada) iba <strong>' + prevFmtVsAnt + ' €</strong>, una diferencia de <strong>' + diffPctStrVsAnt + '</strong>.</p>');
             var dayPairsData = [];
             for (var idx = 0; idx < currDays.length && idx < prevWeekDays.length; idx++) {
               var d = currDays[idx];
@@ -450,7 +450,7 @@
                 var pctClass = (x.pct && x.pct.toString().indexOf('-') === 0) ? 'dashboard-pct--down' : 'dashboard-pct--up';
                 return '<tr><td>' + x.name + '</td><td>' + x.prev + ' €</td><td>' + x.curr + ' €</td><td class="dashboard-pct ' + pctClass + '">' + x.pct + '</td></tr>';
               }).join('');
-              htmlPartsVsAnt.push('<p class="dashboard-actual-por-dias-label">Por días:</p><table class="dashboard-actual-days-table"><thead><tr><th>Día</th><th>Semana anterior</th><th>Esta semana</th><th>Diferencia</th></tr></thead><tbody>' + tableRowsVsAnt + '</tbody></table>');
+              htmlPartsVsAnt.push('<p class="dashboard-actual-por-dias-label">Por días:</p><table class="dashboard-actual-days-table"><thead><tr><th>Día</th><th>Semana anterior</th><th>Semana seleccionada</th><th>Diferencia</th></tr></thead><tbody>' + tableRowsVsAnt + '</tbody></table>');
             }
             var prevFullRaw = data.prevWeekRevenueFull != null ? data.prevWeekRevenueFull : data.PrevWeekRevenueFull;
             var prevFull = (prevFullRaw != null && Number(prevFullRaw) > 0) ? Number(prevFullRaw) : null;
@@ -485,11 +485,11 @@
             var prevFmtC = prevVsAnt.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             var diffC = ((realVsAnt - prevVsAnt) / prevVsAnt) * 100;
             var diffStrC = Number.isFinite(diffC) ? (diffC >= 0 ? '+' : '') + diffC.toFixed(1) + '%' : '—';
-            htmlPartsVsAnt.push('<p class="dashboard-actual-vs-anterior-value">La facturación de esta semana fue de <strong>' + realFmtC + ' €</strong> y la de la semana anterior de <strong>' + prevFmtC + ' €</strong>, una diferencia de <strong>' + diffStrC + '</strong>.</p>');
+            htmlPartsVsAnt.push('<p class="dashboard-actual-vs-anterior-value">La facturación de la semana seleccionada fue de <strong>' + realFmtC + ' €</strong> y la de la semana anterior (a la seleccionada) de <strong>' + prevFmtC + ' €</strong>, una diferencia de <strong>' + diffStrC + '</strong>.</p>');
           } else {
             htmlPartsVsAnt.push('<p class="dashboard-actual-vs-anterior-value">No hay datos suficientes para comparar con la semana anterior.</p>');
           }
-          actualVsAnteriorEl.innerHTML = '<h3 class="dashboard-actual-vs-anterior-title">Semana Actual vs Semana Anterior</h3><div class="dashboard-actual-vs-anterior-body">' + htmlPartsVsAnt.join('') + '</div>';
+          actualVsAnteriorEl.innerHTML = '<h3 class="dashboard-actual-vs-anterior-title">Semana seleccionada vs Semana anterior</h3><div class="dashboard-actual-vs-anterior-body">' + htmlPartsVsAnt.join('') + '</div>';
         }
         if (resumenEl) {
           resumenEl.innerHTML = '<h3>Resumen</h3>' +
