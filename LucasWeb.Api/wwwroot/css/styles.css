@@ -265,15 +265,18 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 @media (max-width: 480px) {
   .dashboard-two-blocks { grid-template-columns: 1fr; }
 }
+/* Mismo estilo que bloque Impacto del clima en Estimaciones */
 .dashboard-pred-vs-real-card,
 .dashboard-actual-vs-anterior-card {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  border-left: 4px solid #42a5f5;
+  background: linear-gradient(135deg, rgba(66, 165, 245, 0.06) 0%, transparent 50%);
 }
 .dashboard-pred-vs-real-title,
-.dashboard-actual-vs-anterior-title { font-size: 1rem; margin: 0 0 0.5rem; color: var(--text-muted); }
+.dashboard-actual-vs-anterior-title { font-size: 1.12rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--text); }
 .dashboard-pred-vs-real-body { flex: 1; min-height: 0; overflow: auto; }
 .dashboard-pred-vs-real-value,
 .dashboard-actual-vs-anterior-value { font-size: 0.95rem; line-height: 1.55; margin: 0 0 0.75rem; color: var(--text); max-width: 56em; }
