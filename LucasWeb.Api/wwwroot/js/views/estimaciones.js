@@ -732,7 +732,9 @@
         }
         if (pred && pred.isSavedPrediction) setSourceBadge('Guardada', 'saved');
         else if (pred && (pred.dailyPredictionsJson || predRevenue != null)) setSourceBadge('En vivo', 'live');
-        predEl.innerHTML = '<h3>Predicción</h3>' + (parrafo ? '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado">' + parrafo + '</p></div>' : '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado estim-parrafo--muted">Sin datos de predicción.</p></div>');
+        var predContent = parrafo ? '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado">' + parrafo + '</p></div>' : '<div class="estim-pred-parrafo-wrap"><p class="estim-parrafo estim-parrafo--centrado estim-parrafo--muted">Sin datos de predicción.</p></div>';
+        if (nextWeekRange) predContent += '<p class="estim-parrafo estim-parrafo--centrado estim-parrafo--muted estim-parrafo--small">Esta es la <strong>semana siguiente</strong>. En Dashboard, selecciona esta misma semana en el selector de fechas para ver la misma predicción y comparar con realidad.</p>';
+        predEl.innerHTML = '<h3>Predicción</h3>' + predContent;
 
         var days = (pred && pred.dailyPredictionsJson) ? (function () { try { return JSON.parse(pred.dailyPredictionsJson); } catch (e) { return null; } })() : null;
         if (!daysCardsEl) return;

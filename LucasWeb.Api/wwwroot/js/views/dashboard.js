@@ -301,6 +301,7 @@
         if (predSemanaUnified != null && predSemanaUnified > 0) {
           var predFormatted = Number(predSemanaUnified).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
           pctVsPrev += '<div class="kpi-card-sub">Predicción' + (data.isCurrentWeek ? ' (semana)' : '') + ': ' + predFormatted + '</div>';
+          pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted" title="La predicción es de la semana seleccionada arriba. En Estimaciones > Planificación se planifica la semana siguiente.">Semana seleccionada arriba</div>';
         }
         var prodValue = data.avgProductivity != null ? data.avgProductivity.toFixed(1) + ' €/h' : '—';
         var pctVsPrevProd = '';
@@ -425,7 +426,8 @@
           }
           var bodyHtml = htmlParts.join('');
           if (bodyHtml) {
-            predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><div class="dashboard-pred-vs-real-body">' + bodyHtml + '</div>';
+            var predNote = '<p class="dashboard-pred-vs-real-note dashboard-pred-vs-real-value">La predicción mostrada es de la <strong>semana seleccionada</strong> en el selector de fechas. En Estimaciones (pestaña Planificación) se planifica la <strong>semana siguiente</strong>; si los importes no coinciden, comprueba que estés viendo la misma semana en ambos.</p>';
+            predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><div class="dashboard-pred-vs-real-body">' + predNote + bodyHtml + '</div>';
           } else {
             predVsRealEl.innerHTML = '<h3 class="dashboard-pred-vs-real-title">Predicción vs realidad</h3><div class="dashboard-pred-vs-real-body"><p class="dashboard-pred-vs-real-value">No hay predicción guardada para esta semana. Genera una en <a href="#estimaciones">Estimaciones</a> (Planificación semana siguiente) para ver aquí la comparación.</p></div>';
           }

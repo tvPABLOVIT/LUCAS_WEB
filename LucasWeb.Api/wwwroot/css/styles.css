@@ -289,6 +289,7 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-pred-vs-real-title,
 .dashboard-actual-vs-anterior-title { font-size: 1.12rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--text); }
 .dashboard-pred-vs-real-body { flex: 1; min-height: 0; overflow: auto; }
+.dashboard-pred-vs-real-note { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem; }
 .dashboard-pred-vs-real-value,
 .dashboard-actual-vs-anterior-value { font-size: 0.95rem; line-height: 1.55; margin: 0 0 0.75rem; color: var(--text); max-width: 56em; }
 .dashboard-pred-vs-real-value:last-child,
@@ -346,6 +347,7 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .estim-parrafo { line-height: 1.5; margin: 0.5rem 0; max-width: 60em; }
 .estim-parrafo--centrado { text-align: center; margin-left: auto; margin-right: auto; }
 .estim-parrafo--muted { color: var(--text-muted); font-size: 0.95rem; }
+.estim-parrafo--small { font-size: 0.875rem; margin-top: 0.5rem; }
 .estim-pred-parrafo-wrap { padding: 0.5rem 0; }
 .estim-pred-source { font-size: 0.9rem; color: var(--text-muted); margin: 0.5rem 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
 .estim-pred-badge { font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(63, 185, 80, 0.15); color: var(--success); }

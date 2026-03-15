@@ -239,6 +239,22 @@ public class PredictionsController : ControllerBase
             var horas = 4m;
             if (horasSetting != null && decimal.TryParse(horasSetting.Value?.Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var hh)) horas = hh;
             dailyJson = await _staffByTurno.FillStaffRecommendationsJsonAsync(nextMonday, dailyJson, prod, horas) ?? dailyJson;
+            // Total debe coincidir con la suma del JSON final devuelto (igual que by-week).
+            try
+            {
+                var daysFinal = JsonSerializer.Deserialize<JsonElement>(dailyJson ?? "[]");
+                if (daysFinal.ValueKind == JsonValueKind.Array)
+                {
+                    var sumFinal = 0m;
+                    foreach (var day in daysFinal.EnumerateArray())
+                    {
+                        if (day.TryGetProperty("revenue", out var r) || day.TryGetProperty("predictedRevenue", out r))
+                            sumFinal += r.GetDecimal();
+                    }
+                    if (sumFinal > 0) totalRevenue = sumFinal;
+                }
+            }
+            catch { }
         }
         return Ok(new
         {
