@@ -235,10 +235,14 @@
       '<div class="form-group"><label for="config-AjusteFacturacionManualPct">Ajuste facturación manual (%)</label><input type="number" id="config-AjusteFacturacionManualPct" step="0.1" min="0" max="100" placeholder="9.1" /></div>' +
       '</div>' +
       '<p class="config-desc">Se aplica a días con facturación manual para comparativas y real "para comparar" (ej. 9.1 = -9,1%). Coste medio por hora de personal; se usa en Estimaciones para el KPI Costo de personal (horas × €/h).</p>' +
+      '<div class="config-section config-objetivos-block">' +
+      '<h4 class="config-subsection-title">Objetivos</h4>' +
+      '<p class="config-desc">Datos objetivo. Con la facturación objetivo mensual y las horas del equipo (suma de empleados) se calculan el objetivo semanal y la productividad objetivo (€/h).</p>' +
       '<div class="form-row">' +
       '<div class="form-group"><label for="config-FacturacionObjetivoMensual">Facturación objetivo (€/mes)</label><input type="number" id="config-FacturacionObjetivoMensual" step="1" min="0" placeholder="ej. 52000" /></div>' +
       '</div>' +
-      '<p class="config-desc">Objetivo de facturación mensual. A partir de este valor se calculan: objetivo semanal (mensual ÷ 4,33), productividad objetivo (€/h) y horas objetivo, usando las horas semanales de contrato (suma de empleados). Dashboard y Estimaciones usan estos objetivos derivados.</p>' +
+      '<div id="config-objetivo-resumen" class="config-objetivo-resumen"></div>' +
+      '</div>' +
       '<div class="form-row">' +
       '<div class="form-group"><label for="config-PrediccionConservadoraFactor">Factor predicción (0,01–2)</label><input type="number" id="config-PrediccionConservadoraFactor" step="0.01" min="0.01" max="2" placeholder="1 = sin ajuste" /></div>' +
       '</div>' +
@@ -251,10 +255,15 @@
       '<p id="config-fix-revenue-msg" class="config-msg hidden"></p></div>' +
       '<div class="config-section">' +
       '<h3 class="config-section-title">Empleados</h3>' +
-      '<p class="config-desc">Lista de empleados con horas semanales de contrato (ej. 40 = 8h×5 días + 2 libres). Se usa para calcular el coste de personal total y el % sobre facturación estimada.</p>' +
-      '<div class="form-row"><div class="form-group"><label for="config-empleado-name">Nombre</label><input type="text" id="config-empleado-name" placeholder="Nombre empleado" /></div>' +
+      '<p class="config-desc">Lista de empleados con horas semanales de contrato y categoría (manager, camarero, cocinero, etc.). Las horas del equipo se usan junto con la facturación objetivo mensual para calcular la productividad objetivo (€/h).</p>' +
+      '<div class="form-row">' +
+      '<div class="form-group"><label for="config-empleado-name">Nombre</label><input type="text" id="config-empleado-name" placeholder="Nombre empleado" /></div>' +
       '<div class="form-group"><label for="config-empleado-hours">Horas semanales (1–80)</label><input type="number" id="config-empleado-hours" min="1" max="80" value="40" /></div>' +
+      '<div class="form-group"><label for="config-empleado-categoria">Categoría</label><select id="config-empleado-categoria"><option value="">—</option>' +
+      (function () { return POSICIONES.map(function (p) { return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>'; }).join(''); })() +
+      '</select></div>' +
       '<div class="form-group"><label>&nbsp;</label><button type="button" id="config-empleado-add" class="btn-primary">Añadir empleado</button></div></div>' +
+      '<div class="config-empleados-header"><span>Nombre</span><span>Horas</span><span>Categoría</span><span></span></div>' +
       '<ul id="config-empleados-list" class="config-list"></ul>' +
       '</div>' +
       '<div class="config-section">' +
@@ -300,6 +309,8 @@
     loadSettingsForParametros();
     document.getElementById('config-empleado-add') && document.getElementById('config-empleado-add').addEventListener('click', addEmpleado);
     document.getElementById('config-param-guardar') && document.getElementById('config-param-guardar').addEventListener('click', saveParametros);
+    var factObjEl = document.getElementById('config-FacturacionObjetivoMensual');
+    if (factObjEl) { factObjEl.addEventListener('input', updateObjetivosResumen); factObjEl.addEventListener('change', updateObjetivosResumen); }
     document.getElementById('config-geocode-btn') && document.getElementById('config-geocode-btn').addEventListener('click', obtenerCoordenadasDesdeDireccion);
     document.getElementById('config-backup-create') && document.getElementById('config-backup-create').addEventListener('click', createBackup);
     document.getElementById('config-backup-refresh') && document.getElementById('config-backup-refresh').addEventListener('click', refreshBackups);
@@ -378,9 +389,10 @@
       if ((el = document.getElementById('config-WeatherImpactHotC'))) el.value = (data.WeatherImpactHotC != null && data.WeatherImpactHotC !== '') ? data.WeatherImpactHotC : '';
       try {
         var raw = (data.Empleados && data.Empleados.length) ? (typeof data.Empleados === 'string' ? JSON.parse(data.Empleados) : data.Empleados) : [];
-        empleadosLocal = raw.map(function (e) { return { name: e.name || '', hours: e.hours != null ? e.hours : 40, position: e.position || '' }; });
+        empleadosLocal = raw.map(function (e) { return { name: e.name || '', hours: e.hours != null ? e.hours : 40, position: e.position || e.categoria || '' }; });
       } catch (e) { empleadosLocal = []; }
       renderEmpleadosList();
+      updateObjetivosResumen();
 
       // Ruta de la base de datos (solo admin).
       var dbPathEl = document.getElementById('config-db-path');
@@ -398,6 +410,26 @@
   }
 
   var POSICIONES = ['jefe de sala', 'manager', 'camarero', 'supervisor', 'jefe de cocina', 'segundo de cocina', 'cocinero', 'chef operativo'];
+  var WEEKS_PER_MONTH = 4.33;
+
+  function updateObjetivosResumen() {
+    var el = document.getElementById('config-objetivo-resumen');
+    if (!el) return;
+    var mensualStr = (document.getElementById('config-FacturacionObjetivoMensual') && document.getElementById('config-FacturacionObjetivoMensual').value) ? document.getElementById('config-FacturacionObjetivoMensual').value.trim() : '';
+    var mensual = mensualStr ? parseFloat(String(mensualStr).replace(',', '.'), 10) : NaN;
+    var totalHoras = (empleadosLocal && empleadosLocal.length) ? empleadosLocal.reduce(function (sum, e) { return sum + (e.hours != null ? parseInt(e.hours, 10) || 0 : 0); }, 0) : 0;
+    if (!isNaN(mensual) && mensual > 0 && totalHoras > 0) {
+      var semanal = mensual / WEEKS_PER_MONTH;
+      var prod = semanal / totalHoras;
+      el.innerHTML = '<p class="config-desc config-objetivo-resumen-text">' +
+        'Objetivo semanal: <strong>' + Number(semanal).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' €</strong> (mensual ÷ 4,33). ' +
+        'Productividad objetivo: <strong>' + Number(prod).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/h</strong> (objetivo semanal ÷ ' + totalHoras + ' h equipo).</p>';
+      el.classList.remove('hidden');
+    } else {
+      el.innerHTML = '<p class="config-desc config-objetivo-resumen-text config-objetivo-resumen-muted">Indica la facturación objetivo (€/mes) y añade empleados con horas para ver los objetivos derivados (objetivo semanal y productividad objetivo €/h).</p>';
+      el.classList.remove('hidden');
+    }
+  }
 
   function renderEmpleadosList() {
     var ul = document.getElementById('config-empleados-list');
@@ -410,7 +442,7 @@
       return '<li class="config-list-item">' +
         '<input type="text" class="config-empleado-name" data-i="' + i + '" value="' + escapeHtml(emp.name || '') + '" placeholder="Nombre" /> ' +
         '<input type="number" class="config-empleado-hours" data-i="' + i + '" min="0" value="' + (emp.hours != null ? emp.hours : 40) + '" /> ' +
-        '<select class="config-empleado-position" data-i="' + i + '" title="Posición (Sala / Cocina)">' +
+        '<select class="config-empleado-position" data-i="' + i + '" title="Categoría (manager, camarero, cocinero, etc.)">' +
         '<option value="">—</option>' + posOpts + '</select> ' +
         '<button type="button" class="btn-secondary btn-sm config-empleado-quitar" data-i="' + i + '">Quitar</button></li>';
     }).join('');
@@ -424,18 +456,22 @@
         if (inp.classList.contains('config-empleado-name')) empleadosLocal[i].name = inp.value;
         else if (inp.classList.contains('config-empleado-hours')) empleadosLocal[i].hours = parseInt(inp.value, 10) || 0;
         else if (inp.classList.contains('config-empleado-position')) empleadosLocal[i].position = inp.value || '';
+        updateObjetivosResumen();
       });
     });
+    updateObjetivosResumen();
   }
 
   function addEmpleado() {
     var nameEl = document.getElementById('config-empleado-name');
     var hoursEl = document.getElementById('config-empleado-hours');
+    var catEl = document.getElementById('config-empleado-categoria');
     var name = nameEl ? nameEl.value.trim() : '';
     var hours = hoursEl ? Math.min(80, Math.max(1, parseInt(hoursEl.value, 10) || 40)) : 40;
+    var categoria = (catEl && catEl.value) ? catEl.value.trim() : '';
     if (!name) return;
-    empleadosLocal.push({ name: name, hours: hours, position: '' });
-    if (nameEl) nameEl.value = ''; if (hoursEl) hoursEl.value = '40';
+    empleadosLocal.push({ name: name, hours: hours, position: categoria });
+    if (nameEl) nameEl.value = ''; if (hoursEl) hoursEl.value = '40'; if (catEl) catEl.value = '';
     renderEmpleadosList();
   }
 

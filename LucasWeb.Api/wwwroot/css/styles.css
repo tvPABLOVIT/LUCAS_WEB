@@ -516,6 +516,14 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .config-section-title { font-size: 1rem; margin: 0 0 0.5rem; color: var(--text); font-weight: 600; }
 .config-section-header .config-section-title { background: var(--accent); color: #fff; padding: 0.5rem 0.75rem; margin: -1.25rem -1.25rem 1rem -1.25rem; border-radius: var(--radius) var(--radius) 0 0; }
 .config-desc { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 0.5rem; line-height: 1.4; }
+.config-objetivos-block { margin-top: 1rem; padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
+.config-subsection-title { font-size: 0.95rem; margin: 0 0 0.5rem; color: var(--text); font-weight: 600; }
+.config-objetivo-resumen { margin-top: 0.5rem; }
+.config-objetivo-resumen-text { margin-bottom: 0; }
+.config-objetivo-resumen-muted { color: var(--text-muted); }
+.config-empleados-header { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; padding-bottom: 0.25rem; border-bottom: 1px solid var(--border); font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.config-empleados-header span:first-child { width: 12rem; max-width: 100%; }
+.config-empleados-header span:nth-child(2) { width: 5rem; }
 .config-msg { margin-top: 0.5rem; font-size: 0.9rem; }
 .config-empty { color: var(--text-muted); padding: 1rem 0; }
 .config-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
