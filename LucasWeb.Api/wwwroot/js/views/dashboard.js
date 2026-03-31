@@ -21,8 +21,11 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
   function dayNameFromDate(ymd) {
-    var d = new Date(ymd + 'T12:00:00');
-    return DAY_NAMES[d.getDay()];
+    if (!ymd) return '—';
+    var d = new Date(String(ymd).substring(0, 10) + 'T12:00:00');
+    var idx = d.getDay();
+    if (!Number.isFinite(idx) || idx < 0 || idx > 6) return '—';
+    return DAY_NAMES[idx] || '—';
   }
   function formatDateShort(ymd) {
     var d = new Date(ymd + 'T12:00:00');
@@ -148,9 +151,16 @@
       daysWrap.innerHTML = '';
       var todayYmd = (function () { var t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); })();
       var we = weekEndFromWeekStart(ws);
-      var currentMon = getWeekStart(new Date());
-      var prevMon = addDays(currentMon, -7);
-      var nextMon = addDays(currentMon, 7);
+      // Bloque principal (triada) controlado por selector:
+      // prev = semana anterior a ws; cur = ws; next = ws+7.
+      var curMonTriad = ws;
+      var prevMon = addDays(curMonTriad, -7);
+      var nextMon = addDays(curMonTriad, 7);
+      var todayMon = getWeekStart(new Date());
+      var isTriadCurrentWeek = curMonTriad === todayMon;
+      var isTriadFutureWeek = curMonTriad > todayMon;
+      var asOfCurTriad = isTriadCurrentWeek ? todayYmd : addDays(curMonTriad, 6);
+      var asOfPrevTriad = addDays(prevMon, 6);
       auth.fetchWithAuth('/api/estimaciones/comparativas?weekStart=' + encodeURIComponent(ws) + '&asOf=' + encodeURIComponent(todayYmd) + '&mode=plan').then(function (r) {
         if (!r || !r.ok) return null;
         return r.json();
@@ -175,11 +185,12 @@
             if (!r || !r.ok) return null;
             return r.json();
           }).catch(function () { return null; }),
-          auth.fetchWithAuth('/api/dashboard/week?weekStart=' + encodeURIComponent(currentMon) + '&asOf=' + encodeURIComponent(todayYmd)).then(function (r) { return (r && r.ok) ? r.json() : null; }).catch(function () { return null; }),
-          auth.fetchWithAuth('/api/dashboard/week?weekStart=' + encodeURIComponent(prevMon) + '&asOf=' + encodeURIComponent(addDays(prevMon, 6))).then(function (r) { return (r && r.ok) ? r.json() : null; }).catch(function () { return null; }),
+          auth.fetchWithAuth('/api/dashboard/week?weekStart=' + encodeURIComponent(curMonTriad) + '&asOf=' + encodeURIComponent(asOfCurTriad)).then(function (r) { return (r && r.ok) ? r.json() : null; }).catch(function () { return null; }),
+          auth.fetchWithAuth('/api/dashboard/week?weekStart=' + encodeURIComponent(prevMon) + '&asOf=' + encodeURIComponent(asOfPrevTriad)).then(function (r) { return (r && r.ok) ? r.json() : null; }).catch(function () { return null; }),
+          auth.fetchWithAuth('/api/predictions/by-week?weekStart=' + encodeURIComponent(curMonTriad)).then(function (r) { return (r && r.ok) ? r.json() : null; }).catch(function () { return null; }),
           auth.fetchWithAuth('/api/predictions/by-week?weekStart=' + encodeURIComponent(nextMon)).then(function (r) { return (r && r.ok) ? r.json() : null; }).catch(function () { return null; })
         ]).then(function (arr) {
-          return [arr[0], arr[1], arr[2], arr[3], arr[4], arr[5], arr[6]];
+          return [arr[0], arr[1], arr[2], arr[3], arr[4], arr[5], arr[6], arr[7]];
         });
       }).then(function (arr) {
         if (!arr) {
@@ -198,9 +209,10 @@
         var events = arr[1] || [];
         var comparativas = arr[2] || null;
         var byWeek = arr[3] || null;
-        var currentWeekData = arr[4] || null;
-        var prevWeekFullData = arr[5] || null;
-        var nextWeekPred = arr[6] || null;
+        var currentWeekData = arr[4] || null; // en triada: semana seleccionada (ws)
+        var prevWeekFullData = arr[5] || null; // en triada: semana anterior a ws
+        var curWeekPredTriad = arr[6] || null; // predicción guardada de ws (si existe)
+        var nextWeekPred = arr[7] || null; // predicción guardada de ws+7 (si existe)
         var predByDate = {};
         function toYmd(s) { if (!s || typeof s !== 'string') return ''; return s.substring(0, 10); }
         function parseToYmd(s) {
@@ -379,19 +391,39 @@
             } catch (e) { }
           }
 
+          // Predicción de la semana seleccionada (si la semana es futura, sustituye a "actual real").
+          var curPredByDate = {};
+          var curPredTotal = 0;
+          if (curWeekPredTriad && curWeekPredTriad.dailyPredictionsJson) {
+            try {
+              var dailyArrCur = JSON.parse(curWeekPredTriad.dailyPredictionsJson);
+              if (Array.isArray(dailyArrCur)) {
+                dailyArrCur.forEach(function (day) {
+                  var dateStr = parseToYmd(day.date || day.dateStr || day.Date || '');
+                  var rev = day.revenue != null ? day.revenue : (day.predictedRevenue != null ? day.predictedRevenue : null);
+                  if (dateStr && rev != null) {
+                    curPredByDate[dateStr] = Number(rev);
+                    curPredTotal += Number(rev);
+                  }
+                });
+              }
+            } catch (e) { }
+          }
+
           var prevDaysArr = (prevWeekFullData && Array.isArray(prevWeekFullData.days)) ? prevWeekFullData.days : [];
           var curDaysArr = (currentWeekData && Array.isArray(currentWeekData.days)) ? currentWeekData.days : [];
           var curIsCurrent = currentWeekData && currentWeekData.isCurrentWeek === true;
           var curDaysCount = currentWeekData && currentWeekData.daysIncludedCount != null ? Number(currentWeekData.daysIncludedCount) : curDaysArr.length;
 
           var prevTotal = prevWeekFullData && (prevWeekFullData.totalRevenueForComparisons != null) ? Number(prevWeekFullData.totalRevenueForComparisons) : (prevWeekFullData ? Number(prevWeekFullData.totalRevenue || 0) : 0);
-          var curTotal = currentWeekData && (currentWeekData.totalRevenueForComparisons != null) ? Number(currentWeekData.totalRevenueForComparisons) : (currentWeekData ? Number(currentWeekData.totalRevenue || 0) : 0);
+          var curTotalRaw = currentWeekData && (currentWeekData.totalRevenueForComparisons != null) ? Number(currentWeekData.totalRevenueForComparisons) : (currentWeekData ? Number(currentWeekData.totalRevenue || 0) : 0);
+          var curTotal = isTriadFutureWeek ? curPredTotal : curTotalRaw;
           var nextTotal = nextPredTotal || 0;
 
           var nextVsPrevDelta = nextTotal - prevTotal;
           var nextVsPrevPct = prevTotal > 0 ? (nextVsPrevDelta / prevTotal) * 100 : null;
 
-          var runRate = (curDaysCount > 0) ? (curTotal / curDaysCount) * 7 : 0;
+          var runRate = (!isTriadFutureWeek && curDaysCount > 0) ? (curTotal / curDaysCount) * 7 : 0;
           var runRateDeltaVsPrev = runRate - prevTotal;
           var runRatePctVsPrev = prevTotal > 0 ? (runRateDeltaVsPrev / prevTotal) * 100 : null;
 
@@ -402,7 +434,7 @@
 
           var rows = [];
           for (var i = 0; i < 7; i++) {
-            var dateCur = addDays(currentMon, i);
+            var dateCur = addDays(curMonTriad, i);
             var dayName = dayNameFromDate(dateCur);
 
             var prevDate = addDays(prevMon, i);
@@ -410,7 +442,7 @@
             var prevVal = prevDay ? Number(prevDay.revenue || 0) : 0;
 
             var curDay = curDaysArr.find(function (x) { return x && x.date && x.date.substring(0, 10) === dateCur; }) || null;
-            var curVal = curDay ? Number(curDay.revenue || 0) : null;
+            var curVal = isTriadFutureWeek ? (curPredByDate[dateCur] != null ? Number(curPredByDate[dateCur]) : null) : (curDay ? Number(curDay.revenue || 0) : null);
             var isPending = curVal == null && dateCur > todayYmd;
 
             var nextDate = addDays(nextMon, i);
@@ -443,11 +475,11 @@
 
           var kpiHtml = '';
           kpiHtml += '<div class="dashboard-compare-kpi"><div class="label">Semana pasada (real)</div><div class="value">' + fmtEur(prevTotal) + '</div><div class="sub">7 días</div></div>';
-          kpiHtml += '<div class="dashboard-compare-kpi"><div class="label">Semana actual (real)</div><div class="value">' + fmtEur(curTotal) + '</div><div class="sub">' + (curIsCurrent ? ('hasta hoy · ' + (curDaysCount || 0) + '/7 días') : 'semana cerrada') + '</div></div>';
+          kpiHtml += '<div class="dashboard-compare-kpi"><div class="label">Semana seleccionada</div><div class="value">' + fmtEur(curTotal) + '</div><div class="sub">' + (isTriadFutureWeek ? 'predicción' : (curIsCurrent ? ('hasta hoy · ' + (curDaysCount || 0) + '/7 días') : 'semana cerrada')) + '</div></div>';
           var clsCur = (sameDelta >= 0) ? 'dashboard-compare-kpi--up' : 'dashboard-compare-kpi--down';
-          kpiHtml += '<div class="dashboard-compare-kpi ' + clsCur + '"><div class="label">Actual vs pasada (mismos días)</div><div class="value">' + (sameDelta >= 0 ? '+' : '−') + fmtEur(Math.abs(sameDelta)) + '</div><div class="sub">' + (samePct != null ? fmtPct(samePct) : '—') + (sameDaysCount > 0 ? (' · ' + sameDaysCount + '/7 días') : '') + '</div></div>';
+          kpiHtml += '<div class="dashboard-compare-kpi ' + clsCur + '"><div class="label">Seleccionada vs pasada (mismos días)</div><div class="value">' + (sameDelta >= 0 ? '+' : '−') + fmtEur(Math.abs(sameDelta)) + '</div><div class="sub">' + (samePct != null ? fmtPct(samePct) : '—') + (sameDaysCount > 0 ? (' · ' + sameDaysCount + '/7 días') : '') + '</div></div>';
           var clsRR = (runRateDeltaVsPrev >= 0) ? 'dashboard-compare-kpi--up' : 'dashboard-compare-kpi--down';
-          kpiHtml += '<div class="dashboard-compare-kpi ' + clsRR + '"><div class="label">Run-rate semana actual</div><div class="value">' + fmtEur(runRate) + '</div><div class="sub">vs pasada: ' + (runRatePctVsPrev != null ? fmtPct(runRatePctVsPrev) : '—') + '</div></div>';
+          kpiHtml += '<div class="dashboard-compare-kpi ' + clsRR + '"><div class="label">Run-rate (si aplica)</div><div class="value">' + (runRate > 0 ? fmtEur(runRate) : '—') + '</div><div class="sub">vs pasada: ' + (runRatePctVsPrev != null ? fmtPct(runRatePctVsPrev) : '—') + '</div></div>';
           kpiHtml += '<div class="dashboard-compare-kpi"><div class="label">Semana siguiente (pred.)</div><div class="value">' + (nextTotal > 0 ? fmtEur(nextTotal) : '—') + '</div><div class="sub">vs pasada: ' + (nextVsPrevPct != null ? fmtPct(nextVsPrevPct) : '—') + '</div></div>';
 
           var driversHtml = '';
@@ -487,6 +519,11 @@
             '<h3 class="dashboard-week-triad-title">Semana pasada vs actual vs siguiente</h3>' +
             '<div class="dashboard-week-triad-body">' +
             '<p class="dashboard-compare-subtitle">Bloque principal de planificación. La <strong>semana actual</strong> suele estar incompleta: por eso la comparación clave es <strong>mismos días</strong> (lo que llevamos hoy vs lo que llevaba la semana pasada a esta altura) y, además, una <strong>proyección de cierre</strong> (run-rate). La semana seleccionada en el selector sigue controlando el resto del Dashboard.</p>' +
+            '<div class="dashboard-triad-meta">' +
+            '<span class="dashboard-triad-chip">Semana: <strong>' + escapeHtml(formatWeekRange(curMonTriad)) + '</strong></span>' +
+            (currentWeekData && currentWeekData.lastDayWithBilling ? ('<span class="dashboard-triad-chip">Hasta: <strong>' + escapeHtml(dayNameFromDate(currentWeekData.lastDayWithBilling)) + '</strong></span>') : '') +
+            (currentWeekData && (currentWeekData.daysFromExcelCount != null || currentWeekData.daysFromManualCount != null) ? ('<span class="dashboard-triad-chip">Calidad: <strong>' + (Number(currentWeekData.daysFromExcelCount || 0)) + '</strong> Excel · <strong>' + (Number(currentWeekData.daysFromManualCount || 0)) + '</strong> manual</span>') : '') +
+            '</div>' +
             '<div class="dashboard-compare-kpis">' + kpiHtml + '</div>' +
             driversHtml +
             '<div class="dashboard-compare-table-wrap">' +
@@ -494,8 +531,24 @@
             '<thead><tr><th>Día</th><th>Pasada (real)</th><th>Actual (real)</th><th>Siguiente (pred.)</th><th>Δ Actual vs pasada</th><th>Δ Siguiente vs pasada</th></tr></thead>' +
             '<tbody>' + tableRowsTriad + '</tbody>' +
             '</table>' +
+            '<div class="dashboard-triad-actions">' +
+            '<a class="dashboard-action-link" href="#registro?date=' + encodeURIComponent(todayYmd) + '">Abrir registro (hoy)</a>' +
+            '<span class="dashboard-action-sep">·</span>' +
+            '<a class="dashboard-action-link" href="#estimaciones">Abrir estimaciones</a>' +
+            '<span class="dashboard-action-sep">·</span>' +
+            '<button type="button" class="dashboard-action-link dashboard-triad-import-link" data-scroll-target="dashboard-import-card">Importar Excel/PDF</button>' +
+            '</div>' +
             '</div>' +
             '</div>';
+
+          // Acciones: scroll a importar
+          try {
+            var btnImp = triadEl.querySelector('.dashboard-triad-import-link');
+            if (btnImp) btnImp.addEventListener('click', function () {
+              var target = document.querySelector('.dashboard-import-card');
+              if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+          } catch (e) { }
         }
         if (resumenEl) {
           resumenEl.innerHTML = '<h3>Resumen</h3>' +

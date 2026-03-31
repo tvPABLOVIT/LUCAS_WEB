@@ -192,6 +192,26 @@ public class DashboardWeekResponse
     /// <summary>Facturación completa (7 días) de la semana anterior.</summary>
     [JsonPropertyName("prevWeekRevenueFull")]
     public decimal? PrevWeekRevenueFull { get; set; }
+
+    /// <summary>Fecha efectiva usada para calcular "hasta hoy" (asOf). Si no aplica, null.</summary>
+    [JsonPropertyName("asOf")]
+    public string? AsOf { get; set; }
+
+    /// <summary>Último día con facturación usado para cortar la semana en curso. Si no aplica, null.</summary>
+    [JsonPropertyName("lastDayWithBilling")]
+    public string? LastDayWithBilling { get; set; }
+
+    /// <summary>Número de días con facturación (>0) incluidos en los totales.</summary>
+    [JsonPropertyName("daysWithBillingCount")]
+    public int DaysWithBillingCount { get; set; }
+
+    /// <summary>Número de días incluidos en los totales cuya facturación viene de Excel.</summary>
+    [JsonPropertyName("daysFromExcelCount")]
+    public int DaysFromExcelCount { get; set; }
+
+    /// <summary>Número de días incluidos en los totales cuya facturación es manual (ajustada para comparativas).</summary>
+    [JsonPropertyName("daysFromManualCount")]
+    public int DaysFromManualCount { get; set; }
 }
 
 public class DailyRevenueItemDto

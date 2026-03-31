@@ -83,18 +83,23 @@ public class DashboardController : ControllerBase
         var isCurrentWeek = effectiveAsOf >= start && effectiveAsOf < end;
         // "Hasta hoy" = hasta el último día con facturación (TotalRevenue > 0). Si hoy es sábado y el sábado no tiene facturación, usamos solo Lun–Vie.
         List<Models.ExecutionDay> daysInRange;
+        DateTime? lastDayWithBilling = null;
         if (effectiveAsOf < start)
             daysInRange = new List<Models.ExecutionDay>();
         else if (isCurrentWeek)
         {
             var daysWithRevenueUpToToday = days.Where(d => d.Date <= effectiveAsOf && d.TotalRevenue > 0).ToList();
-            var lastDayWithBilling = daysWithRevenueUpToToday.Count > 0 ? daysWithRevenueUpToToday.Max(d => d.Date) : (DateTime?)null;
+            lastDayWithBilling = daysWithRevenueUpToToday.Count > 0 ? daysWithRevenueUpToToday.Max(d => d.Date) : (DateTime?)null;
             daysInRange = lastDayWithBilling.HasValue
                 ? days.Where(d => d.Date <= lastDayWithBilling.Value).OrderBy(d => d.Date).ToList()
                 : days.Where(d => d.Date <= effectiveAsOf).OrderBy(d => d.Date).ToList();
         }
         else
+        {
             daysInRange = days.ToList();
+            if (daysInRange.Count > 0)
+                lastDayWithBilling = daysInRange.Where(d => d.TotalRevenue > 0).Select(d => (DateTime?)d.Date).Max();
+        }
         int numDaysToCompare = daysInRange.Count;
         var totalRevenue = daysInRange.Sum(d => d.TotalRevenue);
         decimal ajustePct = 9.1m;
@@ -113,6 +118,9 @@ public class DashboardController : ControllerBase
             if (manualSum > 0)
                 totalRevenueManual = manualSum;
         }
+        var daysWithBillingCount = daysInRange.Count(d => d.TotalRevenue > 0);
+        var daysFromExcelCount = daysInRange.Count(d => d.TotalRevenue > 0 && d.RevenueFromExcel == true);
+        var daysFromManualCount = daysInRange.Count(d => d.TotalRevenue > 0 && d.RevenueFromExcel != true);
         var totalHours = daysInRange.Sum(d => d.TotalHoursWorked);
         var avgStaff = daysInRange.Count > 0 ? (decimal)daysInRange.Average(d => d.StaffTotal) : 0;
         decimal? avgProductivity = null;
@@ -496,7 +504,12 @@ public class DashboardController : ControllerBase
             TotalRevenueForComparisons = (decimal?)totalRevenueForComparisons,
             TotalRevenueManual = totalRevenueManual,
             PrevWeekDays = prevWeekDayItems,
-            PrevWeekRevenueFull = prevWeekRevenueFull > 0 ? (decimal?)prevWeekRevenueFull : null
+            PrevWeekRevenueFull = prevWeekRevenueFull > 0 ? (decimal?)prevWeekRevenueFull : null,
+            AsOf = effectiveAsOf.ToString("yyyy-MM-dd"),
+            LastDayWithBilling = lastDayWithBilling.HasValue ? lastDayWithBilling.Value.ToString("yyyy-MM-dd") : null,
+            DaysWithBillingCount = daysWithBillingCount,
+            DaysFromExcelCount = daysFromExcelCount,
+            DaysFromManualCount = daysFromManualCount
         });
         }
         catch (Exception ex)
