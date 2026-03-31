@@ -8,7 +8,7 @@ namespace LucasWeb.Api.Services;
 /// <summary>
 /// Parsea un Excel con facturación y horas reales por turno.
 /// Formatos soportados:
-/// - Estimaciones (sN_AAAA): fila 21 fechas C–I, filas 22/26/30 facturación Med/Tar/Noc, J39 horas semanales. targetDate = refDate − 7 días.
+/// - Estimaciones (sN_AAAA): fila 21 fechas C–I, filas 22/26/30 facturación Med/Tar/Noc, J39 horas semanales. targetDate = refDate − 14 días.
 /// - Genérico: fila 1 cabecera, luego A=fecha, B=facturación, C=horas (sin turnos).
 /// - A) Una fila por turno: Fecha, Turno, Facturacion, Horas.
 /// - B) Una fila por día: Fecha + Mediodia_Fact/Horas, etc.
@@ -16,6 +16,12 @@ namespace LucasWeb.Api.Services;
 /// </summary>
 public static class ExcelImportService
 {
+    /// <summary>
+    /// Días a restar a la fecha de la fila 21 del Excel para obtener la fecha de datos en el sistema.
+    /// En plantilla sN_AAAA la fecha visible y los importes llevan 14 días de desfase respecto al día real.
+    /// </summary>
+    private const int EstimacionExcelDaysOffset = -14;
+
     private static readonly string[] ShiftNames = { "Mediodia", "Tarde", "Noche" };
     private static readonly HashSet<string> ShiftAliases = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -170,9 +176,9 @@ public static class ExcelImportService
     /// <summary>
     /// Parsea la hoja en formato estimaciones (filas 21, 22, 26, 30, J39).
     ///
-    /// En los Excels sN_AAAA que usamos, la fila C21:I21 suele representar la semana N,
-    /// pero los importes corresponden a la semana anterior (N-1). Por eso el targetDate
-    /// se calcula como refDate − 7 días.
+    /// En los Excels sN_AAAA, la fila C21:I21 muestra fechas de referencia, pero los importes
+    /// corresponden a datos con 14 días de desfase respecto a esa fecha.
+    /// Por eso: targetDate = refDate − 14 días.
     /// </summary>
     public static List<EstimacionDayData> ParseEstimacionSheet(IXLWorksheet ws, int fileYear, int weekNum, List<string> errors)
     {
@@ -184,7 +190,7 @@ public static class ExcelImportService
             var refDate = TryGetRefDateFromCell(ws.Cell(rowDates, col), fileYear, weekNum, errors);
             if (refDate == default) continue;
 
-            var targetDate = refDate.AddDays(-7).Date;
+            var targetDate = refDate.AddDays(EstimacionExcelDaysOffset).Date;
 
             var revMed = GetDecimalFromCell(ws.Cell(rowMed, col));
             var revTar = GetDecimalFromCell(ws.Cell(rowTar, col));
