@@ -318,6 +318,49 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-actual-days-table td { color: var(--text); }
 .dashboard-actual-days-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
 
+/* Comparativa (Semana seleccionada vs anterior) — versión “planificación” */
+.dashboard-compare-subtitle { font-size: 0.9rem; color: var(--text-muted); margin: 0 0 0.75rem; line-height: 1.45; }
+.dashboard-compare-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+@media (max-width: 900px) { .dashboard-compare-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.dashboard-compare-kpi {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.65rem;
+  min-width: 0;
+}
+.dashboard-compare-kpi .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.2rem; }
+.dashboard-compare-kpi .value { font-size: 1.0rem; font-weight: 800; color: var(--text); line-height: 1.1; }
+.dashboard-compare-kpi .sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+.dashboard-compare-kpi--up .value, .dashboard-compare-kpi--up .sub { color: var(--success); }
+.dashboard-compare-kpi--down .value, .dashboard-compare-kpi--down .sub { color: var(--error); }
+
+.dashboard-compare-drivers {
+  border: 1px dashed rgba(139,148,158,0.35);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+  background: rgba(0,0,0,0.06);
+}
+.dashboard-compare-drivers-title { font-size: 0.8rem; color: var(--text-muted); font-weight: 700; margin-bottom: 0.35rem; }
+.dashboard-compare-drivers ul { margin: 0; padding-left: 1.1rem; color: var(--text); font-size: 0.9rem; line-height: 1.45; }
+
+.dashboard-compare-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.dashboard-compare-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.dashboard-compare-table th, .dashboard-compare-table td { padding: 0.45rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+.dashboard-compare-table th { background: var(--bg); color: var(--text-muted); font-weight: 700; position: sticky; top: 0; }
+.dashboard-compare-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+.dashboard-compare-td-day { min-width: 8.5rem; }
+.dashboard-compare-day { font-weight: 800; color: var(--text); }
+.dashboard-compare-date { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem; }
+.dashboard-compare-td-delta { font-weight: 800; white-space: nowrap; }
+.dashboard-compare-td-cum { font-weight: 700; white-space: nowrap; color: var(--text-muted); }
+
 .dashboard-th-pred { white-space: nowrap; }
 .dashboard-day-pred { font-weight: 600; color: var(--text-muted); }
 .dashboard-day-card-pred .value { color: var(--text-muted); font-weight: 600; }

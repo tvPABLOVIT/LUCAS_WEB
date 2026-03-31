@@ -119,9 +119,11 @@ public class DashboardController : ControllerBase
         if (totalHours > 0)
             avgProductivity = totalRevenueForComparisons / totalHours;
 
-        // Comparativa vs semana anterior: mismo número de días (numDaysToCompare = días con facturación)
+        // Comparativa vs semana anterior:
+        // - Semana en curso: mismo número de días que "hasta hoy" para comparar a igualdad de días.
+        // - Semana futura (sin días): usar semana anterior completa (7 días) para poder planificar.
         var prevStart = start.AddDays(-7);
-        var prevEnd = numDaysToCompare > 0 ? prevStart.AddDays(numDaysToCompare) : prevStart;
+        var prevEnd = numDaysToCompare > 0 ? prevStart.AddDays(numDaysToCompare) : prevStart.AddDays(7);
         var prevDays = await _db.ExecutionDays
             .Where(e => !e.IsFeedbackOnly && e.Date >= prevStart && e.Date < prevEnd)
             .ToListAsync();
