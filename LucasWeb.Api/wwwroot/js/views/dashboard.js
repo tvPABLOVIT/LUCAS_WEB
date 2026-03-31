@@ -76,7 +76,6 @@
       '<input type="date" id="dashboard-week-start" class="dashboard-week-input-hidden" value="' + weekStart + '" aria-hidden="true" tabindex="-1" />' +
       '</div>' +
       '</div>' +
-      '<div id="dashboard-kpis" class="kpi-grid"></div>' +
       '<div id="dashboard-week-triad" class="card dashboard-week-triad-card"></div>' +
       '<div id="dashboard-days-wrap" class="card"><h3>Días de la semana</h3><div id="dashboard-days-table-wrap"></div><div id="dashboard-days-cards-wrap" class="dashboard-days-cards-wrap"></div></div>' +
       '<div id="dashboard-resumen" class="card"></div>' +
@@ -104,7 +103,6 @@
     var weekInput = document.getElementById('dashboard-week-start');
     var weekRangeEl = document.getElementById('dashboard-week-range');
     var badgeEl = document.getElementById('dashboard-semana-en-curso');
-    var kpisEl = document.getElementById('dashboard-kpis');
     var triadEl = document.getElementById('dashboard-week-triad');
     var resumenEl = document.getElementById('dashboard-resumen');
     var daysWrap = document.getElementById('dashboard-days-table-wrap');
@@ -112,11 +110,6 @@
     var loading = false;
 
     function isDashboardVisible() { return !!document.getElementById('dashboard-cargar'); }
-
-    // Asegurar 4 KPIs en una fila (evita depender de caché CSS).
-    if (kpisEl) {
-      kpisEl.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
-    }
 
     // Selector de semana: click sobre el rango abre el date picker, como en Registro/Preguntas.
     if (weekRangeEl && weekInput) {
@@ -133,7 +126,7 @@
       var btnCargar = document.getElementById('dashboard-cargar');
       if (btnCargar) btnCargar.disabled = true;
 
-      if (!kpisEl || !resumenEl || !daysWrap) {
+      if (!resumenEl || !daysWrap) {
         loading = false;
         if (btnCargar) btnCargar.disabled = false;
         return;
@@ -145,8 +138,7 @@
         if (isCurrentWeek(ws)) { badgeEl.textContent = 'En curso'; badgeEl.classList.remove('hidden'); badgeEl.classList.add('dashboard-badge--current'); }
         else { badgeEl.textContent = ''; badgeEl.classList.add('hidden'); badgeEl.classList.remove('dashboard-badge--current'); }
       }
-      kpisEl.innerHTML = '<p class="loading">Cargando…</p>';
-      if (triadEl) triadEl.innerHTML = '';
+      if (triadEl) triadEl.innerHTML = '<p class="loading">Cargando…</p>';
       resumenEl.innerHTML = '';
       daysWrap.innerHTML = '';
       var todayYmd = (function () { var t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); })();
@@ -292,7 +284,7 @@
             : 'Semana cerrada — datos completos';
           subtitleEl.textContent = subtitleText;
         }
-        if (kpisEl) kpisEl.innerHTML = '';
+        var topKpisHtml = '';
         // Para cálculos y display: usar siempre totalRevenueForComparisons (real o ajustado). La manual bruta es solo informativa.
         var realForKpiComparisons = (data.totalRevenueForComparisons != null && Number(data.totalRevenueForComparisons) > 0)
           ? Number(data.totalRevenueForComparisons)
@@ -371,12 +363,15 @@
           { label: 'Horas totales', value: data.totalHours != null ? data.totalHours.toFixed(1) : '—', sub: hoursSub },
           { label: 'Coste personal', value: costeValue, sub: costeSub }
         ];
-        kpis.forEach(function (k) {
-          var div = document.createElement('div');
-          div.className = 'kpi-card';
-          div.innerHTML = '<div class="label">' + k.label + '</div><div class="value">' + k.value + '</div>' + (k.sub || '');
-          kpisEl.appendChild(div);
-        });
+        topKpisHtml = '<div class="kpi-grid dashboard-director-kpi-grid">' +
+          kpis.map(function (k) {
+            return '<div class="kpi-card">' +
+              '<div class="label">' + escapeHtml(k.label) + '</div>' +
+              '<div class="value">' + (k.value || '—') + '</div>' +
+              (k.sub || '') +
+              '</div>';
+          }).join('') +
+          '</div>';
         // BLOQUE ÚNICO: Semana pasada (real) vs semana actual (real) vs semana siguiente (predicción)
         if (triadEl) {
           function fmtEur(n) { return Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
@@ -604,6 +599,7 @@
               : 'Bloque principal de planificación. La <strong>semana actual</strong> suele estar incompleta: por eso la comparación clave es <strong>mismos días</strong> (lo que llevamos hoy vs lo que llevaba la semana pasada a esta altura) y, además, una <strong>proyección de cierre</strong> (run-rate). La semana seleccionada en el selector sigue controlando el resto del Dashboard.'
             ) +
             '</p>' +
+            topKpisHtml +
             '<div class="dashboard-triad-meta">' +
             '<span class="dashboard-triad-chip">Semana: <strong>' + escapeHtml(formatWeekRange(curMonTriad)) + '</strong></span>' +
             (currentWeekData && currentWeekData.lastDayWithBilling ? ('<span class="dashboard-triad-chip">Hasta: <strong>' + escapeHtml(dayNameFromDate(currentWeekData.lastDayWithBilling)) + '</strong></span>') : '') +
@@ -1041,8 +1037,7 @@
         }
         if (weekRangeEl) weekRangeEl.textContent = formatWeekRange((weekInput && weekInput.value) || weekStart);
         weekRangeEl && weekRangeEl.classList.remove('dashboard-week-range--loading');
-        if (triadEl) triadEl.innerHTML = '';
-        if (kpisEl) kpisEl.innerHTML = '<p class="error-msg">' + (err.message || 'Error al cargar.') + '</p>';
+        if (triadEl) triadEl.innerHTML = '<p class="error-msg">' + ((err && err.message) ? err.message : 'Error al cargar.') + '</p>';
         var chartEl = document.getElementById('dashboard-chart-30d');
         if (chartEl) chartEl.innerHTML = '<p class="dashboard-empty">Sin datos para el gráfico.</p>';
         loading = false;
