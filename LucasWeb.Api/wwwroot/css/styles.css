@@ -248,75 +248,18 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-day-card--pending { opacity: 0.75; }
 .dashboard-day-card--pending .dashboard-day-card-meta { color: var(--text-muted); }
 
-/* Predicción vs realidad y Semana Actual vs Anterior (Dashboard) — lado a lado, misma altura */
-.dashboard-two-blocks {
-  display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
-  gap: 1rem;
-  margin-bottom: 1rem;
-  align-items: stretch;
-}
-.dashboard-two-blocks > * {
-  min-width: 0;
-  min-height: 0;
-  align-self: stretch;
-}
-.dashboard-two-blocks .card { margin-bottom: 0; }
-@media (max-width: 480px) {
-  .dashboard-two-blocks { grid-template-columns: 1fr; }
-}
-/* Mismo estilo que bloque Impacto del clima en Estimaciones — por ID para forzar */
-#dashboard-pred-vs-real,
-#dashboard-actual-vs-anterior {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
+/* Bloque único de planificación semanal (pasada/actual/siguiente) */
+#dashboard-week-triad {
   border-left: 4px solid #42a5f5 !important;
   background: linear-gradient(135deg, rgba(66, 165, 245, 0.14) 0%, rgba(66, 165, 245, 0.05) 35%, transparent 65%), var(--surface) !important;
   box-shadow: var(--shadow);
 }
-.dashboard-two-blocks .card.dashboard-pred-vs-real-card,
-.dashboard-two-blocks .card.dashboard-actual-vs-anterior-card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  border-left: 4px solid #42a5f5;
-  background: linear-gradient(135deg, rgba(66, 165, 245, 0.14) 0%, rgba(66, 165, 245, 0.05) 35%, transparent 65%), var(--surface);
-  box-shadow: var(--shadow);
-}
-.dashboard-pred-vs-real-title,
-.dashboard-actual-vs-anterior-title { font-size: 1.12rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--text); }
-.dashboard-pred-vs-real-body { flex: 1; min-height: 0; overflow: auto; }
-.dashboard-pred-vs-real-note { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem; }
-.dashboard-pred-vs-real-value,
-.dashboard-actual-vs-anterior-value { font-size: 0.95rem; line-height: 1.55; margin: 0 0 0.75rem; color: var(--text); max-width: 56em; }
-.dashboard-pred-vs-real-value:last-child,
-.dashboard-actual-vs-anterior-value:last-child { margin-bottom: 0; }
-.dashboard-pred-vs-real-value strong,
-.dashboard-actual-vs-anterior-value strong { font-weight: 600; }
-.dashboard-pred-por-dias-label { font-size: 0.95rem; margin: 0.5rem 0 0.35rem; color: var(--text-muted); font-weight: 600; }
-.dashboard-pred-days-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 0.75rem; }
-.dashboard-pred-days-table th,
-.dashboard-pred-days-table td { padding: 0.35rem 0.5rem; text-align: left; border: 1px solid var(--border); }
-.dashboard-pred-days-table th { background: var(--bg); color: var(--text-muted); font-weight: 600; }
-.dashboard-pred-days-table td { color: var(--text); }
-.dashboard-pred-days-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
-.dashboard-pct { font-weight: 600; }
-.dashboard-pct--up { color: var(--success); }
-.dashboard-pct--down { color: var(--error); }
-
-.dashboard-actual-vs-anterior-body { flex: 1; min-height: 0; overflow: auto; }
-.dashboard-actual-vs-anterior-value { margin: 0 0 0.75rem; }
-.dashboard-actual-vs-anterior-value:last-child { margin-bottom: 0; }
-.dashboard-actual-por-dias-label { font-size: 0.95rem; margin: 0.5rem 0 0.35rem; color: var(--text-muted); font-weight: 600; }
-.dashboard-actual-days-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 0.75rem; }
-.dashboard-actual-days-table th,
-.dashboard-actual-days-table td { padding: 0.35rem 0.5rem; text-align: left; border: 1px solid var(--border); }
-.dashboard-actual-days-table th { background: var(--bg); color: var(--text-muted); font-weight: 600; }
-.dashboard-actual-days-table td { color: var(--text); }
-.dashboard-actual-days-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+.dashboard-week-triad-title { font-size: 1.12rem; font-weight: 800; margin: 0 0 0.5rem; color: var(--text); }
+.dashboard-week-triad-body { max-width: 100%; }
+.dashboard-triad-muted { color: var(--text-muted); }
+.dashboard-triad-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; font-weight: 600; }
+.dashboard-triad-driver-group { margin-top: 0.5rem; }
+.dashboard-triad-driver-title { font-size: 0.8rem; color: var(--text-muted); font-weight: 800; margin-bottom: 0.25rem; }
 
 /* Comparativa (Semana seleccionada vs anterior) — versión “planificación” */
 .dashboard-compare-subtitle { font-size: 0.9rem; color: var(--text-muted); margin: 0 0 0.75rem; line-height: 1.45; }
