@@ -260,6 +260,7 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-triad-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; font-weight: 600; }
 .dashboard-triad-driver-group { margin-top: 0.5rem; }
 .dashboard-triad-driver-title { font-size: 0.8rem; color: var(--text-muted); font-weight: 800; margin-bottom: 0.25rem; }
+.dashboard-triad-row--pending { opacity: 0.75; }
 
 /* Comparativa (Semana seleccionada vs anterior) — versión “planificación” */
 .dashboard-compare-subtitle { font-size: 0.9rem; color: var(--text-muted); margin: 0 0 0.75rem; line-height: 1.45; }

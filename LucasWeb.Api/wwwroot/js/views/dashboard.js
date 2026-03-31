@@ -388,14 +388,17 @@
           var curTotal = currentWeekData && (currentWeekData.totalRevenueForComparisons != null) ? Number(currentWeekData.totalRevenueForComparisons) : (currentWeekData ? Number(currentWeekData.totalRevenue || 0) : 0);
           var nextTotal = nextPredTotal || 0;
 
-          var vsPrevDelta = curTotal - prevTotal;
-          var vsPrevPct = prevTotal > 0 ? (vsPrevDelta / prevTotal) * 100 : null;
           var nextVsPrevDelta = nextTotal - prevTotal;
           var nextVsPrevPct = prevTotal > 0 ? (nextVsPrevDelta / prevTotal) * 100 : null;
 
           var runRate = (curDaysCount > 0) ? (curTotal / curDaysCount) * 7 : 0;
           var runRateDeltaVsPrev = runRate - prevTotal;
           var runRatePctVsPrev = prevTotal > 0 ? (runRateDeltaVsPrev / prevTotal) * 100 : null;
+
+          // Semana actual suele estar incompleta: comparar "a igualdad de días" contra la semana pasada.
+          var curSameDaysSum = 0;
+          var prevSameDaysSum = 0;
+          var sameDaysCount = 0;
 
           var rows = [];
           for (var i = 0; i < 7; i++) {
@@ -408,6 +411,7 @@
 
             var curDay = curDaysArr.find(function (x) { return x && x.date && x.date.substring(0, 10) === dateCur; }) || null;
             var curVal = curDay ? Number(curDay.revenue || 0) : null;
+            var isPending = curVal == null && dateCur > todayYmd;
 
             var nextDate = addDays(nextMon, i);
             var nextVal = nextPredByDate[nextDate] != null ? Number(nextPredByDate[nextDate]) : 0;
@@ -417,8 +421,17 @@
             var dNext = nextVal - prevVal;
             var pNext = prevVal > 0 ? (dNext / prevVal) * 100 : null;
 
-            rows.push({ day: dayName, prev: prevVal, cur: curVal, next: nextVal, dCur: dCur, pCur: pCur, dNext: dNext, pNext: pNext });
+            if (curVal != null) {
+              curSameDaysSum += curVal;
+              prevSameDaysSum += prevVal;
+              sameDaysCount++;
+            }
+
+            rows.push({ day: dayName, prev: prevVal, cur: curVal, next: nextVal, dCur: dCur, pCur: pCur, dNext: dNext, pNext: pNext, pending: isPending });
           }
+
+          var sameDelta = curSameDaysSum - prevSameDaysSum;
+          var samePct = prevSameDaysSum > 0 ? (sameDelta / prevSameDaysSum) * 100 : null;
 
           var driversCur = rows.filter(function (r) { return r.cur != null; }).slice().sort(function (a, b) { return Math.abs(b.dCur || 0) - Math.abs(a.dCur || 0); }).slice(0, 3);
           var driversNext = rows.slice().sort(function (a, b) { return Math.abs(b.dNext || 0) - Math.abs(a.dNext || 0); }).slice(0, 3);
@@ -431,8 +444,8 @@
           var kpiHtml = '';
           kpiHtml += '<div class="dashboard-compare-kpi"><div class="label">Semana pasada (real)</div><div class="value">' + fmtEur(prevTotal) + '</div><div class="sub">7 días</div></div>';
           kpiHtml += '<div class="dashboard-compare-kpi"><div class="label">Semana actual (real)</div><div class="value">' + fmtEur(curTotal) + '</div><div class="sub">' + (curIsCurrent ? ('hasta hoy · ' + (curDaysCount || 0) + '/7 días') : 'semana cerrada') + '</div></div>';
-          var clsCur = (vsPrevDelta >= 0) ? 'dashboard-compare-kpi--up' : 'dashboard-compare-kpi--down';
-          kpiHtml += '<div class="dashboard-compare-kpi ' + clsCur + '"><div class="label">Actual vs pasada</div><div class="value">' + (vsPrevDelta >= 0 ? '+' : '−') + fmtEur(Math.abs(vsPrevDelta)) + '</div><div class="sub">' + (vsPrevPct != null ? fmtPct(vsPrevPct) : '—') + '</div></div>';
+          var clsCur = (sameDelta >= 0) ? 'dashboard-compare-kpi--up' : 'dashboard-compare-kpi--down';
+          kpiHtml += '<div class="dashboard-compare-kpi ' + clsCur + '"><div class="label">Actual vs pasada (mismos días)</div><div class="value">' + (sameDelta >= 0 ? '+' : '−') + fmtEur(Math.abs(sameDelta)) + '</div><div class="sub">' + (samePct != null ? fmtPct(samePct) : '—') + (sameDaysCount > 0 ? (' · ' + sameDaysCount + '/7 días') : '') + '</div></div>';
           var clsRR = (runRateDeltaVsPrev >= 0) ? 'dashboard-compare-kpi--up' : 'dashboard-compare-kpi--down';
           kpiHtml += '<div class="dashboard-compare-kpi ' + clsRR + '"><div class="label">Run-rate semana actual</div><div class="value">' + fmtEur(runRate) + '</div><div class="sub">vs pasada: ' + (runRatePctVsPrev != null ? fmtPct(runRatePctVsPrev) : '—') + '</div></div>';
           kpiHtml += '<div class="dashboard-compare-kpi"><div class="label">Semana siguiente (pred.)</div><div class="value">' + (nextTotal > 0 ? fmtEur(nextTotal) : '—') + '</div><div class="sub">vs pasada: ' + (nextVsPrevPct != null ? fmtPct(nextVsPrevPct) : '—') + '</div></div>';
@@ -460,7 +473,7 @@
               var pctStr = (pct != null && Number.isFinite(pct)) ? fmtPct(pct) : '—';
               return '<div class="' + cls + '"><strong>' + (delta >= 0 ? '+' : '−') + fmtEur(Math.abs(delta)) + '</strong><div class="dashboard-triad-sub">' + pctStr + '</div></div>';
             }
-            return '<tr>' +
+            return '<tr class="' + (r.pending ? 'dashboard-triad-row--pending' : '') + '">' +
               '<td class="dashboard-compare-td-day"><div class="dashboard-compare-day">' + r.day + '</div></td>' +
               '<td>' + fmtEur(r.prev) + '</td>' +
               '<td>' + (r.cur != null ? fmtEur(r.cur) : '<span class="dashboard-triad-muted">—</span>') + '</td>' +
@@ -468,12 +481,12 @@
               '<td>' + cellDelta(r.dCur, r.pCur) + '</td>' +
               '<td>' + cellDelta(r.dNext, r.pNext) + '</td>' +
               '</tr>';
-          }).join('');
+              }).join('');
 
           triadEl.innerHTML =
             '<h3 class="dashboard-week-triad-title">Semana pasada vs actual vs siguiente</h3>' +
             '<div class="dashboard-week-triad-body">' +
-            '<p class="dashboard-compare-subtitle">Bloque único de planificación: contrasta el <strong>real</strong> de la semana pasada, el <strong>real acumulado</strong> de la actual y la <strong>predicción</strong> de la siguiente. La semana seleccionada en el selector sigue controlando el resto del Dashboard.</p>' +
+            '<p class="dashboard-compare-subtitle">Bloque principal de planificación. La <strong>semana actual</strong> suele estar incompleta: por eso la comparación clave es <strong>mismos días</strong> (lo que llevamos hoy vs lo que llevaba la semana pasada a esta altura) y, además, una <strong>proyección de cierre</strong> (run-rate). La semana seleccionada en el selector sigue controlando el resto del Dashboard.</p>' +
             '<div class="dashboard-compare-kpis">' + kpiHtml + '</div>' +
             driversHtml +
             '<div class="dashboard-compare-table-wrap">' +
