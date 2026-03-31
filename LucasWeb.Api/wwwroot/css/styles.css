@@ -258,6 +258,10 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-week-triad-body { max-width: 100%; }
 .dashboard-triad-muted { color: var(--text-muted); }
 .dashboard-triad-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; font-weight: 600; }
+.dashboard-week-triad-card .dashboard-compare-subtitle strong { color: var(--text); font-weight: 800; }
+.dashboard-week-triad-card .dashboard-compare-subtitle { margin-bottom: 0.7rem; }
+.dashboard-week-triad-card .dashboard-compare-kpi .value { letter-spacing: -0.2px; }
+.dashboard-week-triad-card .dashboard-compare-kpis { margin-top: 0.35rem; }
 .dashboard-triad-driver-group { margin-top: 0.5rem; }
 .dashboard-triad-driver-title { font-size: 0.8rem; color: var(--text-muted); font-weight: 800; margin-bottom: 0.25rem; }
 .dashboard-triad-row--pending { opacity: 0.75; }
