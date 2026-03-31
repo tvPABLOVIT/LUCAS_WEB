@@ -35,6 +35,25 @@ public class ImportController : ControllerBase
         return d.Date.AddDays(-diff);
     }
 
+    private static IXLWorksheet? PickWorksheetForEstimaciones(XLWorkbook book)
+    {
+        // Algunas plantillas tienen la tabla en una hoja distinta de la primera.
+        // Preferimos una hoja que "parezca" el template de estimaciones; si no, usamos la primera.
+        foreach (var ws in book.Worksheets)
+        {
+            try
+            {
+                if (ExcelImportService.LooksLikeEstimacionTemplate(ws))
+                    return ws;
+            }
+            catch
+            {
+                // ignorar y seguir buscando
+            }
+        }
+        return book.Worksheet(1);
+    }
+
     /// <summary>
     /// Importa archivo de estimaciones (sN_AAAA). Solo Configuración. El nombre del archivo debe ser sN_AAAA (ej. s6_2026.xlsx).
     /// </summary>
@@ -58,7 +77,7 @@ public class ImportController : ControllerBase
         await using (var stream = file.OpenReadStream())
         {
             using var book = new XLWorkbook(stream);
-            var ws = book.Worksheet(1);
+            var ws = PickWorksheetForEstimaciones(book);
             if (ws == null)
             {
                 errors.Add("No se encontró ninguna hoja.");
@@ -119,7 +138,8 @@ public class ImportController : ControllerBase
             if (ExcelImportService.TryParseEstimacionFileName(file.FileName).IsMatch)
             {
                 var (_, weekNum, year) = ExcelImportService.TryParseEstimacionFileName(file.FileName);
-                var days = ExcelImportService.ParseEstimacionSheet(ws, year, weekNum, errors);
+                var wsEst = PickWorksheetForEstimaciones(book) ?? ws;
+                var days = ExcelImportService.ParseEstimacionSheet(wsEst, year, weekNum, errors);
                 if (days.Count == 0)
                 {
                     result.Message = "No se leyeron fechas en la fila 21. Use formato sN_AAAA (ej. s6_2026) y fechas válidas en C21:I21.";
@@ -146,7 +166,8 @@ public class ImportController : ControllerBase
                 {
                     return BadRequest(new { message = "Nombre de archivo no válido. Use formato sN_AAAA (ej. s6_2026)." });
                 }
-                var days = ExcelImportService.ParseEstimacionSheet(ws, year, weekNum, errors);
+                var wsEst = PickWorksheetForEstimaciones(book) ?? ws;
+                var days = ExcelImportService.ParseEstimacionSheet(wsEst, year, weekNum, errors);
                 if (days.Count == 0)
                 {
                     result.Message = "No se leyeron fechas en la fila 21. La fila 21 debe contener fechas válidas y el archivo debe llamarse sN_AAAA (ej. s6_2026).";

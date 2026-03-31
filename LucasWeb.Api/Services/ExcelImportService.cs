@@ -8,7 +8,7 @@ namespace LucasWeb.Api.Services;
 /// <summary>
 /// Parsea un Excel con facturación y horas reales por turno.
 /// Formatos soportados:
-/// - Estimaciones (sN_AAAA): fila 21 fechas C–I, filas 22/26/30 facturación Med/Tar/Noc, J39 horas semanales. targetDate = refDate − 14 días.
+/// - Estimaciones (sN_AAAA): fila 21 fechas C–I, filas 22/26/30 facturación Med/Tar/Noc, J39 horas semanales. targetDate = refDate − 7 días.
 /// - Genérico: fila 1 cabecera, luego A=fecha, B=facturación, C=horas (sin turnos).
 /// - A) Una fila por turno: Fecha, Turno, Facturacion, Horas.
 /// - B) Una fila por día: Fecha + Mediodia_Fact/Horas, etc.
@@ -167,7 +167,13 @@ public static class ExcelImportService
         return withoutThousands.Replace(decimalSep, '.');
     }
 
-    /// <summary>Parsea la hoja en formato estimaciones (filas 21, 22, 26, 30, J39). targetDate = refDate − 14 días.</summary>
+    /// <summary>
+    /// Parsea la hoja en formato estimaciones (filas 21, 22, 26, 30, J39).
+    ///
+    /// En los Excels sN_AAAA que usamos, la fila C21:I21 suele representar la semana N,
+    /// pero los importes corresponden a la semana anterior (N-1). Por eso el targetDate
+    /// se calcula como refDate − 7 días.
+    /// </summary>
     public static List<EstimacionDayData> ParseEstimacionSheet(IXLWorksheet ws, int fileYear, int weekNum, List<string> errors)
     {
         const int rowDates = 21, rowMed = 22, rowTar = 26, rowNoc = 30;
@@ -178,9 +184,7 @@ public static class ExcelImportService
             var refDate = TryGetRefDateFromCell(ws.Cell(rowDates, col), fileYear, weekNum, errors);
             if (refDate == default) continue;
 
-            var targetDate = refDate.AddDays(-14);
-            if (weekNum <= 2 && targetDate.Year == fileYear && targetDate.Month == 1)
-                targetDate = new DateTime(fileYear - 1, 12, Math.Min(targetDate.Day, 31));
+            var targetDate = refDate.AddDays(-7).Date;
 
             var revMed = GetDecimalFromCell(ws.Cell(rowMed, col));
             var revTar = GetDecimalFromCell(ws.Cell(rowTar, col));
