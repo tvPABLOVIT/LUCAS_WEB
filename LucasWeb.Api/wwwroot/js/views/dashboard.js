@@ -372,17 +372,17 @@
           { label: 'Coste personal', value: costeValue, sub: costeSub }
         ];
         if (isTriadCurrentWeek) {
-          // Director: un “bento” — facturación como foco + rail compacto (prod / horas / coste)
+          // Director: columna única — facturación + una sola fila de prod / horas / coste (todo lee de arriba abajo)
           topKpisHtml =
-            '<div class="dashboard-director-kpi-bento">' +
-            '<div class="dashboard-director-kpi-hero">' +
+            '<div class="dashboard-director-stack">' +
+            '<div class="dashboard-director-stack-hero dashboard-director-kpi-hero">' +
             '<div class="dashboard-director-kpi-hero-head">' +
             '<span class="dashboard-director-kpi-hero-eyebrow">Facturación total</span>' +
             '<div class="dashboard-director-kpi-hero-value">' + (revValue || '—') + '</div>' +
             '</div>' +
             '<div class="dashboard-director-kpi-hero-lines">' + pctVsPrev + '</div>' +
             '</div>' +
-            '<div class="dashboard-director-kpi-rail" role="group" aria-label="Indicadores operativos">' +
+            '<div class="dashboard-director-stack-metrics" role="group" aria-label="Indicadores operativos">' +
             '<div class="dashboard-director-kpi-stat">' +
             '<div class="dashboard-director-kpi-stat-label">Productividad</div>' +
             '<div class="dashboard-director-kpi-stat-value">' + (prodValue || '—') + '</div>' +
@@ -644,18 +644,11 @@
             '</div>';
           var compareBlockHtml = isTriadCurrentWeek
             ? (
-              '<div class="dashboard-director-compare-wrap">' +
-              '<div class="dashboard-director-compare-panel">' +
-              '<div class="dashboard-director-compare-panel-title">' +
-              '<span class="dashboard-director-section-h-num">1</span> A igualdad de días</div>' +
-              '<div class="dashboard-compare-kpis dashboard-compare-kpis--director-snapshot">' + kpiDirectorRow1 + '</div>' +
-              '</div>' +
-              '<div class="dashboard-director-compare-panel">' +
-              '<div class="dashboard-director-compare-panel-title">' +
-              '<span class="dashboard-director-section-h-num">2</span> Proyección de cierre</div>' +
-              '<div class="dashboard-compare-kpis dashboard-compare-kpis--director-forecast">' + kpiDirectorRow2 + '</div>' +
-              '</div>' +
-              '</div>'
+              '<section class="dashboard-director-unified-section dashboard-director-unified-section--compare">' +
+              '<div class="dashboard-director-unified-section-head">Comparativa e hipótesis de cierre</div>' +
+              '<p class="dashboard-director-unified-hint">Mismos días respecto a la semana pasada · proyección a 7 días según modelo guardado</p>' +
+              '<div class="dashboard-director-unified-five">' + kpiDirectorRow1 + kpiDirectorRow2 + '</div>' +
+              '</section>'
             )
             : ('<div class="dashboard-compare-kpis">' + kpiHtml + '</div>');
 
@@ -669,10 +662,21 @@
             ) +
             '</p>' +
             (isTriadCurrentWeek
-              ? (triadMetaHtml + '<div class="dashboard-director-pane dashboard-director-pane--kpis">' + topKpisHtml + '</div>' + compareBlockHtml)
-              : (topKpisHtml + triadMetaHtml + compareBlockHtml)
+              ? (
+                '<div class="dashboard-director-unified">' +
+                triadMetaHtml +
+                '<div class="dashboard-director-unified-body">' +
+                '<section class="dashboard-director-unified-section dashboard-director-unified-section--accent">' +
+                '<div class="dashboard-director-unified-section-head">Acumulado · semana en curso</div>' +
+                topKpisHtml +
+                '</section>' +
+                compareBlockHtml +
+                '</div>' +
+                driversHtml +
+                '</div>'
+              )
+              : (topKpisHtml + triadMetaHtml + compareBlockHtml + driversHtml)
             ) +
-            driversHtml +
             '<div class="dashboard-compare-table-wrap">' +
             '<table class="dashboard-compare-table dashboard-triad-table">' +
             (isTriadCurrentWeek
