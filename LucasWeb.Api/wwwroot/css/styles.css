@@ -317,39 +317,17 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   padding-top: 0.6rem;
   border-top: 1px solid rgba(139, 148, 158, 0.22);
 }
-.dashboard-director-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 0;
-}
-.dashboard-director-stack-metrics {
+/* Acumulado: 4 tarjetas = misma familia que comparativa (5) */
+.dashboard-director-unified-four {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  margin-top: 0.6rem;
-  padding-top: 0.55rem;
-  border-top: 1px solid rgba(139, 148, 158, 0.22);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
 }
-.dashboard-director-stack-metrics .dashboard-director-kpi-stat {
-  border-radius: 0;
-  border: none;
-  border-right: 1px solid rgba(139, 148, 158, 0.2);
-  background: transparent;
-  padding: 0.35rem 0.55rem;
+@media (max-width: 1100px) {
+  .dashboard-director-unified-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-.dashboard-director-stack-metrics .dashboard-director-kpi-stat:last-child { border-right: none; }
-@media (max-width: 700px) {
-  .dashboard-director-stack-metrics {
-    grid-template-columns: 1fr;
-    border-top: 1px solid rgba(139, 148, 158, 0.22);
-  }
-  .dashboard-director-stack-metrics .dashboard-director-kpi-stat {
-    border-right: none;
-    border-bottom: 1px solid rgba(139, 148, 158, 0.15);
-    padding: 0.45rem 0.25rem;
-  }
-  .dashboard-director-stack-metrics .dashboard-director-kpi-stat:last-child { border-bottom: none; }
+@media (max-width: 520px) {
+  .dashboard-director-unified-four { grid-template-columns: 1fr; }
 }
 .dashboard-director-unified-five {
   display: grid;
@@ -362,108 +340,22 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 @media (max-width: 640px) {
   .dashboard-director-unified-five { grid-template-columns: 1fr; }
 }
-.dashboard-director-kpi-hero {
+.dashboard-director-unified-four .dashboard-compare-kpi,
+.dashboard-director-unified-five .dashboard-compare-kpi,
+.dashboard-director-unified .dashboard-director-driver-kpi {
   border-radius: var(--radius);
-  padding: 0.75rem 0.85rem 0.8rem;
-  background: linear-gradient(145deg, rgba(66, 165, 245, 0.12) 0%, rgba(66, 165, 245, 0.04) 55%, transparent 100%);
-  border: 1px solid rgba(66, 165, 245, 0.38);
-  border-left: 4px solid rgba(66, 165, 245, 0.85);
-  min-width: 0;
-}
-.dashboard-director-kpi-hero-head { margin-bottom: 0.15rem; }
-.dashboard-director-kpi-hero-eyebrow {
-  display: block;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 0.35rem;
-}
-.dashboard-director-kpi-hero-value {
-  font-size: clamp(1.35rem, 2.8vw, 1.85rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.12;
-  color: var(--text);
-  word-break: break-word;
-}
-.dashboard-director-kpi-hero-value .kpi-card-sub--muted {
-  display: inline;
-  font-size: 0.65em;
-  font-weight: 600;
-  vertical-align: baseline;
-  margin-left: 0.25rem;
-}
-.dashboard-director-kpi-hero-lines {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.55rem;
-  align-items: flex-start;
-}
-.dashboard-director-kpi-hero-lines .kpi-card-sub {
-  margin-top: 0;
-  padding: 0.28rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  line-height: 1.25;
-  border: 1px solid rgba(139, 148, 158, 0.28);
+  border: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.22);
-  max-width: 100%;
-}
-.dashboard-director-kpi-hero-lines .kpi-card-sub--muted {
-  border-style: dashed;
-  opacity: 0.95;
-}
-.dashboard-director-kpi-stat {
-  flex: 1;
-  min-height: 0;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
-  padding: 0.45rem 0.55rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.dashboard-director-kpi-stat--coste {
-  border-color: rgba(212, 160, 23, 0.35);
-  background: rgba(212, 160, 23, 0.06);
-}
-.dashboard-director-kpi-stat-label {
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 0.12rem;
-}
-.dashboard-director-kpi-stat-value {
-  font-size: 1.02rem;
-  font-weight: 800;
-  line-height: 1.15;
-  color: var(--text);
-}
-.dashboard-director-kpi-stat-sub { margin-top: 0.1rem; }
-.dashboard-director-kpi-stat-sub .kpi-card-sub {
-  margin-top: 0.12rem;
-  font-size: 0.72rem;
-}
-.dashboard-director-kpi-stat-sub .kpi-card-sub:first-child { margin-top: 0; }
-/* Comparativa director: celdas dentro de rejilla única de 5 */
-.dashboard-director-unified-five .dashboard-compare-kpi {
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.18);
   padding: 0.45rem 0.55rem;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
-.dashboard-director-unified-five .dashboard-compare-kpi .label {
+.dashboard-director-unified-four .dashboard-compare-kpi .label,
+.dashboard-director-unified-five .dashboard-compare-kpi .label,
+.dashboard-director-unified .dashboard-director-driver-kpi .label {
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -472,20 +364,52 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   margin-bottom: 0.12rem;
   line-height: 1.2;
 }
+.dashboard-director-unified-four .dashboard-compare-kpi .value,
 .dashboard-director-unified-five .dashboard-compare-kpi .value {
   font-size: 1.02rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
+.dashboard-director-unified-four .dashboard-compare-kpi .sub,
 .dashboard-director-unified-five .dashboard-compare-kpi .sub {
   font-size: 0.72rem;
   margin-top: 0.12rem;
   line-height: 1.25;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: flex-start;
 }
+.dashboard-director-unified-four .dashboard-director-accum-fact .sub {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.dashboard-director-unified-four .dashboard-director-accum-fact .sub .kpi-card-sub {
+  margin-top: 0;
+  padding: 0.24rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  border: 1px solid rgba(139, 148, 158, 0.28);
+  background: rgba(0, 0, 0, 0.25);
+  max-width: 100%;
+}
+.dashboard-director-unified-four .dashboard-director-accum-fact .sub .kpi-card-sub--muted {
+  border-style: dashed;
+  opacity: 0.95;
+}
+.dashboard-director-unified-four .dashboard-compare-kpi--coste {
+  border-color: rgba(212, 160, 23, 0.35);
+  background: rgba(212, 160, 23, 0.07);
+}
+.dashboard-director-unified-four .dashboard-compare-kpi:not(.dashboard-compare-kpi--up):not(.dashboard-compare-kpi--down) .sub,
 .dashboard-director-unified-five .dashboard-compare-kpi:not(.dashboard-compare-kpi--up):not(.dashboard-compare-kpi--down) .sub {
   color: var(--text-muted);
 }
+.dashboard-director-unified-four .dashboard-compare-kpi--up .sub,
+.dashboard-director-unified-four .dashboard-compare-kpi--down .sub,
 .dashboard-director-unified-five .dashboard-compare-kpi--up .sub,
 .dashboard-director-unified-five .dashboard-compare-kpi--down .sub {
   font-weight: 600;
@@ -499,6 +423,27 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   opacity: 0.95;
 }
 .dashboard-director-unified-five .dashboard-compare-kpi--forecast .value { font-size: 1.05rem; }
+.dashboard-director-drivers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+@media (max-width: 700px) {
+  .dashboard-director-drivers-grid { grid-template-columns: 1fr; }
+}
+.dashboard-director-driver-body {
+  margin-top: 0.2rem;
+  flex: 1;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+.dashboard-director-driver-line {
+  padding: 0.28rem 0;
+  border-bottom: 1px solid rgba(139, 148, 158, 0.15);
+}
+.dashboard-director-driver-line:last-child { border-bottom: none; padding-bottom: 0; }
+.dashboard-director-driver-line:first-child { padding-top: 0; }
 .dashboard-director-unified .dashboard-director-drivers {
   margin-top: 0.5rem;
   margin-bottom: 0;

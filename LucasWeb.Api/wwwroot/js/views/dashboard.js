@@ -372,33 +372,20 @@
           { label: 'Coste personal', value: costeValue, sub: costeSub }
         ];
         if (isTriadCurrentWeek) {
-          // Director: columna única — facturación + una sola fila de prod / horas / coste (todo lee de arriba abajo)
+          // Director: misma familia visual que «Comparativa» — 4 tarjetas en rejilla
+          function directorAccumCard(label, valueHtml, subHtml, cls) {
+            return '<div class="dashboard-compare-kpi' + (cls ? (' ' + cls) : '') + '">' +
+              '<div class="label">' + escapeHtml(label) + '</div>' +
+              '<div class="value">' + (valueHtml || '—') + '</div>' +
+              '<div class="sub">' + (subHtml || '') + '</div>' +
+              '</div>';
+          }
           topKpisHtml =
-            '<div class="dashboard-director-stack">' +
-            '<div class="dashboard-director-stack-hero dashboard-director-kpi-hero">' +
-            '<div class="dashboard-director-kpi-hero-head">' +
-            '<span class="dashboard-director-kpi-hero-eyebrow">Facturación total</span>' +
-            '<div class="dashboard-director-kpi-hero-value">' + (revValue || '—') + '</div>' +
-            '</div>' +
-            '<div class="dashboard-director-kpi-hero-lines">' + pctVsPrev + '</div>' +
-            '</div>' +
-            '<div class="dashboard-director-stack-metrics" role="group" aria-label="Indicadores operativos">' +
-            '<div class="dashboard-director-kpi-stat">' +
-            '<div class="dashboard-director-kpi-stat-label">Productividad</div>' +
-            '<div class="dashboard-director-kpi-stat-value">' + (prodValue || '—') + '</div>' +
-            '<div class="dashboard-director-kpi-stat-sub">' + pctVsPrevProd + '</div>' +
-            '</div>' +
-            '<div class="dashboard-director-kpi-stat">' +
-            '<div class="dashboard-director-kpi-stat-label">Horas</div>' +
-            '<div class="dashboard-director-kpi-stat-value">' + (data.totalHours != null ? data.totalHours.toFixed(1) : '—') + '</div>' +
-            '<div class="dashboard-director-kpi-stat-sub">' + hoursSub + '</div>' +
-            '</div>' +
-            '<div class="dashboard-director-kpi-stat dashboard-director-kpi-stat--coste">' +
-            '<div class="dashboard-director-kpi-stat-label">Coste personal</div>' +
-            '<div class="dashboard-director-kpi-stat-value">' + costeValue + '</div>' +
-            '<div class="dashboard-director-kpi-stat-sub">' + costeSub + '</div>' +
-            '</div>' +
-            '</div>' +
+            '<div class="dashboard-director-unified-four" role="group" aria-label="Acumulado semana en curso">' +
+            directorAccumCard('Facturación total', revValue || '—', pctVsPrev, 'dashboard-director-accum-fact') +
+            directorAccumCard('Productividad media', prodValue || '—', pctVsPrevProd, '') +
+            directorAccumCard('Horas totales', (data.totalHours != null ? data.totalHours.toFixed(1) : '—'), hoursSub, '') +
+            directorAccumCard('Coste personal', costeValue || '—', costeSub, 'dashboard-compare-kpi--coste') +
             '</div>';
         } else {
           topKpisHtml = '<div class="kpi-grid dashboard-director-kpi-grid">' +
@@ -572,19 +559,19 @@
             if (driversCur.length || driversVsPred.length) {
               driversHtml += '<div class="dashboard-director-drivers">' +
                 '<div class="dashboard-director-drivers-title">Qué días mueven el resultado</div>' +
-                '<div class="dashboard-director-drivers-cols">';
+                '<div class="dashboard-director-drivers-grid">';
               if (driversCur.length) {
-                driversHtml += '<div class="dashboard-director-driver-col">' +
-                  '<span class="dashboard-director-driver-col-label">vs semana pasada</span>' +
-                  '<div class="dashboard-director-pills">' +
-                  driversCur.map(function (r) { return '<span class="dashboard-director-pill">' + escapeHtml(driverLine(r, 'cur')) + '</span>'; }).join('') +
+                driversHtml += '<div class="dashboard-compare-kpi dashboard-director-driver-kpi">' +
+                  '<div class="label">vs semana pasada</div>' +
+                  '<div class="dashboard-director-driver-body">' +
+                  driversCur.map(function (r) { return '<div class="dashboard-director-driver-line">' + escapeHtml(driverLine(r, 'cur')) + '</div>'; }).join('') +
                   '</div></div>';
               }
               if (driversVsPred.length) {
-                driversHtml += '<div class="dashboard-director-driver-col">' +
-                  '<span class="dashboard-director-driver-col-label">vs predicción</span>' +
-                  '<div class="dashboard-director-pills">' +
-                  driversVsPred.map(function (x) { return '<span class="dashboard-director-pill">' + escapeHtml(x.day + ': ' + (x.delta >= 0 ? '+' : '−') + fmtEur(Math.abs(x.delta)).replace(' €', '€') + (x.pct != null ? ' (' + fmtPct(x.pct) + ')' : '')) + '</span>'; }).join('') +
+                driversHtml += '<div class="dashboard-compare-kpi dashboard-director-driver-kpi">' +
+                  '<div class="label">vs predicción</div>' +
+                  '<div class="dashboard-director-driver-body">' +
+                  driversVsPred.map(function (x) { return '<div class="dashboard-director-driver-line">' + escapeHtml(x.day + ': ' + (x.delta >= 0 ? '+' : '−') + fmtEur(Math.abs(x.delta)).replace(' €', '€') + (x.pct != null ? ' (' + fmtPct(x.pct) + ')' : '')) + '</div>'; }).join('') +
                   '</div></div>';
               }
               driversHtml += '</div></div>';
