@@ -623,20 +623,6 @@
       '<div class="form-row"><button type="button" class="btn-secondary" id="config-sheets-open">Abrir Google Sheets</button><button type="button" class="btn-secondary" id="config-sheets-export">Exportar todo al Google Sheet</button><button type="button" class="btn-secondary" id="config-import-excel-btn">Importar archivo(s) de estimaciones (Excel)</button></div>' +
       '<input type="file" id="config-import-excel-file" accept=".xlsx" style="display:none" multiple />' +
       '<p class="config-desc">Exportar todo envía todos los días guardados al sheet. Importar: seleccione uno o varios Excel (ej. s6_2026.xlsx); extrae facturaciones de 2 sem antes y actualiza BD y Google Sheet.</p></div>' +
-      '<div class="config-integration-box config-integration-import">' +
-      '<h4>Importar datos (operación)</h4>' +
-      '<p class="config-desc">Carga Excel (facturación + horas reales) y PDF de cuadrante. Selecciona la semana a la que corresponde el archivo.</p>' +
-      '<div class="form-row">' +
-      '<div class="form-group"><label for="config-import-week-start">Semana (lunes)</label><input type="date" id="config-import-week-start" /></div>' +
-      '</div>' +
-      '<div class="form-row">' +
-      '<button type="button" class="btn-secondary" id="config-import-op-excel-btn">Cargar Excel (uno o varios)</button>' +
-      '<input type="file" id="config-import-op-excel-file" accept=".xlsx,.xls" style="display:none" multiple />' +
-      '<button type="button" class="btn-secondary" id="config-import-op-pdf-btn">Cargar PDF</button>' +
-      '<input type="file" id="config-import-op-pdf-file" accept=".pdf,application/pdf" style="display:none" />' +
-      '</div>' +
-      '<p class="config-desc"><span id="config-import-op-status" class="config-msg"></span></p>' +
-      '</div>' +
       '<p id="config-int-msg" class="config-msg hidden"></p>' +
       '<button type="button" id="config-int-guardar" class="btn-primary btn-large">Guardar integraciones</button></div>';
     loadSettingsForIntegraciones();
@@ -707,112 +693,6 @@
       });
     }
 
-    // Importación operativa (Excel/PDF) — movida desde Dashboard
-    (function bindOperationalImport() {
-      var weekStartInput = document.getElementById('config-import-week-start');
-      var excelBtn = document.getElementById('config-import-op-excel-btn');
-      var excelFile = document.getElementById('config-import-op-excel-file');
-      var pdfBtn = document.getElementById('config-import-op-pdf-btn');
-      var pdfFile = document.getElementById('config-import-op-pdf-file');
-      var statusEl = document.getElementById('config-import-op-status');
-      if (!weekStartInput || !excelBtn || !excelFile || !pdfBtn || !pdfFile) return;
-
-      function getWeekStart(d) {
-        var date = typeof d === 'string' ? new Date(d + 'T12:00:00') : new Date(d);
-        var day = date.getDay();
-        var diff = date.getDate() - day + (day === 0 ? -6 : 1);
-        var monday = new Date(date);
-        monday.setDate(diff);
-        return monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
-      }
-      weekStartInput.value = getWeekStart(new Date());
-      weekStartInput.addEventListener('change', function () {
-        try { weekStartInput.value = getWeekStart(weekStartInput.value); } catch (e) { }
-      });
-
-      function setStatus(msg, ok) {
-        if (!statusEl) return;
-        statusEl.textContent = msg || '';
-        statusEl.className = ok === true ? 'config-msg success' : (ok === false ? 'config-msg error' : 'config-msg');
-      }
-
-      excelBtn.addEventListener('click', function () { excelFile.click(); });
-      pdfBtn.addEventListener('click', function () { pdfFile.click(); });
-
-      excelFile.addEventListener('change', function () {
-        var files = excelFile.files;
-        if (!files || files.length === 0) return;
-        var ws = weekStartInput.value || getWeekStart(new Date());
-        excelBtn.disabled = true;
-        var total = files.length;
-        var allErrors = [];
-        var totalCreated = 0, totalUpdated = 0, totalShifts = 0;
-        function sendNext(index) {
-          if (index >= total) {
-            var msg = total === 1
-              ? (totalCreated + ' días creados, ' + totalUpdated + ' actualizados, ' + totalShifts + ' turnos.')
-              : (total + ' archivos: ' + totalCreated + ' días creados, ' + totalUpdated + ' actualizados, ' + totalShifts + ' turnos.');
-            if (allErrors.length > 0) msg += ' Errores: ' + allErrors.slice(0, 5).join('; ') + (allErrors.length > 5 ? ' (+' + (allErrors.length - 5) + ' más)' : '');
-            setStatus(msg, allErrors.length === 0);
-            excelBtn.disabled = false;
-            excelFile.value = '';
-            return;
-          }
-          setStatus('Enviando ' + (index + 1) + '/' + total + '…', null);
-          var fd = new FormData();
-          fd.append('file', files[index]);
-          auth.fetchWithAuth('/api/import/excel?weekStart=' + encodeURIComponent(ws), { method: 'POST', body: fd }).then(function (r) {
-            if (r.status === 401) return null;
-            return r.json().then(function (d) {
-              if (!r.ok) throw new Error(d && d.message ? d.message : 'Error al importar');
-              return d;
-            });
-          }).then(function (data) {
-            if (data) {
-              totalCreated += data.days_created || 0;
-              totalUpdated += data.days_updated || 0;
-              totalShifts += data.shifts_updated || 0;
-              if (data.errors && data.errors.length > 0) allErrors.push((files[index].name || '') + ': ' + data.errors.join(', '));
-            }
-            sendNext(index + 1);
-          }).catch(function (e) {
-            allErrors.push((files[index].name || '') + ': ' + (e.message || 'Error'));
-            sendNext(index + 1);
-          });
-        }
-        sendNext(0);
-      });
-
-      pdfFile.addEventListener('change', function () {
-        if (!pdfFile.files || pdfFile.files.length === 0) return;
-        var ws = weekStartInput.value || getWeekStart(new Date());
-        pdfBtn.disabled = true;
-        setStatus('Enviando PDF…', null);
-        var fileName = pdfFile.files[0] && pdfFile.files[0].name ? pdfFile.files[0].name : '';
-        var fd = new FormData();
-        fd.append('file', pdfFile.files[0]);
-        auth.fetchWithAuth('/api/import/cuadrante-pdf?weekStart=' + encodeURIComponent(ws), { method: 'POST', body: fd }).then(function (r) {
-          if (r.status === 401) return null;
-          return r.json().then(function (d) {
-            if (!r.ok) throw new Error(d && d.message ? d.message : ('Error del servidor (' + r.status + ')'));
-            return d;
-          });
-        }).then(function (data) {
-          if (!data) return;
-          var baseMsg = (data.message && data.message.length > 0)
-            ? data.message
-            : ((data.days_created || 0) + ' días creados, ' + (data.days_updated || 0) + ' actualizados, ' + (data.shifts_updated || 0) + ' turnos.');
-          var msg = (fileName ? ('[' + fileName + '] ') : '') + baseMsg;
-          if (data.errors && data.errors.length > 0) msg += ' Errores: ' + data.errors.slice(0, 3).join(' ') + (data.errors.length > 3 ? ' (+' + (data.errors.length - 3) + ' más)' : '');
-          setStatus(msg, !(data.errors && data.errors.length > 0));
-        }).catch(function (e) {
-          setStatus('Error al enviar PDF: ' + (e.message || 'Error'), false);
-        }).finally(function () {
-          pdfBtn.disabled = false;
-          pdfFile.value = '';
-        });
-      });
-    })();
   }
 
   function getMondayOfCurrentWeek() {
