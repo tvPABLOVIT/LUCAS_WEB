@@ -372,20 +372,21 @@
           { label: 'Coste personal', value: costeValue, sub: costeSub }
         ];
         if (isTriadCurrentWeek) {
-          // Director: misma familia visual que «Comparativa» — 4 tarjetas en rejilla
+          // Director: 4 tarjetas solo con el valor principal; el detalle va a «Comparativa e hipótesis»
           function directorAccumCard(label, valueHtml, subHtml, cls) {
+            var subPart = (subHtml && String(subHtml).replace(/\s/g, '') !== '') ? ('<div class="sub">' + subHtml + '</div>') : '';
             return '<div class="dashboard-compare-kpi' + (cls ? (' ' + cls) : '') + '">' +
               '<div class="label">' + escapeHtml(label) + '</div>' +
               '<div class="value">' + (valueHtml || '—') + '</div>' +
-              '<div class="sub">' + (subHtml || '') + '</div>' +
+              subPart +
               '</div>';
           }
           topKpisHtml =
             '<div class="dashboard-director-unified-four" role="group" aria-label="Acumulado semana en curso">' +
-            directorAccumCard('Facturación total', revValue || '—', pctVsPrev, 'dashboard-director-accum-fact') +
-            directorAccumCard('Productividad media', prodValue || '—', pctVsPrevProd, '') +
-            directorAccumCard('Horas totales', (data.totalHours != null ? data.totalHours.toFixed(1) : '—'), hoursSub, '') +
-            directorAccumCard('Coste personal', costeValue || '—', costeSub, 'dashboard-compare-kpi--coste') +
+            directorAccumCard('Facturación total', revValue || '—', '', 'dashboard-director-accum-plain') +
+            directorAccumCard('Productividad media', prodValue || '—', '', '') +
+            directorAccumCard('Horas totales', (data.totalHours != null ? data.totalHours.toFixed(1) : '—'), '', '') +
+            directorAccumCard('Coste personal', costeValue || '—', '', 'dashboard-compare-kpi--coste') +
             '</div>';
         } else {
           topKpisHtml = '<div class="kpi-grid dashboard-director-kpi-grid">' +
@@ -629,11 +630,36 @@
             (currentWeekData && currentWeekData.lastDayWithBilling ? ('<span class="dashboard-triad-chip">Hasta: <strong>' + escapeHtml(dayNameFromDate(currentWeekData.lastDayWithBilling)) + '</strong></span>') : '') +
             (currentWeekData && (currentWeekData.daysFromExcelCount != null || currentWeekData.daysFromManualCount != null) ? ('<span class="dashboard-triad-chip">Calidad: <strong>' + (Number(currentWeekData.daysFromExcelCount || 0)) + '</strong> Excel · <strong>' + (Number(currentWeekData.daysFromManualCount || 0)) + '</strong> manual</span>') : '') +
             '</div>';
+          var directorAccumDetailHtml = '';
+          if (isTriadCurrentWeek) {
+            function dashIfEmpty(html) {
+              if (html && String(html).replace(/\s/g, '') !== '') return html;
+              return '<span class="dashboard-triad-muted">—</span>';
+            }
+            directorAccumDetailHtml =
+              '<div class="dashboard-director-compare-accum">' +
+              '<div class="dashboard-director-compare-accum-head">Detalle de indicadores (acumulado)</div>' +
+              '<div class="dashboard-director-compare-accum-grid">' +
+              '<div class="dashboard-director-compare-accum-col">' +
+              '<span class="dashboard-director-compare-accum-col-label">Facturación</span>' +
+              '<div class="dashboard-director-compare-accum-lines dashboard-director-compare-accum-lines--wrap">' + dashIfEmpty(pctVsPrev) + '</div></div>' +
+              '<div class="dashboard-director-compare-accum-col">' +
+              '<span class="dashboard-director-compare-accum-col-label">Productividad</span>' +
+              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(pctVsPrevProd) + '</div></div>' +
+              '<div class="dashboard-director-compare-accum-col">' +
+              '<span class="dashboard-director-compare-accum-col-label">Horas</span>' +
+              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(hoursSub) + '</div></div>' +
+              '<div class="dashboard-director-compare-accum-col">' +
+              '<span class="dashboard-director-compare-accum-col-label">Coste</span>' +
+              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(costeSub) + '</div></div>' +
+              '</div></div>';
+          }
           var compareBlockHtml = isTriadCurrentWeek
             ? (
               '<section class="dashboard-director-unified-section dashboard-director-unified-section--compare">' +
               '<div class="dashboard-director-unified-section-head">Comparativa e hipótesis de cierre</div>' +
-              '<p class="dashboard-director-unified-hint">Mismos días respecto a la semana pasada · proyección a 7 días según modelo guardado</p>' +
+              '<p class="dashboard-director-unified-hint">Contexto del acumulado · mismos días vs semana pasada · cierre proyectado</p>' +
+              directorAccumDetailHtml +
               '<div class="dashboard-director-unified-five">' + kpiDirectorRow1 + kpiDirectorRow2 + '</div>' +
               '</section>'
             )

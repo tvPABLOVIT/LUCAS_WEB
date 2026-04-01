@@ -381,25 +381,6 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   gap: 0.2rem;
   align-items: flex-start;
 }
-.dashboard-director-unified-four .dashboard-director-accum-fact .sub {
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-.dashboard-director-unified-four .dashboard-director-accum-fact .sub .kpi-card-sub {
-  margin-top: 0;
-  padding: 0.24rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  line-height: 1.2;
-  border: 1px solid rgba(139, 148, 158, 0.28);
-  background: rgba(0, 0, 0, 0.25);
-  max-width: 100%;
-}
-.dashboard-director-unified-four .dashboard-director-accum-fact .sub .kpi-card-sub--muted {
-  border-style: dashed;
-  opacity: 0.95;
-}
 .dashboard-director-unified-four .dashboard-compare-kpi--coste {
   border-color: rgba(212, 160, 23, 0.35);
   background: rgba(212, 160, 23, 0.07);
@@ -423,6 +404,71 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   opacity: 0.95;
 }
 .dashboard-director-unified-five .dashboard-compare-kpi--forecast .value { font-size: 1.05rem; }
+/* Detalle acumulado (antes bajo cada tarjeta) dentro de Comparativa */
+.dashboard-director-compare-accum {
+  margin-bottom: 0.65rem;
+}
+.dashboard-director-compare-accum-head {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+.dashboard-director-compare-accum-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+@media (max-width: 900px) {
+  .dashboard-director-compare-accum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .dashboard-director-compare-accum-grid { grid-template-columns: 1fr; }
+}
+.dashboard-director-compare-accum-col {
+  border-radius: var(--radius);
+  border: 1px solid rgba(139, 148, 158, 0.22);
+  background: rgba(0, 0, 0, 0.14);
+  padding: 0.45rem 0.5rem;
+  min-width: 0;
+}
+.dashboard-director-compare-accum-col-label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+.dashboard-director-compare-accum-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  align-items: flex-start;
+}
+.dashboard-director-compare-accum-lines .kpi-card-sub {
+  margin-top: 0;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+.dashboard-director-compare-accum-lines--wrap {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.dashboard-director-compare-accum-lines--wrap .kpi-card-sub {
+  padding: 0.22rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 148, 158, 0.28);
+  background: rgba(0, 0, 0, 0.22);
+}
+.dashboard-director-compare-accum-lines--wrap .kpi-card-sub--muted {
+  border-style: dashed;
+  opacity: 0.95;
+}
 .dashboard-director-drivers-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
