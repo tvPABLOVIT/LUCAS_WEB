@@ -80,14 +80,14 @@
       '<div class="dashboard-col dashboard-col--main">' +
       '<div id="dashboard-week-triad" class="card dashboard-week-triad-card"></div>' +
       '<div id="dashboard-days-wrap" class="card"><h3>Días de la semana</h3><div id="dashboard-days-table-wrap"></div><div id="dashboard-days-cards-wrap" class="dashboard-days-cards-wrap"></div></div>' +
-      '</div>' +
-      '<div class="dashboard-col dashboard-col--side">' +
-      '<div class="dashboard-side-stack">' +
       '<div id="dashboard-resumen" class="card"></div>' +
       '<div id="dashboard-bloque-ampliacion" class="card dashboard-bloque-ampliacion">' +
       '<h3 class="dashboard-bloque-ampliacion-title">Facturación últimos 30 días</h3>' +
       '<div id="dashboard-chart-30d" class="dashboard-chart-30d"><p class="loading">Cargando…</p></div>' +
       '</div>' +
+      '</div>' +
+      '<div class="dashboard-col dashboard-col--side">' +
+      '<div class="dashboard-side-stack">' +
       '<div class="card dashboard-import-card">' +
       '<h3>Importar datos</h3>' +
       '<div class="dashboard-import-row">' +
