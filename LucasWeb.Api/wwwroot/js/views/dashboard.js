@@ -371,15 +371,46 @@
           { label: 'Horas totales', value: data.totalHours != null ? data.totalHours.toFixed(1) : '—', sub: hoursSub },
           { label: 'Coste personal', value: costeValue, sub: costeSub }
         ];
-        topKpisHtml = '<div class="kpi-grid dashboard-director-kpi-grid">' +
-          kpis.map(function (k) {
-            return '<div class="kpi-card">' +
-              '<div class="label">' + escapeHtml(k.label) + '</div>' +
-              '<div class="value">' + (k.value || '—') + '</div>' +
-              (k.sub || '') +
-              '</div>';
-          }).join('') +
-          '</div>';
+        if (isTriadCurrentWeek) {
+          // Director: un “bento” — facturación como foco + rail compacto (prod / horas / coste)
+          topKpisHtml =
+            '<div class="dashboard-director-kpi-bento">' +
+            '<div class="dashboard-director-kpi-hero">' +
+            '<div class="dashboard-director-kpi-hero-head">' +
+            '<span class="dashboard-director-kpi-hero-eyebrow">Facturación total</span>' +
+            '<div class="dashboard-director-kpi-hero-value">' + (revValue || '—') + '</div>' +
+            '</div>' +
+            '<div class="dashboard-director-kpi-hero-lines">' + pctVsPrev + '</div>' +
+            '</div>' +
+            '<div class="dashboard-director-kpi-rail" role="group" aria-label="Indicadores operativos">' +
+            '<div class="dashboard-director-kpi-stat">' +
+            '<div class="dashboard-director-kpi-stat-label">Productividad</div>' +
+            '<div class="dashboard-director-kpi-stat-value">' + (prodValue || '—') + '</div>' +
+            '<div class="dashboard-director-kpi-stat-sub">' + pctVsPrevProd + '</div>' +
+            '</div>' +
+            '<div class="dashboard-director-kpi-stat">' +
+            '<div class="dashboard-director-kpi-stat-label">Horas</div>' +
+            '<div class="dashboard-director-kpi-stat-value">' + (data.totalHours != null ? data.totalHours.toFixed(1) : '—') + '</div>' +
+            '<div class="dashboard-director-kpi-stat-sub">' + hoursSub + '</div>' +
+            '</div>' +
+            '<div class="dashboard-director-kpi-stat dashboard-director-kpi-stat--coste">' +
+            '<div class="dashboard-director-kpi-stat-label">Coste personal</div>' +
+            '<div class="dashboard-director-kpi-stat-value">' + costeValue + '</div>' +
+            '<div class="dashboard-director-kpi-stat-sub">' + costeSub + '</div>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+        } else {
+          topKpisHtml = '<div class="kpi-grid dashboard-director-kpi-grid">' +
+            kpis.map(function (k) {
+              return '<div class="kpi-card">' +
+                '<div class="label">' + escapeHtml(k.label) + '</div>' +
+                '<div class="value">' + (k.value || '—') + '</div>' +
+                (k.sub || '') +
+                '</div>';
+            }).join('') +
+            '</div>';
+        }
         // BLOQUE ÚNICO: Semana pasada (real) vs semana actual (real) vs semana siguiente (predicción)
         if (triadEl) {
           function fmtEur(n) { return Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
