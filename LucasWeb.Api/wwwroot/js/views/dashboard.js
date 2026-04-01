@@ -304,12 +304,10 @@
           revValue += ' <span class="kpi-card-sub kpi-card-sub--muted">(' + Number(data.totalRevenueManual).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € manual, informativo)</span>';
         }
         var pctVsPrev = '';
-        var pctVsPrevDetail = '';
         var pctVsPrevCard = '';
         if (data.isCurrentWeek && data.days && data.days.length > 0 && data.days.length < 7) {
           var datosLine = '<div class="kpi-card-sub kpi-card-sub--muted">Datos hasta el último día con facturación</div>';
           pctVsPrev += datosLine;
-          pctVsPrevDetail += datosLine;
         }
         if (realForKpiComparisons != null && data.prevWeekRevenue != null && data.prevWeekRevenue > 0) {
           var pct = ((realForKpiComparisons - data.prevWeekRevenue) / data.prevWeekRevenue) * 100;
@@ -340,16 +338,13 @@
           var predLine = '<div class="kpi-card-sub">Predicción' + (data.isCurrentWeek ? ' (semana)' : '') + ': ' + predFormatted + '</div>';
           var semLine = '<div class="kpi-card-sub kpi-card-sub--muted" title="La predicción es de la semana seleccionada arriba. En Estimaciones > Planificación se planifica la semana siguiente.">Semana seleccionada arriba</div>';
           pctVsPrev += predLine + semLine;
-          pctVsPrevDetail += predLine + semLine;
         }
         var prodValue = data.avgProductivity != null ? data.avgProductivity.toFixed(1) + ' €/h' : '—';
         var pctVsPrevProd = '';
-        var pctVsPrevProdDetail = '';
         var pctVsPrevProdCard = '';
         if (data.isCurrentWeek && data.days && data.days.length > 0 && data.days.length < 7) {
           var datosProd = '<div class="kpi-card-sub kpi-card-sub--muted">Datos hasta el último día con facturación</div>';
           pctVsPrevProd += datosProd;
-          pctVsPrevProdDetail += datosProd;
         }
         if (data.avgProductivity != null && data.prevWeekProductivity != null && data.prevWeekProductivity > 0) {
           var pctProd = ((data.avgProductivity - data.prevWeekProductivity) / data.prevWeekProductivity) * 100;
@@ -358,7 +353,6 @@
           else if (pctProd < 0) lineP = '<div class="kpi-card-sub kpi-card-sub--down">' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
           else lineP = '<div class="kpi-card-sub">0% vs sem. ant.</div>';
           pctVsPrevProd += lineP;
-          pctVsPrevProdDetail += lineP;
         }
         // % vs objetivo (productividad)
         var prodObjRaw = data.productividadObjetivo != null ? data.productividadObjetivo : (data.ProductividadObjetivo != null ? data.ProductividadObjetivo : data.productividadIdealEurHora);
@@ -377,7 +371,6 @@
         }
         var costeValue = data.costePersonalEur != null ? data.costePersonalEur.toFixed(0) + ' €' : '—';
         var costeSub = '';
-        var costeDetail = '';
         var costeCard = '';
         if (data.costePersonalPctFacturacion != null) {
           var pctCoste = data.costePersonalPctFacturacion;
@@ -389,12 +382,10 @@
         if (data.costePersonalPctVsHistoric != null) {
           var lineH = '<div class="kpi-card-sub">vs histórico: ' + Number(data.costePersonalPctVsHistoric).toFixed(1) + '%</div>';
           costeSub += lineH;
-          costeDetail += lineH;
         }
         if (data.costePersonalEurFromContrato != null) {
           var lineCt = '<div class="kpi-card-sub">Contrato: ' + Number(data.costePersonalEurFromContrato).toFixed(0) + ' €</div>';
           costeSub += lineCt;
-          costeDetail += lineCt;
         }
         var hoursSub = '';
         if (data.avgHoursHistoric != null) hoursSub = '<div class="kpi-card-sub">Histórico: ' + Number(data.avgHoursHistoric).toFixed(1) + ' h</div>';
@@ -406,7 +397,7 @@
           { label: 'Coste personal', value: costeValue, sub: costeSub }
         ];
         if (isTriadCurrentWeek) {
-          // Director: 4 tarjetas solo con el valor principal; el detalle va a «Comparativa e hipótesis»
+          // Director: 4 tarjetas (valor + badges); comparativa = fila de 5 KPIs
           function directorAccumCard(label, valueHtml, subHtml, cls) {
             var subPart = (subHtml && String(subHtml).replace(/\s/g, '') !== '') ? ('<div class="sub">' + subHtml + '</div>') : '';
             return '<div class="dashboard-compare-kpi' + (cls ? (' ' + cls) : '') + '">' +
@@ -664,36 +655,11 @@
             (currentWeekData && currentWeekData.lastDayWithBilling ? ('<span class="dashboard-triad-chip">Hasta: <strong>' + escapeHtml(dayNameFromDate(currentWeekData.lastDayWithBilling)) + '</strong></span>') : '') +
             (currentWeekData && (currentWeekData.daysFromExcelCount != null || currentWeekData.daysFromManualCount != null) ? ('<span class="dashboard-triad-chip">Calidad: <strong>' + (Number(currentWeekData.daysFromExcelCount || 0)) + '</strong> Excel · <strong>' + (Number(currentWeekData.daysFromManualCount || 0)) + '</strong> manual</span>') : '') +
             '</div>';
-          var directorAccumDetailHtml = '';
-          if (isTriadCurrentWeek) {
-            function dashIfEmpty(html) {
-              if (html && String(html).replace(/\s/g, '') !== '') return html;
-              return '<span class="dashboard-triad-muted">—</span>';
-            }
-            directorAccumDetailHtml =
-              '<div class="dashboard-director-compare-accum">' +
-              '<div class="dashboard-director-compare-accum-head">Detalle de indicadores (acumulado)</div>' +
-              '<div class="dashboard-director-compare-accum-grid">' +
-              '<div class="dashboard-director-compare-accum-col">' +
-              '<span class="dashboard-director-compare-accum-col-label">Facturación</span>' +
-              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(pctVsPrevDetail) + '</div></div>' +
-              '<div class="dashboard-director-compare-accum-col">' +
-              '<span class="dashboard-director-compare-accum-col-label">Productividad</span>' +
-              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(pctVsPrevProdDetail) + '</div></div>' +
-              '<div class="dashboard-director-compare-accum-col">' +
-              '<span class="dashboard-director-compare-accum-col-label">Horas</span>' +
-              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(hoursSub) + '</div></div>' +
-              '<div class="dashboard-director-compare-accum-col">' +
-              '<span class="dashboard-director-compare-accum-col-label">Coste</span>' +
-              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(costeDetail) + '</div></div>' +
-              '</div></div>';
-          }
           var compareBlockHtml = isTriadCurrentWeek
             ? (
               '<section class="dashboard-director-unified-section dashboard-director-unified-section--compare">' +
               '<div class="dashboard-director-unified-section-head">Comparativa e hipótesis de cierre</div>' +
-              '<p class="dashboard-director-unified-hint">Contexto del acumulado · mismos días vs semana pasada · cierre proyectado</p>' +
-              directorAccumDetailHtml +
+              '<p class="dashboard-director-unified-hint">Mismos días vs semana pasada · cierre proyectado a 7 días</p>' +
               '<div class="dashboard-director-unified-five">' + kpiDirectorRow1 + kpiDirectorRow2 + '</div>' +
               '</section>'
             )
