@@ -67,7 +67,7 @@ body { margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 /* Dashboard layout: equilibrio visual (2 columnas) */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+  grid-template-columns: 1fr;
   gap: 1rem;
   align-items: start;
 }

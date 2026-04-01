@@ -86,26 +86,6 @@
       '<div id="dashboard-chart-30d" class="dashboard-chart-30d"><p class="loading">Cargando…</p></div>' +
       '</div>' +
       '</div>' +
-      '<div class="dashboard-col dashboard-col--side">' +
-      '<div class="dashboard-side-stack">' +
-      '<div class="card dashboard-import-card">' +
-      '<h3>Importar datos</h3>' +
-      '<div class="dashboard-import-row">' +
-      '<div class="dashboard-import-item">' +
-      '<label class="dashboard-import-label">Excel (facturación + horas reales por turno). Para varios archivos: mantén Ctrl (Cmd en Mac) y haz clic en cada archivo.</label>' +
-      '<input type="file" id="dashboard-excel-file" accept=".xlsx,.xls" class="dashboard-import-input" multiple="multiple" />' +
-      '<button type="button" id="dashboard-import-excel" class="btn-secondary btn-sm">Cargar Excel (uno o varios)</button>' +
-      '<span id="dashboard-excel-status" class="dashboard-import-status"></span>' +
-      '</div>' +
-      '<div class="dashboard-import-item">' +
-      '<label class="dashboard-import-label">PDF cuadrante (personal y horas programadas por turno)</label>' +
-      '<input type="file" id="dashboard-pdf-file" accept=".pdf,application/pdf" class="dashboard-import-input" />' +
-      '<button type="button" id="dashboard-import-pdf" class="btn-secondary btn-sm">Cargar PDF</button>' +
-      '<span id="dashboard-pdf-status" class="dashboard-import-status"></span>' +
-      '</div>' +
-      '</div>' +
-      '</div>' +
-      '</div>' +
       '</div>' +
       '</div>' +
       '</div>';
@@ -629,19 +609,11 @@
             '<span class="dashboard-action-sep">·</span>' +
             '<a class="dashboard-action-link" href="#estimaciones">Abrir estimaciones</a>' +
             '<span class="dashboard-action-sep">·</span>' +
-            '<button type="button" class="dashboard-action-link dashboard-triad-import-link" data-scroll-target="dashboard-import-card">Importar Excel/PDF</button>' +
+            '<a class="dashboard-action-link" href="#configuracion">Importar Excel/PDF</a>' +
             '</div>' +
             '</div>' +
             '</div>';
 
-          // Acciones: scroll a importar
-          try {
-            var btnImp = triadEl.querySelector('.dashboard-triad-import-link');
-            if (btnImp) btnImp.addEventListener('click', function () {
-              var target = document.querySelector('.dashboard-import-card');
-              if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
-          } catch (e) { }
         }
         if (resumenEl) {
           resumenEl.innerHTML = '<h3>Resumen</h3>' +
@@ -1083,119 +1055,7 @@
       btnNext.disabled = (selInit === currentMonInit);
       btnNext.title = (selInit === currentMonInit) ? 'Semana actual' : 'Semana siguiente';
     }
-    var excelFile = document.getElementById('dashboard-excel-file');
-    var excelStatus = document.getElementById('dashboard-excel-status');
-    var btnImportExcel = document.getElementById('dashboard-import-excel');
-    if (btnImportExcel && excelFile) btnImportExcel.addEventListener('click', function () { excelFile.click(); });
-    if (excelFile) excelFile.addEventListener('change', function () {
-      var files = this.files;
-      if (!files || files.length === 0) return;
-      var ws = (weekInput && weekInput.value) || weekStart;
-      var excelBtn = document.getElementById('dashboard-import-excel');
-      if (excelBtn) excelBtn.disabled = true;
-      var total = files.length;
-      var allErrors = [];
-      var totalCreated = 0;
-      var totalUpdated = 0;
-      var totalShifts = 0;
-      function sendNext(index) {
-        if (index >= total) {
-          var msg = total === 1
-            ? (totalCreated + ' días creados, ' + totalUpdated + ' actualizados, ' + totalShifts + ' turnos.')
-            : (total + ' archivos: ' + totalCreated + ' días creados, ' + totalUpdated + ' actualizados, ' + totalShifts + ' turnos.');
-          if (allErrors.length > 0) {
-            msg += ' Errores: ' + allErrors.slice(0, 5).join('; ');
-            if (allErrors.length > 5) msg += ' (+' + (allErrors.length - 5) + ' más)';
-            excelStatus.className = 'dashboard-import-status error';
-          } else {
-            excelStatus.className = 'dashboard-import-status success';
-          }
-          excelStatus.textContent = msg;
-          if (excelBtn) excelBtn.disabled = false;
-          load();
-          excelFile.value = '';
-          return;
-        }
-        excelStatus.textContent = 'Enviando ' + (index + 1) + '/' + total + '…';
-        excelStatus.className = 'dashboard-import-status';
-        var fd = new FormData();
-        fd.append('file', files[index]);
-        auth.fetchWithAuth('/api/import/excel?weekStart=' + encodeURIComponent(ws), { method: 'POST', body: fd }).then(function (r) {
-          if (r.status === 401) {
-            if (global.LUCAS_APP && global.LUCAS_APP.onUnauthorized) global.LUCAS_APP.onUnauthorized();
-            if (excelStatus) { excelStatus.textContent = 'Sesión expirada.'; excelStatus.className = 'dashboard-import-status error'; }
-            if (excelBtn) excelBtn.disabled = false;
-            excelFile.value = '';
-            return null;
-          }
-          return r.json();
-        }).then(function (data) {
-          if (data === null) return;
-          if (data) {
-            totalCreated += data.days_created || 0;
-            totalUpdated += data.days_updated || 0;
-            totalShifts += data.shifts_updated || 0;
-            if (data.errors && data.errors.length > 0) allErrors.push((files[index].name || '') + ': ' + data.errors.join(', '));
-          }
-          sendNext(index + 1);
-        }).catch(function () {
-          allErrors.push((files[index].name || '') + ': Error al enviar');
-          sendNext(index + 1);
-        });
-      }
-      sendNext(0);
-    });
-    var pdfFile = document.getElementById('dashboard-pdf-file');
-    var pdfStatus = document.getElementById('dashboard-pdf-status');
-    var btnImportPdf = document.getElementById('dashboard-import-pdf');
-    if (btnImportPdf && pdfFile) btnImportPdf.addEventListener('click', function () { pdfFile.click(); });
-    if (pdfFile) pdfFile.addEventListener('change', function () {
-      if (!this.files || this.files.length === 0) return;
-      var ws = (weekInput && weekInput.value) || weekStart;
-      var pdfBtn = document.getElementById('dashboard-import-pdf');
-      if (pdfBtn) pdfBtn.disabled = true;
-      pdfStatus.textContent = 'Enviando…';
-      pdfStatus.className = 'dashboard-import-status';
-      var fileName = this.files[0] && this.files[0].name ? this.files[0].name : '';
-      var fd = new FormData();
-      fd.append('file', this.files[0]);
-      auth.fetchWithAuth('/api/import/cuadrante-pdf?weekStart=' + encodeURIComponent(ws), { method: 'POST', body: fd }).then(function (r) {
-        if (r.status === 401) {
-          if (global.LUCAS_APP && global.LUCAS_APP.onUnauthorized) global.LUCAS_APP.onUnauthorized();
-          pdfStatus.textContent = 'Sesión expirada.';
-          pdfStatus.className = 'dashboard-import-status error';
-          return null;
-        }
-        if (!r.ok) {
-          return r.json().catch(function () { return {}; }).then(function (d) {
-            throw new Error(d.message || ('Error del servidor (' + r.status + ')'));
-          });
-        }
-        return r.json();
-      }).then(function (data) {
-        if (!data) return;
-        var baseMsg = (data.message && data.message.length > 0)
-          ? data.message
-          : ((data.days_created || 0) + ' días creados, ' + (data.days_updated || 0) + ' actualizados, ' + (data.shifts_updated || 0) + ' turnos.');
-        var msg = (fileName ? ('[' + fileName + '] ') : '') + baseMsg;
-        if (data.errors && data.errors.length > 0) {
-          var maxErr = 3;
-          var shown = data.errors.slice(0, maxErr);
-          msg += ' Errores: ' + shown.join(' ');
-          if (data.errors.length > maxErr) msg += ' (+' + (data.errors.length - maxErr) + ' más)';
-        }
-        pdfStatus.textContent = msg;
-        pdfStatus.className = data.errors && data.errors.length > 0 ? 'dashboard-import-status error' : 'dashboard-import-status success';
-        load();
-      }).catch(function (err) {
-        var detail = (err && err.message) ? err.message : '';
-        pdfStatus.textContent = detail ? ('Error al enviar: ' + detail) : 'Error al enviar.';
-        pdfStatus.className = 'dashboard-import-status error';
-      }).finally(function () {
-        if (pdfBtn) pdfBtn.disabled = false;
-      });
-      this.value = '';
-    });
+    // Importación Excel/PDF se gestiona en Configuración.
     load();
   }
   global.LUCAS_DASHBOARD_VIEW = { render: render };
