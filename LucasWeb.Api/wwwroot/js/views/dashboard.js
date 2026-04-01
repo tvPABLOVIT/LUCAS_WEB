@@ -552,7 +552,6 @@
             var predVsPrevFullPct = (prevTotal || 0) > 0 ? (predVsPrevFull / prevTotal) * 100 : null;
 
             kpiDirectorRow1 += kpiCard('Semana pasada (mismos días)', fmtEur(prevSameDaysSum), (sameDaysCount || 0) + '/7 días', 'dashboard-compare-kpi--side');
-            kpiDirectorRow1 += kpiCard('Semana actual (real)', fmtEur(curSameDaysSum), (currentWeekData && currentWeekData.lastDayWithBilling ? ('hasta ' + dayNameFromDate(currentWeekData.lastDayWithBilling)) : ('hasta hoy · ' + (sameDaysCount || 0) + '/7')), 'dashboard-compare-kpi--focus');
             var clsCur = (sameDelta >= 0) ? 'dashboard-compare-kpi--up' : 'dashboard-compare-kpi--down';
             kpiDirectorRow1 += kpiCard('Δ Actual vs pasada', (sameDelta >= 0 ? '+' : '−') + fmtEur(Math.abs(sameDelta)), (samePct != null ? fmtPct(samePct) : '—') + ' · mismos días', clsCur + ' dashboard-compare-kpi--side');
             kpiDirectorRow2 += kpiCard('Predicción cierre (semana actual)', (predTotalCur > 0 ? fmtEur(predTotalCur) : '—'), (predToDate > 0 ? ('restante: ' + fmtEur(remaining)) : '—'), 'dashboard-compare-kpi--forecast');

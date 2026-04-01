@@ -331,11 +331,11 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 }
 .dashboard-director-unified-five {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
 }
 @media (max-width: 1100px) {
-  .dashboard-director-unified-five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dashboard-director-unified-five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
   .dashboard-director-unified-five { grid-template-columns: 1fr; }
