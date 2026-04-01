@@ -394,17 +394,24 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
 .dashboard-director-compare-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.65rem;
   margin-bottom: 0.75rem;
 }
-.dashboard-director-compare-block { min-width: 0; }
-.dashboard-director-section-h {
-  font-size: 0.72rem;
+/* Paneles comparativa director: mismo lenguaje que .dashboard-director-kpi-stat / rail */
+.dashboard-director-compare-panel {
+  min-width: 0;
+  border-radius: var(--radius);
+  border: 1px solid rgba(139, 148, 158, 0.28);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.55rem 0.6rem 0.65rem;
+}
+.dashboard-director-compare-panel-title {
+  font-size: 0.65rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.5rem;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -418,32 +425,82 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   border-radius: 4px;
   font-size: 0.65rem;
   font-weight: 900;
-  background: rgba(66, 165, 245, 0.25);
+  background: rgba(66, 165, 245, 0.28);
   color: var(--text);
+  flex-shrink: 0;
 }
 .dashboard-compare-kpis--director-snapshot {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin-bottom: 0;
 }
 .dashboard-compare-kpis--director-forecast {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin-bottom: 0;
 }
 @media (max-width: 900px) {
   .dashboard-compare-kpis--director-snapshot { grid-template-columns: 1fr; }
   .dashboard-compare-kpis--director-forecast { grid-template-columns: 1fr; }
 }
-.dashboard-week-triad-card .dashboard-compare-kpi--focus {
-  border-color: rgba(66, 165, 245, 0.55);
-  box-shadow: 0 0 0 1px rgba(66, 165, 245, 0.2);
-  background: rgba(66, 165, 245, 0.08);
+.dashboard-compare-kpis--director-snapshot .dashboard-compare-kpi,
+.dashboard-compare-kpis--director-forecast .dashboard-compare-kpi {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+  padding: 0.45rem 0.55rem;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
-.dashboard-compare-kpi--side:not(.dashboard-compare-kpi--up):not(.dashboard-compare-kpi--down) { opacity: 0.92; }
-.dashboard-compare-kpi--forecast .value { font-size: 1.05rem; }
+.dashboard-compare-kpis--director-snapshot .dashboard-compare-kpi .label,
+.dashboard-compare-kpis--director-forecast .dashboard-compare-kpi .label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.12rem;
+  line-height: 1.2;
+}
+.dashboard-compare-kpis--director-snapshot .dashboard-compare-kpi .value,
+.dashboard-compare-kpis--director-forecast .dashboard-compare-kpi .value {
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.dashboard-compare-kpis--director-snapshot .dashboard-compare-kpi .sub,
+.dashboard-compare-kpis--director-forecast .dashboard-compare-kpi .sub {
+  font-size: 0.72rem;
+  margin-top: 0.12rem;
+  line-height: 1.25;
+}
+.dashboard-compare-kpis--director-snapshot .dashboard-compare-kpi:not(.dashboard-compare-kpi--up):not(.dashboard-compare-kpi--down) .sub,
+.dashboard-compare-kpis--director-forecast .dashboard-compare-kpi:not(.dashboard-compare-kpi--up):not(.dashboard-compare-kpi--down) .sub {
+  color: var(--text-muted);
+}
+.dashboard-compare-kpis--director-snapshot .dashboard-compare-kpi--up .sub,
+.dashboard-compare-kpis--director-snapshot .dashboard-compare-kpi--down .sub,
+.dashboard-compare-kpis--director-forecast .dashboard-compare-kpi--up .sub,
+.dashboard-compare-kpis--director-forecast .dashboard-compare-kpi--down .sub {
+  font-weight: 600;
+}
+.dashboard-week-triad-card .dashboard-compare-kpis--director-snapshot .dashboard-compare-kpi--focus,
+.dashboard-week-triad-card .dashboard-compare-kpis--director-forecast .dashboard-compare-kpi--focus {
+  border-color: rgba(66, 165, 245, 0.55);
+  box-shadow: 0 0 0 1px rgba(66, 165, 245, 0.18);
+  background: rgba(66, 165, 245, 0.1);
+}
+.dashboard-compare-kpis--director-snapshot .dashboard-compare-kpi--side:not(.dashboard-compare-kpi--up):not(.dashboard-compare-kpi--down),
+.dashboard-compare-kpis--director-forecast .dashboard-compare-kpi--side:not(.dashboard-compare-kpi--up):not(.dashboard-compare-kpi--down) {
+  opacity: 0.95;
+}
+.dashboard-compare-kpis--director-forecast .dashboard-compare-kpi--forecast .value { font-size: 1.05rem; }
 .dashboard-director-drivers {
   border: 1px solid var(--border);
   border-radius: var(--radius);

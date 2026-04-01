@@ -645,12 +645,14 @@
           var compareBlockHtml = isTriadCurrentWeek
             ? (
               '<div class="dashboard-director-compare-wrap">' +
-              '<div class="dashboard-director-compare-block">' +
-              '<div class="dashboard-director-section-h"><span class="dashboard-director-section-h-num">1</span> A igualdad de días</div>' +
+              '<div class="dashboard-director-compare-panel">' +
+              '<div class="dashboard-director-compare-panel-title">' +
+              '<span class="dashboard-director-section-h-num">1</span> A igualdad de días</div>' +
               '<div class="dashboard-compare-kpis dashboard-compare-kpis--director-snapshot">' + kpiDirectorRow1 + '</div>' +
               '</div>' +
-              '<div class="dashboard-director-compare-block">' +
-              '<div class="dashboard-director-section-h"><span class="dashboard-director-section-h-num">2</span> Proyección de cierre</div>' +
+              '<div class="dashboard-director-compare-panel">' +
+              '<div class="dashboard-director-compare-panel-title">' +
+              '<span class="dashboard-director-section-h-num">2</span> Proyección de cierre</div>' +
               '<div class="dashboard-compare-kpis dashboard-compare-kpis--director-forecast">' + kpiDirectorRow2 + '</div>' +
               '</div>' +
               '</div>'
