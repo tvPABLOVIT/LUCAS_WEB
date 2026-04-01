@@ -490,6 +490,8 @@
           }
 
           var kpiHtml = '';
+          var kpiDirectorRow1 = '';
+          var kpiDirectorRow2 = '';
           if (isTriadCurrentWeek) {
             // Operación semanal: semana pasada (mismos días) vs semana actual (real) vs predicción cierre (misma semana)
             var predTotalCur = curPredTotal || 0;
@@ -505,13 +507,13 @@
             var predVsPrevFull = predTotalCur - (prevTotal || 0);
             var predVsPrevFullPct = (prevTotal || 0) > 0 ? (predVsPrevFull / prevTotal) * 100 : null;
 
-            kpiHtml += kpiCard('Semana pasada (mismos días)', fmtEur(prevSameDaysSum), (sameDaysCount || 0) + '/7 días', '');
-            kpiHtml += kpiCard('Semana actual (real)', fmtEur(curSameDaysSum), (currentWeekData && currentWeekData.lastDayWithBilling ? ('hasta ' + dayNameFromDate(currentWeekData.lastDayWithBilling)) : ('hasta hoy · ' + (sameDaysCount || 0) + '/7')), '');
+            kpiDirectorRow1 += kpiCard('Semana pasada (mismos días)', fmtEur(prevSameDaysSum), (sameDaysCount || 0) + '/7 días', 'dashboard-compare-kpi--side');
+            kpiDirectorRow1 += kpiCard('Semana actual (real)', fmtEur(curSameDaysSum), (currentWeekData && currentWeekData.lastDayWithBilling ? ('hasta ' + dayNameFromDate(currentWeekData.lastDayWithBilling)) : ('hasta hoy · ' + (sameDaysCount || 0) + '/7')), 'dashboard-compare-kpi--focus');
             var clsCur = (sameDelta >= 0) ? 'dashboard-compare-kpi--up' : 'dashboard-compare-kpi--down';
-            kpiHtml += kpiCard('Δ Actual vs pasada', (sameDelta >= 0 ? '+' : '−') + fmtEur(Math.abs(sameDelta)), (samePct != null ? fmtPct(samePct) : '—') + ' · mismos días', clsCur);
-            kpiHtml += kpiCard('Predicción cierre (semana actual)', (predTotalCur > 0 ? fmtEur(predTotalCur) : '—'), (predToDate > 0 ? ('restante: ' + fmtEur(remaining)) : '—'), '');
+            kpiDirectorRow1 += kpiCard('Δ Actual vs pasada', (sameDelta >= 0 ? '+' : '−') + fmtEur(Math.abs(sameDelta)), (samePct != null ? fmtPct(samePct) : '—') + ' · mismos días', clsCur + ' dashboard-compare-kpi--side');
+            kpiDirectorRow2 += kpiCard('Predicción cierre (semana actual)', (predTotalCur > 0 ? fmtEur(predTotalCur) : '—'), (predToDate > 0 ? ('restante: ' + fmtEur(remaining)) : '—'), 'dashboard-compare-kpi--forecast');
             var clsPred = (predVsPrevFull >= 0) ? 'dashboard-compare-kpi--up' : 'dashboard-compare-kpi--down';
-            kpiHtml += kpiCard('Cierre vs pasada (7 días)', (predVsPrevFull >= 0 ? '+' : '−') + fmtEur(Math.abs(predVsPrevFull)), (predVsPrevFullPct != null ? fmtPct(predVsPrevFullPct) : '—'), clsPred);
+            kpiDirectorRow2 += kpiCard('Cierre vs pasada (7 días)', (predVsPrevFull >= 0 ? '+' : '−') + fmtEur(Math.abs(predVsPrevFull)), (predVsPrevFullPct != null ? fmtPct(predVsPrevFullPct) : '—'), clsPred + ' dashboard-compare-kpi--forecast');
           } else {
             // Planificación: pasada vs seleccionada vs siguiente
             kpiHtml += '<div class="dashboard-compare-kpi"><div class="label">Semana pasada (real)</div><div class="value">' + fmtEur(prevTotal) + '</div><div class="sub">7 días</div></div>';
@@ -537,18 +539,24 @@
             }).sort(function (a, b) { return Math.abs(b.delta) - Math.abs(a.delta); }).slice(0, 3);
 
             if (driversCur.length || driversVsPred.length) {
-              driversHtml += '<div class="dashboard-compare-drivers"><div class="dashboard-compare-drivers-title">Qué días están moviendo el resultado</div>';
+              driversHtml += '<div class="dashboard-director-drivers">' +
+                '<div class="dashboard-director-drivers-title">Qué días mueven el resultado</div>' +
+                '<div class="dashboard-director-drivers-cols">';
               if (driversCur.length) {
-                driversHtml += '<div class="dashboard-triad-driver-group"><div class="dashboard-triad-driver-title">Actual vs pasada (mismos días)</div><ul>' +
-                  driversCur.map(function (r) { return '<li>' + escapeHtml(driverLine(r, 'cur')) + '</li>'; }).join('') +
-                  '</ul></div>';
+                driversHtml += '<div class="dashboard-director-driver-col">' +
+                  '<span class="dashboard-director-driver-col-label">vs semana pasada</span>' +
+                  '<div class="dashboard-director-pills">' +
+                  driversCur.map(function (r) { return '<span class="dashboard-director-pill">' + escapeHtml(driverLine(r, 'cur')) + '</span>'; }).join('') +
+                  '</div></div>';
               }
               if (driversVsPred.length) {
-                driversHtml += '<div class="dashboard-triad-driver-group"><div class="dashboard-triad-driver-title">Actual vs predicción (mismos días)</div><ul>' +
-                  driversVsPred.map(function (x) { return '<li>' + escapeHtml(x.day + ': ' + (x.delta >= 0 ? '+' : '−') + fmtEur(Math.abs(x.delta)).replace(' €', '€') + (x.pct != null ? ' (' + fmtPct(x.pct) + ')' : '')) + '</li>'; }).join('') +
-                  '</ul></div>';
+                driversHtml += '<div class="dashboard-director-driver-col">' +
+                  '<span class="dashboard-director-driver-col-label">vs predicción</span>' +
+                  '<div class="dashboard-director-pills">' +
+                  driversVsPred.map(function (x) { return '<span class="dashboard-director-pill">' + escapeHtml(x.day + ': ' + (x.delta >= 0 ? '+' : '−') + fmtEur(Math.abs(x.delta)).replace(' €', '€') + (x.pct != null ? ' (' + fmtPct(x.pct) + ')' : '')) + '</span>'; }).join('') +
+                  '</div></div>';
               }
-              driversHtml += '</div>';
+              driversHtml += '</div></div>';
             }
           } else {
             if (driversCur.length || driversNext.length) {
@@ -598,22 +606,39 @@
               '</tr>';
           }).join('');
 
+          var triadMetaHtml = '<div class="dashboard-triad-meta">' +
+            '<span class="dashboard-triad-chip">Semana: <strong>' + escapeHtml(formatWeekRange(curMonTriad)) + '</strong></span>' +
+            (currentWeekData && currentWeekData.lastDayWithBilling ? ('<span class="dashboard-triad-chip">Hasta: <strong>' + escapeHtml(dayNameFromDate(currentWeekData.lastDayWithBilling)) + '</strong></span>') : '') +
+            (currentWeekData && (currentWeekData.daysFromExcelCount != null || currentWeekData.daysFromManualCount != null) ? ('<span class="dashboard-triad-chip">Calidad: <strong>' + (Number(currentWeekData.daysFromExcelCount || 0)) + '</strong> Excel · <strong>' + (Number(currentWeekData.daysFromManualCount || 0)) + '</strong> manual</span>') : '') +
+            '</div>';
+          var compareBlockHtml = isTriadCurrentWeek
+            ? (
+              '<div class="dashboard-director-compare-wrap">' +
+              '<div class="dashboard-director-compare-block">' +
+              '<div class="dashboard-director-section-h"><span class="dashboard-director-section-h-num">1</span> A igualdad de días</div>' +
+              '<div class="dashboard-compare-kpis dashboard-compare-kpis--director-snapshot">' + kpiDirectorRow1 + '</div>' +
+              '</div>' +
+              '<div class="dashboard-director-compare-block">' +
+              '<div class="dashboard-director-section-h"><span class="dashboard-director-section-h-num">2</span> Proyección de cierre</div>' +
+              '<div class="dashboard-compare-kpis dashboard-compare-kpis--director-forecast">' + kpiDirectorRow2 + '</div>' +
+              '</div>' +
+              '</div>'
+            )
+            : ('<div class="dashboard-compare-kpis">' + kpiHtml + '</div>');
+
           triadEl.innerHTML =
             '<h3 class="dashboard-week-triad-title">' + (isTriadCurrentWeek ? 'Operación semanal (director)' : 'Semana pasada vs actual vs siguiente') + '</h3>' +
-            '<div class="dashboard-week-triad-body">' +
+            '<div class="dashboard-week-triad-body' + (isTriadCurrentWeek ? ' dashboard-week-triad-body--director' : '') + '">' +
             '<p class="dashboard-compare-subtitle">' +
             (isTriadCurrentWeek
               ? 'Lectura ejecutiva de la <strong>semana en curso</strong>: dónde estamos <strong>hoy</strong> vs la semana pasada a esta altura, y qué marca la <strong>predicción de cierre</strong>.'
               : 'Bloque principal de planificación. La <strong>semana actual</strong> suele estar incompleta: por eso la comparación clave es <strong>mismos días</strong> (lo que llevamos hoy vs lo que llevaba la semana pasada a esta altura) y, además, una <strong>proyección de cierre</strong> (run-rate). La semana seleccionada en el selector sigue controlando el resto del Dashboard.'
             ) +
             '</p>' +
-            topKpisHtml +
-            '<div class="dashboard-triad-meta">' +
-            '<span class="dashboard-triad-chip">Semana: <strong>' + escapeHtml(formatWeekRange(curMonTriad)) + '</strong></span>' +
-            (currentWeekData && currentWeekData.lastDayWithBilling ? ('<span class="dashboard-triad-chip">Hasta: <strong>' + escapeHtml(dayNameFromDate(currentWeekData.lastDayWithBilling)) + '</strong></span>') : '') +
-            (currentWeekData && (currentWeekData.daysFromExcelCount != null || currentWeekData.daysFromManualCount != null) ? ('<span class="dashboard-triad-chip">Calidad: <strong>' + (Number(currentWeekData.daysFromExcelCount || 0)) + '</strong> Excel · <strong>' + (Number(currentWeekData.daysFromManualCount || 0)) + '</strong> manual</span>') : '') +
-            '</div>' +
-            '<div class="dashboard-compare-kpis">' + kpiHtml + '</div>' +
+            (isTriadCurrentWeek
+              ? (triadMetaHtml + '<div class="dashboard-director-pane dashboard-director-pane--kpis">' + topKpisHtml + '</div>' + compareBlockHtml)
+              : (topKpisHtml + triadMetaHtml + compareBlockHtml)
+            ) +
             driversHtml +
             '<div class="dashboard-compare-table-wrap">' +
             '<table class="dashboard-compare-table dashboard-triad-table">' +
