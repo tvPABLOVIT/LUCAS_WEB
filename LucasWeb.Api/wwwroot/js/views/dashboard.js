@@ -304,13 +304,21 @@
           revValue += ' <span class="kpi-card-sub kpi-card-sub--muted">(' + Number(data.totalRevenueManual).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € manual, informativo)</span>';
         }
         var pctVsPrev = '';
-        if (data.isCurrentWeek && data.days && data.days.length > 0 && data.days.length < 7)
-          pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted">Datos hasta el último día con facturación</div>';
+        var pctVsPrevDetail = '';
+        var pctVsPrevCard = '';
+        if (data.isCurrentWeek && data.days && data.days.length > 0 && data.days.length < 7) {
+          var datosLine = '<div class="kpi-card-sub kpi-card-sub--muted">Datos hasta el último día con facturación</div>';
+          pctVsPrev += datosLine;
+          pctVsPrevDetail += datosLine;
+        }
         if (realForKpiComparisons != null && data.prevWeekRevenue != null && data.prevWeekRevenue > 0) {
           var pct = ((realForKpiComparisons - data.prevWeekRevenue) / data.prevWeekRevenue) * 100;
-          if (pct > 0) pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--up">+' + pct.toFixed(1) + '% vs sem. ant.</div>';
-          else if (pct < 0) pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--down">' + pct.toFixed(1) + '% vs sem. ant.</div>';
-          else pctVsPrev += '<div class="kpi-card-sub">0% vs sem. ant.</div>';
+          var lineRev = '';
+          if (pct > 0) lineRev = '<div class="kpi-card-sub kpi-card-sub--up">+' + pct.toFixed(1) + '% vs sem. ant.</div>';
+          else if (pct < 0) lineRev = '<div class="kpi-card-sub kpi-card-sub--down">' + pct.toFixed(1) + '% vs sem. ant.</div>';
+          else lineRev = '<div class="kpi-card-sub">0% vs sem. ant.</div>';
+          pctVsPrev += lineRev;
+          pctVsPrevCard += lineRev;
         }
         // % vs objetivo (facturación) — en semana actual usar real ajustado (ajuste configurable en días manual)
         var objRaw = data.facturacionObjetivo != null ? data.facturacionObjetivo : data.FacturacionObjetivo;
@@ -319,24 +327,38 @@
           var pctObj = ((realForKpiComparisons - objNum) / objNum) * 100;
           var objetivoClass = pctObj > 0 ? 'kpi-card-sub--up' : (pctObj < 0 ? 'kpi-card-sub--down' : '');
           var pctObjStr = pctObj > 0 ? ('+' + pctObj.toFixed(1)) : pctObj.toFixed(1);
-          pctVsPrev += '<div class="kpi-card-sub ' + objetivoClass + '">' + pctObjStr + '% vs fact. objetivo</div>';
+          var lineObj = '<div class="kpi-card-sub ' + objetivoClass + '">' + pctObjStr + '% vs fact. objetivo</div>';
+          pctVsPrev += lineObj;
+          pctVsPrevCard += lineObj;
         } else {
-          pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted">vs fact. objetivo: —</div>';
+          var lineObjM = '<div class="kpi-card-sub kpi-card-sub--muted">vs fact. objetivo: —</div>';
+          pctVsPrev += lineObjM;
+          pctVsPrevCard += lineObjM;
         }
         if (predSemanaUnified != null && predSemanaUnified > 0) {
           var predFormatted = Number(predSemanaUnified).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-          pctVsPrev += '<div class="kpi-card-sub">Predicción' + (data.isCurrentWeek ? ' (semana)' : '') + ': ' + predFormatted + '</div>';
-          pctVsPrev += '<div class="kpi-card-sub kpi-card-sub--muted" title="La predicción es de la semana seleccionada arriba. En Estimaciones > Planificación se planifica la semana siguiente.">Semana seleccionada arriba</div>';
+          var predLine = '<div class="kpi-card-sub">Predicción' + (data.isCurrentWeek ? ' (semana)' : '') + ': ' + predFormatted + '</div>';
+          var semLine = '<div class="kpi-card-sub kpi-card-sub--muted" title="La predicción es de la semana seleccionada arriba. En Estimaciones > Planificación se planifica la semana siguiente.">Semana seleccionada arriba</div>';
+          pctVsPrev += predLine + semLine;
+          pctVsPrevDetail += predLine + semLine;
         }
         var prodValue = data.avgProductivity != null ? data.avgProductivity.toFixed(1) + ' €/h' : '—';
         var pctVsPrevProd = '';
-        if (data.isCurrentWeek && data.days && data.days.length > 0 && data.days.length < 7)
-          pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--muted">Datos hasta el último día con facturación</div>';
+        var pctVsPrevProdDetail = '';
+        var pctVsPrevProdCard = '';
+        if (data.isCurrentWeek && data.days && data.days.length > 0 && data.days.length < 7) {
+          var datosProd = '<div class="kpi-card-sub kpi-card-sub--muted">Datos hasta el último día con facturación</div>';
+          pctVsPrevProd += datosProd;
+          pctVsPrevProdDetail += datosProd;
+        }
         if (data.avgProductivity != null && data.prevWeekProductivity != null && data.prevWeekProductivity > 0) {
           var pctProd = ((data.avgProductivity - data.prevWeekProductivity) / data.prevWeekProductivity) * 100;
-          if (pctProd > 0) pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--up">+' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
-          else if (pctProd < 0) pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--down">' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
-          else pctVsPrevProd += '<div class="kpi-card-sub">0% vs sem. ant.</div>';
+          var lineP = '';
+          if (pctProd > 0) lineP = '<div class="kpi-card-sub kpi-card-sub--up">+' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
+          else if (pctProd < 0) lineP = '<div class="kpi-card-sub kpi-card-sub--down">' + pctProd.toFixed(1) + '% vs sem. ant.</div>';
+          else lineP = '<div class="kpi-card-sub">0% vs sem. ant.</div>';
+          pctVsPrevProd += lineP;
+          pctVsPrevProdDetail += lineP;
         }
         // % vs objetivo (productividad)
         var prodObjRaw = data.productividadObjetivo != null ? data.productividadObjetivo : (data.ProductividadObjetivo != null ? data.ProductividadObjetivo : data.productividadIdealEurHora);
@@ -345,22 +367,34 @@
           var pctProdObj = ((data.avgProductivity - prodObjNum) / prodObjNum) * 100;
           var prodObjClass = pctProdObj > 0 ? 'kpi-card-sub--up' : (pctProdObj < 0 ? 'kpi-card-sub--down' : '');
           var pctProdObjStr = pctProdObj > 0 ? ('+' + pctProdObj.toFixed(1)) : pctProdObj.toFixed(1);
-          pctVsPrevProd += '<div class="kpi-card-sub ' + prodObjClass + '">' + pctProdObjStr + '% vs prod. objetivo</div>';
+          var linePO = '<div class="kpi-card-sub ' + prodObjClass + '">' + pctProdObjStr + '% vs prod. objetivo</div>';
+          pctVsPrevProd += linePO;
+          pctVsPrevProdCard += linePO;
         } else {
-          pctVsPrevProd += '<div class="kpi-card-sub kpi-card-sub--muted">vs prod. objetivo: —</div>';
+          var linePOM = '<div class="kpi-card-sub kpi-card-sub--muted">vs prod. objetivo: —</div>';
+          pctVsPrevProd += linePOM;
+          pctVsPrevProdCard += linePOM;
         }
         var costeValue = data.costePersonalEur != null ? data.costePersonalEur.toFixed(0) + ' €' : '—';
         var costeSub = '';
+        var costeDetail = '';
+        var costeCard = '';
         if (data.costePersonalPctFacturacion != null) {
           var pctCoste = data.costePersonalPctFacturacion;
           var costeClass = pctCoste < 30 ? 'kpi-card-sub--coste-bueno' : (pctCoste <= 35 ? 'kpi-card-sub--coste-asumible' : 'kpi-card-sub--coste-alto');
-          costeSub = '<div class="kpi-card-sub ' + costeClass + '">' + pctCoste.toFixed(1) + '% vs facturación</div>';
+          var lineCf = '<div class="kpi-card-sub ' + costeClass + '">' + pctCoste.toFixed(1) + '% vs facturación</div>';
+          costeCard = lineCf;
+          costeSub = lineCf;
         }
         if (data.costePersonalPctVsHistoric != null) {
-          costeSub += '<div class="kpi-card-sub">vs histórico: ' + Number(data.costePersonalPctVsHistoric).toFixed(1) + '%</div>';
+          var lineH = '<div class="kpi-card-sub">vs histórico: ' + Number(data.costePersonalPctVsHistoric).toFixed(1) + '%</div>';
+          costeSub += lineH;
+          costeDetail += lineH;
         }
         if (data.costePersonalEurFromContrato != null) {
-          costeSub += '<div class="kpi-card-sub">Contrato: ' + Number(data.costePersonalEurFromContrato).toFixed(0) + ' €</div>';
+          var lineCt = '<div class="kpi-card-sub">Contrato: ' + Number(data.costePersonalEurFromContrato).toFixed(0) + ' €</div>';
+          costeSub += lineCt;
+          costeDetail += lineCt;
         }
         var hoursSub = '';
         if (data.avgHoursHistoric != null) hoursSub = '<div class="kpi-card-sub">Histórico: ' + Number(data.avgHoursHistoric).toFixed(1) + ' h</div>';
@@ -383,10 +417,10 @@
           }
           topKpisHtml =
             '<div class="dashboard-director-unified-four" role="group" aria-label="Acumulado semana en curso">' +
-            directorAccumCard('Facturación total', revValue || '—', '', 'dashboard-director-accum-plain') +
-            directorAccumCard('Productividad media', prodValue || '—', '', '') +
+            directorAccumCard('Facturación total', revValue || '—', pctVsPrevCard, 'dashboard-director-accum-badges') +
+            directorAccumCard('Productividad media', prodValue || '—', pctVsPrevProdCard, 'dashboard-director-accum-badges') +
             directorAccumCard('Horas totales', (data.totalHours != null ? data.totalHours.toFixed(1) : '—'), '', '') +
-            directorAccumCard('Coste personal', costeValue || '—', '', 'dashboard-compare-kpi--coste') +
+            directorAccumCard('Coste personal', costeValue || '—', costeCard, 'dashboard-compare-kpi--coste dashboard-director-accum-badges') +
             '</div>';
         } else {
           topKpisHtml = '<div class="kpi-grid dashboard-director-kpi-grid">' +
@@ -642,16 +676,16 @@
               '<div class="dashboard-director-compare-accum-grid">' +
               '<div class="dashboard-director-compare-accum-col">' +
               '<span class="dashboard-director-compare-accum-col-label">Facturación</span>' +
-              '<div class="dashboard-director-compare-accum-lines dashboard-director-compare-accum-lines--wrap">' + dashIfEmpty(pctVsPrev) + '</div></div>' +
+              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(pctVsPrevDetail) + '</div></div>' +
               '<div class="dashboard-director-compare-accum-col">' +
               '<span class="dashboard-director-compare-accum-col-label">Productividad</span>' +
-              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(pctVsPrevProd) + '</div></div>' +
+              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(pctVsPrevProdDetail) + '</div></div>' +
               '<div class="dashboard-director-compare-accum-col">' +
               '<span class="dashboard-director-compare-accum-col-label">Horas</span>' +
               '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(hoursSub) + '</div></div>' +
               '<div class="dashboard-director-compare-accum-col">' +
               '<span class="dashboard-director-compare-accum-col-label">Coste</span>' +
-              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(costeSub) + '</div></div>' +
+              '<div class="dashboard-director-compare-accum-lines">' + dashIfEmpty(costeDetail) + '</div></div>' +
               '</div></div>';
           }
           var compareBlockHtml = isTriadCurrentWeek

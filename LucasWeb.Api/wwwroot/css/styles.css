@@ -381,6 +381,26 @@ button.dashboard-action-link { border: none; background: none; cursor: pointer; 
   gap: 0.2rem;
   align-items: flex-start;
 }
+/* Badges % vs sem. ant. / objetivo / facturación de vuelta en las tarjetas superiores */
+.dashboard-director-unified-four .dashboard-director-accum-badges .sub {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+.dashboard-director-unified-four .dashboard-director-accum-badges .sub .kpi-card-sub {
+  margin-top: 0;
+  padding: 0.22rem 0.42rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  border: 1px solid rgba(139, 148, 158, 0.28);
+  background: rgba(0, 0, 0, 0.25);
+}
+.dashboard-director-unified-four .dashboard-director-accum-badges .sub .kpi-card-sub--muted {
+  border-style: dashed;
+  opacity: 0.95;
+}
 .dashboard-director-unified-four .dashboard-compare-kpi--coste {
   border-color: rgba(212, 160, 23, 0.35);
   background: rgba(212, 160, 23, 0.07);
